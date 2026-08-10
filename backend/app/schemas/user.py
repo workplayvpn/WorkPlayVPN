@@ -21,6 +21,7 @@ class UserRead(BaseModel):
     username: str | None
     first_name: str | None
     is_active: bool
+    extra_device_slots: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
