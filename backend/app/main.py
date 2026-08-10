@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 from app.api.users import router as users_router
 from app.api.catalog import router as catalog_router
+from app.api.subscriptions import router as subscriptions_router
 
 from app.db.session import engine
 
@@ -12,6 +13,9 @@ app = FastAPI(
 )
 
 app.include_router(catalog_router)
+app.include_router(users_router)
+app.include_router(catalog_router)
+app.include_router(subscriptions_router)
 app.include_router(users_router)
 
 
