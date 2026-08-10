@@ -45,6 +45,12 @@ class Plan(Base):
         String(3),
         nullable=False,
     )
+    device_limit: Mapped[int] = mapped_column(
+        Integer,
+        default=3,
+        server_default="3",
+        nullable=False,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
