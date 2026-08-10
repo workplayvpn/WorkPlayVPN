@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
+from app.api.users import router as users_router
 
 from app.db.session import engine
 
@@ -8,6 +9,8 @@ app = FastAPI(
     title="Work&PlayVPN API",
     version="0.1.0",
 )
+
+app.include_router(users_router)
 
 
 @app.get("/")
