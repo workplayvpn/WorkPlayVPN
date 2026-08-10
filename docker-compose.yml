@@ -30,6 +30,20 @@ services:
       database:
         condition: service_healthy
     restart: unless-stopped
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
+    container_name: workplayvpn-bot
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      BACKEND_URL: ${BACKEND_URL}
+    volumes:
+      - ./bot:/app
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   postgres_data:
