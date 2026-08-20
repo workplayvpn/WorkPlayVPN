@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work&PlayVPN — Подключение устройства</title>
+</head>
+<body>
+    <main>
+        <h1>Work&PlayVPN</h1>
+
+        <div id="activation">
+            <h2>Подключение устройства</h2>
+
+            <p id="device-info">
+                Определяем устройство...
+            </p>
+
+            <button id="activate-button">
+                Подключить это устройство
+            </button>
+        </div>
+
+        <div id="result" hidden>
+            <h2>✅ Устройство подключено</h2>
+
+            <p id="result-device"></p>
+            <p id="result-location"></p>
+
+            <p>
+                Скопируйте конфигурацию и импортируйте
+                её в VPN-приложение:
+            </p>
+
+            <textarea
+                id="vless-url"
+                rows="6"
+                readonly
+            ></textarea>
+
+            <br>
+
+            <button id="copy-button">
+                📋 Скопировать конфигурацию
+            </button>
+        </div>
+
+        <div id="error-block" hidden>
+            <h2 id="error-title">
+                Не удалось подключить устройство
+            </h2>
+
+            <p id="error-text"></p>
+        </div>
+    </main>
+
+    <script>
+        const token = "{{ token }}";
+
+        function detectPlatform() {
+            const ua = navigator.userAgent || "";
+            const platform = navigator.platform || "";
+
+            let deviceName = "Устройство";
+            let detectedPlatform = "Unknown";
+
+            if (/iPhone/i.test(ua)) {
+                deviceName = "iPhone";
+                detectedPlatform = "iOS";
+            } else if (/iPad/i.test(ua)) {
+                deviceName = "iPad";
+                detectedPlatform = "iPadOS";
+            } else if (
+                /Macintosh/i.test(ua) &&
+                navigator.maxTouchPoints > 1
+            ) {
+                deviceName = "iPad";
+                detectedPlatform = "iPadOS";
+            } else if (/Android/i.test(ua)) {
+                deviceName = "Android";
+                detectedPlatform = "Android";
+            } else if (/Windows/i.test(ua)) {
+                deviceName = "Windows PC";
+                detectedPlatform = "Windows";
+            } else if (/Macintosh|Mac OS X/i.test(ua)) {
+                deviceName = "Mac";
+                detectedPlatform = "macOS";
+            } else if (/Linux/i.test(platform)) {
+                deviceName = "Linux PC";
+                detectedPlatform = "Linux";
+            }
+
+            return {
+                deviceName,
+                platform: detectedPlatform,
+            };
+        }
+
+        function getFriendlyError(detail) {
+            const errors = {
+                "Activation already used": {
+                    title: "🔒 Ссылка уже использована",
+                    text:
+                        "Это устройство уже было активировано "
+                        + "по данной ссылке. Создайте новую ссылку "
+                        + "подключения в Telegram-боте.",
+                },
+
+                "Activation expired": {
+                    title: "⌛ Ссылка устарела",
+                    text:
+                        "Срок действия ссылки подключения истёк. "
+                        + "Вернитесь в Telegram-бот и создайте "
+                        + "новую ссылку.",
+                },
+
+                "Activation not found": {
+                    title: "🔗 Ссылка недействительна",
+                    text:
+                        "Эта ссылка подключения не найдена. "
+                        + "Получите новую ссылку в Telegram-боте.",
+                },
+
+                "Device limit reached": {
+                    title: "📱 Достигнут лимит устройств",
+                    text:
+                        "Все доступные слоты вашей подписки "
+                        + "уже заняты. Отключите ненужное "
+                        + "устройство или добавьте новый слот.",
+                },
+
+                "Active subscription required": {
+                    title: "💳 Нужна активная подписка",
+                    text:
+                        "Для подключения устройства необходима "
+                        + "активная подписка Work&PlayVPN.",
+                },
+
+                "Subscription expired": {
+                    title: "⌛ Подписка закончилась",
+                    text:
+                        "Продлите подписку Work&PlayVPN, "
+                        + "чтобы подключить устройство.",
+                },
+
+                "VPN node unavailable": {
+                    title: "🛠 Сервер временно недоступен",
+                    text:
+                        "Не удалось подключиться к VPN-серверу. "
+                        + "Попробуйте немного позже.",
+                },
+            };
+
+            return (
+                errors[detail] || {
+                    title: "⚠️ Не удалось подключить устройство",
+                    text:
+                        "Произошла ошибка. Попробуйте ещё раз "
+                        + "или создайте новую ссылку подключения.",
+                }
+            );
+        }
+
+        const device = detectPlatform();
+
+        document.getElementById(
+            "device-info"
+        ).textContent =
+            `Устройство: ${device.deviceName} · ${device.platform}`;
+
+        const activation =
+            document.getElementById("activation");
+
+        const activateButton =
+            document.getElementById("activate-button");
+
+        const result =
+            document.getElementById("result");
+
+        const errorBlock =
+            document.getElementById("error-block");
+
+        activateButton.addEventListener(
+            "click",
+            async () => {
+                activateButton.disabled = true;
+                activateButton.textContent = "Подключаем...";
+
+                try {
+                    const response = await fetch(
+                        `/device-activations/${token}/complete`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                device_name: device.deviceName,
+                                platform: device.platform,
+                            }),
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        const friendly =
+                            getFriendlyError(data.detail);
+
+                        activation.hidden = true;
+
+                        document.getElementById(
+                            "error-title"
+                        ).textContent = friendly.title;
+
+                        document.getElementById(
+                            "error-text"
+                        ).textContent = friendly.text;
+
+                        errorBlock.hidden = false;
+                        return;
+                    }
+
+                    document.getElementById(
+                        "result-device"
+                    ).textContent =
+                        `Устройство: ${data.device_name} · ${data.platform ?? ""}`;
+
+                    document.getElementById(
+                        "result-location"
+                    ).textContent =
+                        `Сервер: ${data.node_name}`;
+
+                    document.getElementById(
+                        "vless-url"
+                    ).value = data.vless_url;
+
+                    activation.hidden = true;
+                    result.hidden = false;
+
+                } catch (error) {
+                    activation.hidden = true;
+
+                    document.getElementById(
+                        "error-title"
+                    ).textContent =
+                        "🌐 Нет соединения";
+
+                    document.getElementById(
+                        "error-text"
+                    ).textContent =
+                        "Не удалось связаться с Work&PlayVPN. "
+                        + "Проверьте интернет-соединение "
+                        + "и попробуйте снова.";
+
+                    errorBlock.hidden = false;
+                }
+            }
+        );
+
+        document.getElementById(
+            "copy-button"
+        ).addEventListener(
+            "click",
+            async () => {
+                const url =
+                    document.getElementById(
+                        "vless-url"
+                    ).value;
+
+                try {
+                    await navigator.clipboard.writeText(url);
+
+                    document.getElementById(
+                        "copy-button"
+                    ).textContent =
+                        "✅ Скопировано";
+                } catch (error) {
+                    const textarea =
+                        document.getElementById("vless-url");
+
+                    textarea.select();
+                    textarea.setSelectionRange(
+                        0,
+                        99999
+                    );
+                }
+            }
+        );
+    </script>
+</body>
+</html>

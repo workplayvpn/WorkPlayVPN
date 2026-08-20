@@ -1,10 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
-from app.api.users import router as users_router
-from app.api.catalog import router as catalog_router
-from app.api.subscriptions import router as subscriptions_router
 
+from app.api.catalog import router as catalog_router
+from app.api.devices import router as devices_router
+from app.api.subscriptions import router as subscriptions_router
+from app.api.users import router as users_router
 from app.db.session import engine
+from app.api.device_activations import router as device_activations_router
+from app.api.activation_page import router as activation_page_router
+from app.api.subscription_tokens import router as subscription_tokens_router
+from app.api.subscription_feed import router as subscription_feed_router
 
 
 app = FastAPI(
@@ -14,9 +19,12 @@ app = FastAPI(
 
 app.include_router(catalog_router)
 app.include_router(users_router)
-app.include_router(catalog_router)
 app.include_router(subscriptions_router)
-app.include_router(users_router)
+app.include_router(devices_router)
+app.include_router(device_activations_router)
+app.include_router(activation_page_router)
+app.include_router(subscription_tokens_router)
+app.include_router(subscription_feed_router)
 
 
 @app.get("/")

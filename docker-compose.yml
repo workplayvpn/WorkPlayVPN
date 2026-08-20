@@ -20,15 +20,34 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: workplayvpn-backend
+
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+      VPN_NODE_NAME: ${VPN_NODE_NAME}
+      VPN_NODE_HOST: ${VPN_NODE_HOST}
+      VPN_NODE_SSH_PORT: ${VPN_NODE_SSH_PORT}
+      VPN_NODE_SSH_USER: ${VPN_NODE_SSH_USER}
+      VPN_NODE_SSH_KEY_PATH: ${VPN_NODE_SSH_KEY_PATH}
+      VPN_REALITY_PUBLIC_KEY: ${VPN_REALITY_PUBLIC_KEY}
+      VPN_REALITY_SNI: ${VPN_REALITY_SNI}
+      VPN_REALITY_SHORT_ID: ${VPN_REALITY_SHORT_ID}
+      VPN_REALITY_FINGERPRINT: ${VPN_REALITY_FINGERPRINT}
+      VPN_REALITY_PORT: ${VPN_REALITY_PORT}
+
     volumes:
       - ./backend:/app
+      - type: bind
+        source: ${USERPROFILE}/.ssh/workplayvpn_backend
+        target: /run/secrets/workplayvpn_backend
+        read_only: true
+
     ports:
       - "8000:8000"
+
     depends_on:
       database:
         condition: service_healthy
+
     restart: unless-stopped
   bot:
     build:
