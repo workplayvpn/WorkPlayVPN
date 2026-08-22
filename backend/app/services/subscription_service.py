@@ -1,10 +1,10 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.plan import Plan  # noqa: F401
+from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
@@ -130,11 +130,175 @@ class SubscriptionService:
 
         return subscription
 
+    def activate_subscription(
+        self,
+        database: Session,
+        subscription: Subscription,
+    ) -> Subscription:
+        # Повторное подтверждение уже активированной покупки
+        # ничего дополнительно не начисляет.
+        if subscription.status == "applied":
+            current_subscription = (
+                self.get_active_subscription(
+                    database=database,
+                    user_id=subscription.user_id,
+                )
+            )
+
+            if current_subscription is not None:
+                return current_subscription
+
+            return subscription
+
+        if subscription.status == "active":
+            return subscription
+
+        if subscription.status != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Subscription cannot be activated",
+            )
+
+        # Блокируем конкретного пользователя.
+        # Два одновременных платёжных webhook одного
+        # пользователя не смогут продлить подписку параллельно.
+        user = database.scalar(
+            select(User)
+            .where(
+                User.id == subscription.user_id,
+            )
+            .with_for_update()
+        )
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        plan = database.get(
+            Plan,
+            subscription.plan_id,
+        )
+
+        if plan is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Subscription plan not found",
+            )
+
+        now = datetime.now(UTC)
+
+        current_subscription = database.scalar(
+            select(Subscription)
+            .where(
+                Subscription.user_id == user.id,
+                Subscription.status == "active",
+                Subscription.id != subscription.id,
+            )
+            .order_by(
+                Subscription.created_at.desc()
+            )
+        )
+
+        # -------------------------------------------------
+        # СЦЕНАРИЙ 1:
+        # У пользователя уже есть действующая подписка.
+        # Просто добавляем купленный срок.
+        # -------------------------------------------------
+
+        if current_subscription is not None:
+            if (
+                current_subscription.expires_at is not None
+                and current_subscription.expires_at > now
+            ):
+                extension_start = (
+                    current_subscription.expires_at
+                )
+            else:
+                extension_start = now
+
+            extension_end = (
+                extension_start
+                + timedelta(
+                    days=plan.duration_days
+                )
+            )
+
+            current_subscription.expires_at = (
+                extension_end
+            )
+
+            # Показываем последний купленный тариф.
+            current_subscription.plan_id = plan.id
+
+            subscription.status = "applied"
+            subscription.starts_at = extension_start
+            subscription.expires_at = extension_end
+
+            try:
+                database.commit()
+                database.refresh(
+                    current_subscription
+                )
+            except Exception:
+                database.rollback()
+                raise
+
+            return current_subscription
+
+        # -------------------------------------------------
+        # СЦЕНАРИЙ 2:
+        # Активной подписки нет.
+        # Возвращаем существующие устройства в Xray
+        # с теми же UUID и активируем покупку.
+        # -------------------------------------------------
+
+        restored_devices = (
+            self.restore_user_access(
+                database=database,
+                user_id=user.id,
+            )
+        )
+
+        subscription.status = "active"
+        subscription.starts_at = now
+        subscription.expires_at = (
+            now
+            + timedelta(
+                days=plan.duration_days
+            )
+        )
+
+        try:
+            database.commit()
+            database.refresh(subscription)
+
+        except Exception:
+            database.rollback()
+
+            # Если PostgreSQL не смог сохранить ACTIVE,
+            # возвращаем Xray в исходное состояние.
+            for restored_device, restored_node in reversed(
+                restored_devices
+            ):
+                try:
+                    xray_node_service.remove_user(
+                        node=restored_node,
+                        email=restored_device.xray_email,
+                    )
+                except Exception:
+                    pass
+
+            raise
+
+        return subscription
+
     def restore_user_access(
         self,
         database: Session,
         user_id: int,
-    ) -> None:
+    ) -> list[tuple[VpnDevice, VpnNode]]:
         user = database.get(
             User,
             user_id,
@@ -207,6 +371,8 @@ class SubscriptionService:
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="VPN node unavailable",
             ) from exc
+
+        return restored_devices
 
 
 subscription_service = SubscriptionService()
