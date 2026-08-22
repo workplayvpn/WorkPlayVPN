@@ -122,6 +122,60 @@ services:
 
     restart: unless-stopped
 
+  tests:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DEV: "true"
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+
+      VPN_NODE_NAME: ${VPN_NODE_NAME}
+      VPN_NODE_HOST: ${VPN_NODE_HOST}
+      VPN_NODE_SSH_PORT: ${VPN_NODE_SSH_PORT}
+      VPN_NODE_SSH_USER: ${VPN_NODE_SSH_USER}
+      VPN_NODE_SSH_KEY_PATH: ${VPN_NODE_SSH_KEY_PATH}
+
+      VPN_REALITY_PUBLIC_KEY: ${VPN_REALITY_PUBLIC_KEY}
+      VPN_REALITY_SNI: ${VPN_REALITY_SNI}
+      VPN_REALITY_SHORT_ID: ${VPN_REALITY_SHORT_ID}
+      VPN_REALITY_FINGERPRINT: ${VPN_REALITY_FINGERPRINT}
+      VPN_REALITY_PORT: ${VPN_REALITY_PORT}
+
+      PAYMENT_DEFAULT_PROVIDER: ${PAYMENT_DEFAULT_PROVIDER}
+      PAYMENT_MODE: ${PAYMENT_MODE}
+      PAYMENT_SUCCESS_URL: ${PAYMENT_SUCCESS_URL}
+      PAYMENT_FAIL_URL: ${PAYMENT_FAIL_URL}
+      PAYMENT_WEBHOOK_BASE_URL: ${PAYMENT_WEBHOOK_BASE_URL}
+
+      CLOUDPAYMENTS_PUBLIC_ID: ${CLOUDPAYMENTS_PUBLIC_ID}
+      CLOUDPAYMENTS_API_SECRET: ${CLOUDPAYMENTS_API_SECRET}
+
+      ROBOKASSA_MERCHANT_LOGIN: ${ROBOKASSA_MERCHANT_LOGIN}
+      ROBOKASSA_PASSWORD_1: ${ROBOKASSA_PASSWORD_1}
+      ROBOKASSA_PASSWORD_2: ${ROBOKASSA_PASSWORD_2}
+      ROBOKASSA_HASH_ALGORITHM: ${ROBOKASSA_HASH_ALGORITHM}
+      ROBOKASSA_IS_TEST: ${ROBOKASSA_IS_TEST}
+
+    volumes:
+      - ./backend:/app
+
+    depends_on:
+      database:
+        condition: service_healthy
+
+    command:
+      [
+        "pytest",
+        "-q",
+        "tests"
+      ]
+
+    profiles:
+      - testing
+
   bot:
     build:
       context: ./bot
