@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
+from app.models.vpn_node_profile import VpnNodeProfile
 
 
 class ClientProfile(ABC):
@@ -11,5 +12,6 @@ class ClientProfile(ABC):
         self,
         device: VpnDevice,
         nodes: list[VpnNode],
+        profiles: list[VpnNodeProfile],
     ) -> list[str]:
         pass

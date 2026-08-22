@@ -1,5 +1,6 @@
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
+from app.models.vpn_node_profile import VpnNodeProfile
 from app.services.xray_node import xray_node_service
 
 from .base import ClientProfile
@@ -11,8 +12,8 @@ class HappProfile(ClientProfile):
         self,
         device: VpnDevice,
         nodes: list[VpnNode],
+        profiles: list[VpnNodeProfile],
     ) -> list[str]:
-
         links: list[str] = []
 
         seen_node_ids: set[int] = set()

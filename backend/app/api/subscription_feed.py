@@ -8,11 +8,14 @@ from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
+from app.services.subscription_builder import (
+    subscription_builder,
+)
 from app.services.subscription_token_service import (
     subscription_token_service,
 )
-from app.services.subscription_builder import (
-    subscription_builder,
+from app.services.vpn_node_profile_service import (
+    vpn_node_profile_service,
 )
 
 
@@ -77,7 +80,9 @@ def get_subscription_feed(
             Subscription.user_id == user.id,
             Subscription.status == "active",
         )
-        .order_by(Subscription.created_at.desc())
+        .order_by(
+            Subscription.created_at.desc()
+        )
     )
 
     if subscription is None:
@@ -93,7 +98,9 @@ def get_subscription_feed(
             VpnDevice.user_id == user.id,
             VpnDevice.is_active.is_(True),
         )
-        .order_by(VpnDevice.id.asc())
+        .order_by(
+            VpnDevice.id.asc()
+        )
     ).all()
 
     if not devices:
@@ -102,8 +109,9 @@ def get_subscription_feed(
             media_type="text/plain",
         )
 
-    # Пока используем UUID первого активного устройства.
-    # Позже subscription credentials вынесем отдельно.
+    # Временная архитектура:
+    # берём credential первого активного устройства.
+    # Позже вынесем subscription credentials отдельно.
     source_device = devices[0]
 
     node_ids = {
@@ -117,14 +125,39 @@ def get_subscription_feed(
             VpnNode.id.in_(node_ids),
             VpnNode.is_active.is_(True),
         )
-        .order_by(VpnNode.id.asc())
+        .order_by(
+            VpnNode.id.asc()
+        )
     ).all()
 
+    profiles = (
+        vpn_node_profile_service.get_active_profiles_for_nodes(
+            database=database,
+            node_ids=node_ids,
+        )
+    )
+
+    print(
+        "NODE_PROFILES",
+        [
+            {
+                "code": profile.code,
+                "protocol": profile.protocol,
+                "network": profile.network,
+                "security": profile.security,
+                "port": profile.port,
+            }
+            for profile in profiles
+        ],
+        flush=True,
+    )
+
     links = subscription_builder.build(
-    client=client,
-    device=source_device,
-    nodes=nodes,
-)
+        client=client,
+        device=source_device,
+        nodes=nodes,
+        profiles=profiles,
+    )
 
     payload = "\n".join(links)
 
