@@ -176,6 +176,42 @@ class SubscriptionService:
                 detail="User not found",
             )
 
+        subscription = database.scalar(
+            select(Subscription)
+            .where(
+                Subscription.id == subscription.id,
+            )
+            .with_for_update()
+        )
+
+        if subscription is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Subscription not found",
+            )
+
+        if subscription.status == "applied":
+            current_subscription = (
+                self.get_active_subscription(
+                    database=database,
+                    user_id=user.id,
+                )
+            )
+
+            if current_subscription is not None:
+                return current_subscription
+
+            return subscription
+
+        if subscription.status == "active":
+            return subscription
+
+        if subscription.status != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Subscription cannot be activated",
+            )
+
         plan = database.get(
             Plan,
             subscription.plan_id,

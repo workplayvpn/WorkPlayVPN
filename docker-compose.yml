@@ -122,6 +122,31 @@ services:
 
     restart: unless-stopped
 
+  test-database:
+    image: postgres:17-alpine
+    container_name: workplayvpn-test-database
+
+    environment:
+      POSTGRES_DB: workplayvpn_test
+      POSTGRES_USER: workplayvpn_test
+      POSTGRES_PASSWORD: workplayvpn_test
+
+    tmpfs:
+      - /var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U workplayvpn_test -d workplayvpn_test"
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+    profiles:
+      - testing
+
   tests:
     build:
       context: ./backend
@@ -130,47 +155,47 @@ services:
         INSTALL_DEV: "true"
 
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql+psycopg://workplayvpn_test:workplayvpn_test@test-database:5432/workplayvpn_test
 
-      VPN_NODE_NAME: ${VPN_NODE_NAME}
-      VPN_NODE_HOST: ${VPN_NODE_HOST}
-      VPN_NODE_SSH_PORT: ${VPN_NODE_SSH_PORT}
-      VPN_NODE_SSH_USER: ${VPN_NODE_SSH_USER}
-      VPN_NODE_SSH_KEY_PATH: ${VPN_NODE_SSH_KEY_PATH}
+      VPN_NODE_NAME: WorkPlayVPN-Test
+      VPN_NODE_HOST: 127.0.0.1
+      VPN_NODE_SSH_PORT: "22"
+      VPN_NODE_SSH_USER: test
+      VPN_NODE_SSH_KEY_PATH: /tmp/test-key
 
-      VPN_REALITY_PUBLIC_KEY: ${VPN_REALITY_PUBLIC_KEY}
-      VPN_REALITY_SNI: ${VPN_REALITY_SNI}
-      VPN_REALITY_SHORT_ID: ${VPN_REALITY_SHORT_ID}
-      VPN_REALITY_FINGERPRINT: ${VPN_REALITY_FINGERPRINT}
-      VPN_REALITY_PORT: ${VPN_REALITY_PORT}
+      VPN_REALITY_PUBLIC_KEY: test-public-key
+      VPN_REALITY_SNI: example.com
+      VPN_REALITY_SHORT_ID: 0000000000000000
+      VPN_REALITY_FINGERPRINT: chrome
+      VPN_REALITY_PORT: "443"
 
-      PAYMENT_DEFAULT_PROVIDER: ${PAYMENT_DEFAULT_PROVIDER}
-      PAYMENT_MODE: ${PAYMENT_MODE}
-      PAYMENT_SUCCESS_URL: ${PAYMENT_SUCCESS_URL}
-      PAYMENT_FAIL_URL: ${PAYMENT_FAIL_URL}
-      PAYMENT_WEBHOOK_BASE_URL: ${PAYMENT_WEBHOOK_BASE_URL}
+      PAYMENT_DEFAULT_PROVIDER: test
+      PAYMENT_MODE: test
+      PAYMENT_SUCCESS_URL: ""
+      PAYMENT_FAIL_URL: ""
+      PAYMENT_WEBHOOK_BASE_URL: ""
 
-      CLOUDPAYMENTS_PUBLIC_ID: ${CLOUDPAYMENTS_PUBLIC_ID}
-      CLOUDPAYMENTS_API_SECRET: ${CLOUDPAYMENTS_API_SECRET}
+      CLOUDPAYMENTS_PUBLIC_ID: ""
+      CLOUDPAYMENTS_API_SECRET: ""
 
-      ROBOKASSA_MERCHANT_LOGIN: ${ROBOKASSA_MERCHANT_LOGIN}
-      ROBOKASSA_PASSWORD_1: ${ROBOKASSA_PASSWORD_1}
-      ROBOKASSA_PASSWORD_2: ${ROBOKASSA_PASSWORD_2}
-      ROBOKASSA_HASH_ALGORITHM: ${ROBOKASSA_HASH_ALGORITHM}
-      ROBOKASSA_IS_TEST: ${ROBOKASSA_IS_TEST}
+      ROBOKASSA_MERCHANT_LOGIN: ""
+      ROBOKASSA_PASSWORD_1: ""
+      ROBOKASSA_PASSWORD_2: ""
+      ROBOKASSA_HASH_ALGORITHM: sha256
+      ROBOKASSA_IS_TEST: "true"
 
     volumes:
       - ./backend:/app
 
     depends_on:
-      database:
+      test-database:
         condition: service_healthy
 
     command:
       [
-        "pytest",
-        "-q",
-        "tests"
+        "sh",
+        "-lc",
+        "alembic upgrade head && pytest -q tests"
       ]
 
     profiles:
