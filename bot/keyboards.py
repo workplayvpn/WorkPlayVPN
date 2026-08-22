@@ -39,7 +39,7 @@ def build_plans_keyboard(
     rows = []
 
     for plan in plans:
-        if plan["code"] == "trial_3d":
+        if plan["code"] == "trial_1d":
             text = "🎁 Пробный — бесплатно"
         else:
             price = str(

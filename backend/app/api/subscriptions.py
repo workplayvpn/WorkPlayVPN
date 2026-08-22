@@ -13,6 +13,9 @@ from app.schemas.subscription import (
     SubscriptionRead,
     SubscriptionStatusRead,
 )
+from app.services.subscription_service import (
+    subscription_service,
+)
 
 
 router = APIRouter(
@@ -57,7 +60,7 @@ def create_subscription(
 
     now = datetime.now(UTC)
 
-    if plan.code == "trial_3d":
+    if plan.code == "trial_1d":
         previous_trial = database.scalar(
             select(Subscription)
             .join(
@@ -66,7 +69,7 @@ def create_subscription(
             )
             .where(
                 Subscription.user_id == user.id,
-                Plan.code == "trial_3d",
+                Plan.code == "trial_1d",
             )
         )
 

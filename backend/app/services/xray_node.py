@@ -52,8 +52,10 @@ class XrayNodeService:
         self,
         node: VpnNode,
         email: str,
+        user_uuid: str | None = None,
     ) -> str:
-        user_uuid = str(uuid.uuid4())
+        if user_uuid is None:
+            user_uuid = str(uuid.uuid4())
 
         self._run(
             node=node,

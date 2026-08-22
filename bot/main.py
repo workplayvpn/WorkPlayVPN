@@ -234,7 +234,7 @@ async def show_plans(
 
         devices = plan["device_limit"]
 
-        if plan["code"] == "trial_3d":
+        if plan["code"] == "trial_1d":
             lines.append(
                 f"🎁 {plan['name']}\n"
                 f"   3 дня • "
