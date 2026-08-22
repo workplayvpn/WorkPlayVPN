@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
@@ -170,9 +171,12 @@ class DeviceActivationService:
                 detail="Activation expired",
             )
 
-        user = database.get(
-            User,
-            activation.user_id,
+        user = database.scalar(
+            select(User)
+            .where(
+                User.id == activation.user_id,
+            )
+            .with_for_update()
         )
 
         if user is None or not user.is_active:
@@ -254,7 +258,7 @@ class DeviceActivationService:
 
         xray_email = (
             f"tg_{user.telegram_id}_"
-            f"device_{int(now.timestamp())}"
+            f"device_{uuid.uuid4().hex}"
             "@workplayvpn"
         )
 

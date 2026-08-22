@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -12,6 +13,7 @@ from app.models.vpn_node import VpnNode
 from app.services.xray_node import xray_node_service
 
 
+
 class VpnDeviceService:
     def create_device(
         self,
@@ -21,10 +23,12 @@ class VpnDeviceService:
         device_name: str,
     ) -> VpnDevice:
         user = database.scalar(
-            select(User).where(
+            select(User)
+            .where(
                 User.telegram_id == telegram_id,
                 User.is_active.is_(True),
             )
+            .with_for_update()
         )
 
         if user is None:
@@ -120,7 +124,7 @@ class VpnDeviceService:
 
         xray_email = (
             f"tg_{telegram_id}_"
-            f"device_{int(now.timestamp())}"
+            f"device_{uuid.uuid4().hex}"
             "@workplayvpn"
         )
 
