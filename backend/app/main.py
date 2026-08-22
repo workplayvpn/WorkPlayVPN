@@ -10,6 +10,7 @@ from app.api.device_activations import router as device_activations_router
 from app.api.activation_page import router as activation_page_router
 from app.api.subscription_tokens import router as subscription_tokens_router
 from app.api.subscription_feed import router as subscription_feed_router
+from app.api.payments import router as payments_router
 
 
 app = FastAPI(
@@ -25,6 +26,7 @@ app.include_router(device_activations_router)
 app.include_router(activation_page_router)
 app.include_router(subscription_tokens_router)
 app.include_router(subscription_feed_router)
+app.include_router(payments_router)
 
 
 @app.get("/")
