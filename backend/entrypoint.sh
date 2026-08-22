@@ -1,4 +1,5 @@
 #!/bin/sh
+
 set -e
 
 SOURCE_KEY="/run/secrets/workplayvpn_backend"
@@ -12,4 +13,4 @@ if [ -f "$SOURCE_KEY" ]; then
     chmod 600 "$SAFE_KEY"
 fi
 
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+exec "$@"

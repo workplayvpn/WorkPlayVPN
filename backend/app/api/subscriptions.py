@@ -97,10 +97,12 @@ def create_subscription(
             plan_id=plan.id,
             status="active",
             starts_at=now,
-            expires_at=now + timedelta(
+            expires_at=now
+            + timedelta(
                 days=plan.duration_days
             ),
         )
+
     else:
         pending_subscription = database.scalar(
             select(Subscription).where(
@@ -128,6 +130,7 @@ def create_subscription(
 
     return subscription
 
+
 @router.get(
     "/users/{telegram_id}/current",
     response_model=SubscriptionStatusRead,
@@ -154,19 +157,21 @@ def get_current_subscription(
             Subscription.user_id == user.id,
             Subscription.status == "active",
         )
-        .order_by(Subscription.created_at.desc())
+        .order_by(
+            Subscription.created_at.desc()
+        )
     )
 
-    now = datetime.now(UTC)
+    if subscription is not None:
+        subscription = (
+            subscription_service.expire_if_needed(
+                database=database,
+                subscription=subscription,
+            )
+        )
 
-    if (
-        subscription is not None
-        and subscription.expires_at is not None
-        and subscription.expires_at <= now
-    ):
-        subscription.status = "expired"
-        database.commit()
-        subscription = None
+        if subscription.status == "expired":
+            subscription = None
 
     if subscription is None:
         subscription = database.scalar(
@@ -175,7 +180,9 @@ def get_current_subscription(
                 Subscription.user_id == user.id,
                 Subscription.status == "pending",
             )
-            .order_by(Subscription.created_at.desc())
+            .order_by(
+                Subscription.created_at.desc()
+            )
         )
 
     if subscription is None:
@@ -196,7 +203,8 @@ def get_current_subscription(
         )
 
     total_device_limit = (
-        plan.device_limit + user.extra_device_slots
+        plan.device_limit
+        + user.extra_device_slots
     )
 
     return SubscriptionStatusRead(
