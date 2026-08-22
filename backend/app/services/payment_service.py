@@ -10,9 +10,8 @@ from app.models.payment import Payment
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
-from app.services.subscription_service import (
-    subscription_service,
-)
+from app.services.payment_providers import payment_provider_registry
+from app.services.subscription_service import subscription_service
 
 
 class PaymentService:
@@ -60,6 +59,10 @@ class PaymentService:
         if idempotency_key is None:
             idempotency_key = secrets.token_urlsafe(32)
 
+        provider_service = payment_provider_registry.get(
+            provider
+        )
+
         existing_payment = database.scalar(
             select(Payment).where(
                 Payment.idempotency_key == idempotency_key,
@@ -67,49 +70,126 @@ class PaymentService:
         )
 
         if existing_payment is not None:
-            return existing_payment
+            existing_subscription = database.get(
+                Subscription,
+                existing_payment.subscription_id,
+            )
 
-        subscription = Subscription(
-            user_id=user.id,
-            plan_id=plan.id,
-            status="pending",
+            if existing_subscription is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Payment subscription not found",
+                )
+
+            if (
+                existing_payment.user_id != user.id
+                or existing_payment.provider != provider
+                or existing_subscription.plan_id != plan.id
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Idempotency key already used for another payment",
+                )
+
+            if existing_payment.provider_payment_id is not None:
+                return existing_payment
+
+            payment = existing_payment
+
+        else:
+            subscription = Subscription(
+                user_id=user.id,
+                plan_id=plan.id,
+                status="pending",
+            )
+
+            payment = Payment(
+                user_id=user.id,
+                subscription_id=0,
+                provider=provider,
+                provider_payment_id=None,
+                idempotency_key=idempotency_key,
+                status="pending",
+                amount=plan.price_amount,
+                currency=plan.currency,
+                confirmation_url=None,
+            )
+
+            try:
+                database.add(subscription)
+                database.flush()
+
+                payment.subscription_id = subscription.id
+
+                database.add(payment)
+                database.commit()
+                database.refresh(payment)
+
+            except IntegrityError:
+                database.rollback()
+
+                payment = database.scalar(
+                    select(Payment).where(
+                        Payment.idempotency_key == idempotency_key,
+                    )
+                )
+
+                if payment is None:
+                    raise
+
+        payment = database.scalar(
+            select(Payment)
+            .where(
+                Payment.id == payment.id,
+            )
+            .with_for_update()
         )
 
-        payment = Payment(
-            user_id=user.id,
-            subscription_id=0,
-            provider=provider,
-            provider_payment_id=None,
-            idempotency_key=idempotency_key,
-            status="pending",
-            amount=plan.price_amount,
-            currency=plan.currency,
-            confirmation_url=None,
-        )
+        if payment is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Payment not found after creation",
+            )
+
+        if payment.provider_payment_id is not None:
+            return payment
 
         try:
-            database.add(subscription)
-            database.flush()
+            provider_result = provider_service.create_payment(
+                amount=payment.amount,
+                currency=payment.currency,
+                description=f"Work&PlayVPN {plan.name}",
+                idempotency_key=payment.idempotency_key,
+                metadata={
+                    "payment_id": str(payment.id),
+                    "subscription_id": str(
+                        payment.subscription_id
+                    ),
+                    "user_id": str(user.id),
+                },
+            )
 
-            payment.subscription_id = subscription.id
+            payment.provider_payment_id = (
+                provider_result.provider_payment_id
+            )
+            payment.confirmation_url = (
+                provider_result.confirmation_url
+            )
 
-            database.add(payment)
             database.commit()
             database.refresh(payment)
 
-        except IntegrityError:
+        except HTTPException:
+            database.rollback()
+            raise
+
+        except Exception as exc:
             database.rollback()
 
-            existing_payment = database.scalar(
-                select(Payment).where(
-                    Payment.idempotency_key == idempotency_key,
-                )
-            )
-
-            if existing_payment is not None:
-                return existing_payment
-
-            raise
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Payment provider unavailable",
+            ) from exc
 
         return payment
 
@@ -157,9 +237,7 @@ class PaymentService:
         payment.paid_at = datetime.now(UTC)
 
         if provider_payment_id is not None:
-            payment.provider_payment_id = (
-                provider_payment_id
-            )
+            payment.provider_payment_id = provider_payment_id
 
         try:
             database.flush()
