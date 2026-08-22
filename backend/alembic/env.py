@@ -8,6 +8,7 @@ from app.db.session import Base
 from app.models.user import User  # noqa: F401
 from app.models.plan import Plan  # noqa: F401
 from app.models.subscription import Subscription  # noqa: F401
+from app.models.payment_fulfillment import PaymentFulfillment  # noqa: F401
 from app.models.payment import Payment  # noqa: F401
 from app.models.location import Location  # noqa: F401
 from app.models.vpn_node import VpnNode  # noqa: F401

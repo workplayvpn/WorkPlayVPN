@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     robokassa_hash_algorithm: str = "sha256"
     robokassa_is_test: bool = True
 
+    # -------------------------------------------------
+    # Telegram
+    # -------------------------------------------------
+
+    telegram_bot_token: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

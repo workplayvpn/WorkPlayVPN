@@ -241,3 +241,99 @@ def test_payment_activates_subscription_when_no_active_exists(
         activated_subscription.expires_at
         == expected_expires_at
     )
+
+def test_successful_payment_creates_single_fulfillment(
+    database,
+) -> None:
+    from sqlalchemy import func
+
+    from app.models.payment_fulfillment import PaymentFulfillment
+
+    user = User(
+        telegram_id=991000003,
+        username="integration_fulfillment",
+        first_name="Fulfillment",
+        is_active=True,
+    )
+
+    database.add(user)
+    database.flush()
+
+    plan = database.scalar(
+        select(Plan).where(
+            Plan.code == "standard_1m",
+        )
+    )
+
+    assert plan is not None
+
+    subscription = Subscription(
+        user_id=user.id,
+        plan_id=plan.id,
+        status="pending",
+    )
+
+    database.add(subscription)
+    database.flush()
+
+    payment = Payment(
+        user_id=user.id,
+        subscription_id=subscription.id,
+        provider="cloudpayments",
+        provider_payment_id=None,
+        idempotency_key="integration-fulfillment-001",
+        status="pending",
+        amount=Decimal("199.00"),
+        currency="RUB",
+        confirmation_url=None,
+    )
+
+    database.add(payment)
+    database.commit()
+
+    payment_id = payment.id
+
+    first_result = payment_service.mark_succeeded(
+        database=database,
+        payment_id=payment_id,
+        provider_payment_id="cp-fulfillment-001",
+    )
+
+    assert first_result.status == "succeeded"
+
+    first_count = database.scalar(
+        select(func.count(PaymentFulfillment.id)).where(
+            PaymentFulfillment.payment_id == payment_id,
+        )
+    )
+
+    assert first_count == 1
+
+    fulfillment = database.scalar(
+        select(PaymentFulfillment).where(
+            PaymentFulfillment.payment_id == payment_id,
+        )
+    )
+
+    assert fulfillment is not None
+    assert fulfillment.user_id == user.id
+    assert fulfillment.status == "pending"
+    assert fulfillment.attempts == 0
+    assert fulfillment.device_id is None
+    assert fulfillment.delivered_at is None
+
+    second_result = payment_service.mark_succeeded(
+        database=database,
+        payment_id=payment_id,
+        provider_payment_id="cp-fulfillment-001",
+    )
+
+    assert second_result.status == "succeeded"
+
+    second_count = database.scalar(
+        select(func.count(PaymentFulfillment.id)).where(
+            PaymentFulfillment.payment_id == payment_id,
+        )
+    )
+
+    assert second_count == 1

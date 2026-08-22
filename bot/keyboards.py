@@ -284,12 +284,6 @@ def build_payment_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="👤 Проверить подписку",
-                    callback_data="profile",
-                )
-            ],
-            [
-                InlineKeyboardButton(
                     text="⬅️ К тарифам",
                     callback_data="plans",
                 )

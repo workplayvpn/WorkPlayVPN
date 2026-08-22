@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.payment import Payment
+from app.models.payment_fulfillment import PaymentFulfillment
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
@@ -345,7 +346,33 @@ class PaymentService:
                 detail="Payment not found",
             )
 
+        # Повторный webhook.
+        #
+        # Помимо обычной идемпотентности платежа,
+        # восстанавливаем fulfillment, если платёж
+        # был успешно обработан раньше, но задача
+        # доставки по какой-либо причине отсутствует.
         if payment.status == "succeeded":
+            fulfillment = database.scalar(
+                select(PaymentFulfillment).where(
+                    PaymentFulfillment.payment_id == payment.id,
+                )
+            )
+
+            if fulfillment is None:
+                fulfillment = PaymentFulfillment(
+                    payment_id=payment.id,
+                    user_id=payment.user_id,
+                    status="pending",
+                )
+
+                try:
+                    database.add(fulfillment)
+                    database.commit()
+                except IntegrityError:
+                    database.rollback()
+
+            database.refresh(payment)
             return payment
 
         if payment.status != "pending":
@@ -371,7 +398,19 @@ class PaymentService:
         if provider_payment_id is not None:
             payment.provider_payment_id = provider_payment_id
 
+        # Создаём durable-задачу ДО активации подписки.
+        #
+        # activate_subscription() выполняет commit,
+        # поэтому Payment, Subscription и Fulfillment
+        # будут зафиксированы вместе.
+        fulfillment = PaymentFulfillment(
+            payment_id=payment.id,
+            user_id=payment.user_id,
+            status="pending",
+        )
+
         try:
+            database.add(fulfillment)
             database.flush()
 
             subscription_service.activate_subscription(
