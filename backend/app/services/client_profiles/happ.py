@@ -1,7 +1,9 @@
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.models.vpn_node_profile import VpnNodeProfile
-from app.services.xray_node import xray_node_service
+from app.services.vpn_profile_link_builder import (
+    vpn_profile_link_builder,
+)
 
 from .base import ClientProfile
 
@@ -16,18 +18,42 @@ class HappProfile(ClientProfile):
     ) -> list[str]:
         links: list[str] = []
 
-        seen_node_ids: set[int] = set()
+        profiles_by_node: dict[
+            int,
+            list[VpnNodeProfile],
+        ] = {}
+
+        for profile in profiles:
+            profiles_by_node.setdefault(
+                profile.node_id,
+                [],
+            ).append(profile)
 
         for node in nodes:
-            if node.id in seen_node_ids:
+            node_profiles = profiles_by_node.get(
+                node.id,
+                [],
+            )
+
+            tls_profile = next(
+                (
+                    profile
+                    for profile in node_profiles
+                    if profile.protocol == "vless"
+                    and profile.network == "tcp"
+                    and profile.security == "tls"
+                ),
+                None,
+            )
+
+            if tls_profile is None:
                 continue
 
-            seen_node_ids.add(node.id)
-
             links.append(
-                xray_node_service.build_vless_url(
-                    user_uuid=device.xray_uuid,
-                    node_name=node.name,
+                vpn_profile_link_builder.build_vless_link(
+                    device=device,
+                    node=node,
+                    profile=tls_profile,
                 )
             )
 

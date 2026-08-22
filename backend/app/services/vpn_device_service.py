@@ -74,7 +74,8 @@ class VpnDeviceService:
             )
 
         device_limit = (
-            plan.device_limit + user.extra_device_slots
+            plan.device_limit
+            + user.extra_device_slots
         )
 
         active_device_count = database.scalar(
@@ -125,7 +126,8 @@ class VpnDeviceService:
 
         try:
             xray_uuid = xray_node_service.add_user(
-                xray_email
+                node=node,
+                email=xray_email,
             )
         except Exception as exc:
             raise HTTPException(
@@ -151,7 +153,8 @@ class VpnDeviceService:
 
             try:
                 xray_node_service.remove_user(
-                    xray_email
+                    node=node,
+                    email=xray_email,
                 )
             except Exception:
                 pass
@@ -222,9 +225,21 @@ class VpnDeviceService:
                 detail="Device not found",
             )
 
+        node = database.get(
+            VpnNode,
+            device.node_id,
+        )
+
+        if node is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="VPN node not found",
+            )
+
         try:
             xray_node_service.remove_user(
-                device.xray_email
+                node=node,
+                email=device.xray_email,
             )
         except Exception as exc:
             raise HTTPException(

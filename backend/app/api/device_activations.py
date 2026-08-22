@@ -11,7 +11,12 @@ from app.schemas.device_activation import (
 from app.services.device_activation_service import (
     device_activation_service,
 )
-from app.services.xray_node import xray_node_service
+from app.services.vpn_node_profile_service import (
+    vpn_node_profile_service,
+)
+from app.services.vpn_profile_link_builder import (
+    vpn_profile_link_builder,
+)
 
 
 router = APIRouter(
@@ -66,10 +71,33 @@ def complete_device_activation(
         )
     )
 
-    vless_url = xray_node_service.build_vless_url(
-        user_uuid=device.xray_uuid,
-        node_name=node.name,
+    profiles = (
+        vpn_node_profile_service.get_active_profiles_for_nodes(
+            database=database,
+            node_ids={node.id},
+        )
     )
+
+    reality_profile = next(
+        (
+            profile
+            for profile in profiles
+            if profile.node_id == node.id
+            and profile.protocol == "vless"
+            and profile.network == "tcp"
+            and profile.security == "reality"
+        ),
+        None,
+    )
+
+    vless_url = None
+
+    if reality_profile is not None:
+        vless_url = vpn_profile_link_builder.build_vless_link(
+            device=device,
+            node=node,
+            profile=reality_profile,
+        )
 
     return DeviceActivationCompleteRead(
         device_id=device.id,

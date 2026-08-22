@@ -5,13 +5,52 @@ from app.db.dependencies import get_db
 from app.models.vpn_node import VpnNode
 from app.schemas.vpn_device import VpnDeviceCreate, VpnDeviceRead
 from app.services.vpn_device_service import vpn_device_service
-from app.services.xray_node import xray_node_service
+from app.services.vpn_node_profile_service import (
+    vpn_node_profile_service,
+)
+from app.services.vpn_profile_link_builder import (
+    vpn_profile_link_builder,
+)
 
 
 router = APIRouter(
     prefix="/devices",
     tags=["devices"],
 )
+
+
+def build_device_vless_url(
+    database: Session,
+    device,
+    node: VpnNode,
+) -> str | None:
+    profiles = (
+        vpn_node_profile_service.get_active_profiles_for_nodes(
+            database=database,
+            node_ids={node.id},
+        )
+    )
+
+    reality_profile = next(
+        (
+            profile
+            for profile in profiles
+            if profile.node_id == node.id
+            and profile.protocol == "vless"
+            and profile.network == "tcp"
+            and profile.security == "reality"
+        ),
+        None,
+    )
+
+    if reality_profile is None:
+        return None
+
+    return vpn_profile_link_builder.build_vless_link(
+        device=device,
+        node=node,
+        profile=reality_profile,
+    )
 
 
 @router.post(
@@ -41,9 +80,10 @@ def create_device(
             detail="VPN node not found after device creation",
         )
 
-    vless_url = xray_node_service.build_vless_url(
-        user_uuid=device.xray_uuid,
-        node_name=node.name,
+    vless_url = build_device_vless_url(
+        database=database,
+        device=device,
+        node=node,
     )
 
     return VpnDeviceRead(
@@ -84,9 +124,10 @@ def get_devices(
                 detail="VPN node not found",
             )
 
-        vless_url = xray_node_service.build_vless_url(
-            user_uuid=device.xray_uuid,
-            node_name=node.name,
+        vless_url = build_device_vless_url(
+            database=database,
+            device=device,
+            node=node,
         )
 
         result.append(

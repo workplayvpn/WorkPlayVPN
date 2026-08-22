@@ -260,7 +260,8 @@ class DeviceActivationService:
 
         try:
             xray_uuid = xray_node_service.add_user(
-                xray_email
+                node=node,
+                email=xray_email,
             )
         except Exception as exc:
             raise HTTPException(
@@ -293,7 +294,8 @@ class DeviceActivationService:
 
             try:
                 xray_node_service.remove_user(
-                    xray_email
+                    node=node,
+                    email=xray_email,
                 )
             except Exception:
                 pass
