@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
 from app.schemas.payment import (
-    PaymentComplete,
     PaymentCreate,
     PaymentRead,
 )
@@ -31,34 +30,4 @@ def create_payment(
         plan_code=payload.plan_code,
         provider=payload.provider,
         idempotency_key=payload.idempotency_key,
-    )
-
-
-@router.post(
-    "/{payment_id}/complete",
-    response_model=PaymentRead,
-)
-def complete_payment(
-    payment_id: int,
-    payload: PaymentComplete,
-    database: Session = Depends(get_db),
-):
-    return payment_service.mark_succeeded(
-        database=database,
-        payment_id=payment_id,
-        provider_payment_id=payload.provider_payment_id,
-    )
-
-
-@router.post(
-    "/{payment_id}/cancel",
-    response_model=PaymentRead,
-)
-def cancel_payment(
-    payment_id: int,
-    database: Session = Depends(get_db),
-):
-    return payment_service.mark_canceled(
-        database=database,
-        payment_id=payment_id,
     )
