@@ -1,4 +1,16 @@
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
+from sqlalchemy.orm import Session
+
+from app.db.dependencies import get_db
+from app.services.cloudpayments_webhook import (
+    cloudpayments_webhook_service,
+)
 
 
 router = APIRouter(
@@ -7,42 +19,43 @@ router = APIRouter(
 )
 
 
-@router.post("/cloudpayments")
-async def cloudpayments_webhook(
+@router.post("/cloudpayments/pay")
+async def cloudpayments_pay_webhook(
     request: Request,
+    database: Session = Depends(get_db),
 ):
-    # ВАЖНО:
-    # Пока не реализована проверка подписи CloudPayments,
-    # webhook не имеет права менять состояние платежей.
-    #
-    # Позже здесь будет:
-    # 1. чтение raw body;
-    # 2. проверка подписи;
-    # 3. проверка статуса платежа;
-    # 4. поиск нашего Payment;
-    # 5. payment_service.mark_succeeded(...).
+    raw_body = await request.body()
 
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="CloudPayments webhook is not configured",
+    cloudpayments_webhook_service.verify_signature(
+        raw_body=raw_body,
+        x_content_hmac=request.headers.get(
+            "X-Content-HMAC"
+        ),
+        content_hmac=request.headers.get(
+            "Content-HMAC"
+        ),
     )
+
+    payload = (
+        cloudpayments_webhook_service.parse_payload(
+            raw_body
+        )
+    )
+
+    cloudpayments_webhook_service.handle_pay(
+        database=database,
+        payload=payload,
+    )
+
+    return {
+        "code": 0,
+    }
 
 
 @router.post("/robokassa")
 async def robokassa_webhook(
     request: Request,
 ):
-    # ВАЖНО:
-    # Пока не реализована проверка подписи Robokassa,
-    # webhook не имеет права менять состояние платежей.
-    #
-    # Позже здесь будет:
-    # 1. получение параметров callback;
-    # 2. проверка SignatureValue;
-    # 3. поиск нашего Payment;
-    # 4. payment_service.mark_succeeded(...);
-    # 5. корректный ответ Robokassa.
-
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail="Robokassa webhook is not configured",
