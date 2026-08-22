@@ -270,3 +270,29 @@ def build_back_to_main_keyboard() -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+def build_payment_keyboard(
+    confirmation_url: str,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💳 Перейти к оплате",
+                    url=confirmation_url,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="👤 Проверить подписку",
+                    callback_data="profile",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ К тарифам",
+                    callback_data="plans",
+                )
+            ],
+        ]
+    )

@@ -63,6 +63,10 @@ class PaymentService:
             provider
         )
 
+        # -------------------------------------------------
+        # 1. Обычная идемпотентность конкретного запроса.
+        # -------------------------------------------------
+
         existing_payment = database.scalar(
             select(Payment).where(
                 Payment.idempotency_key == idempotency_key,
@@ -88,7 +92,10 @@ class PaymentService:
             ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Idempotency key already used for another payment",
+                    detail=(
+                        "Idempotency key already used "
+                        "for another payment"
+                    ),
                 )
 
             if existing_payment.provider_payment_id is not None:
@@ -97,45 +104,167 @@ class PaymentService:
             payment = existing_payment
 
         else:
-            subscription = Subscription(
-                user_id=user.id,
-                plan_id=plan.id,
-                status="pending",
+            # -------------------------------------------------
+            # 2. Блокируем пользователя.
+            #
+            # Благодаря этому два запроса с РАЗНЫМИ
+            # idempotency_key не смогут одновременно
+            # создать два pending Payment.
+            # -------------------------------------------------
+
+            locked_user = database.scalar(
+                select(User)
+                .where(
+                    User.id == user.id,
+                )
+                .with_for_update()
             )
 
-            payment = Payment(
-                user_id=user.id,
-                subscription_id=0,
-                provider=provider,
-                provider_payment_id=None,
-                idempotency_key=idempotency_key,
-                status="pending",
-                amount=plan.price_amount,
-                currency=plan.currency,
-                confirmation_url=None,
+            if locked_user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found",
+                )
+
+            # Пока запрос ждал блокировку User,
+            # другой запрос мог уже создать Payment.
+            existing_payment = database.scalar(
+                select(Payment)
+                .where(
+                    Payment.idempotency_key == idempotency_key,
+                )
             )
 
-            try:
-                database.add(subscription)
-                database.flush()
+            if existing_payment is not None:
+                existing_subscription = database.get(
+                    Subscription,
+                    existing_payment.subscription_id,
+                )
 
-                payment.subscription_id = subscription.id
+                if existing_subscription is None:
+                    raise HTTPException(
+                        status_code=(
+                            status.HTTP_500_INTERNAL_SERVER_ERROR
+                        ),
+                        detail="Payment subscription not found",
+                    )
 
-                database.add(payment)
-                database.commit()
-                database.refresh(payment)
+                if (
+                    existing_payment.user_id != locked_user.id
+                    or existing_payment.provider != provider
+                    or existing_subscription.plan_id != plan.id
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=(
+                            "Idempotency key already used "
+                            "for another payment"
+                        ),
+                    )
 
-            except IntegrityError:
-                database.rollback()
+                payment = existing_payment
 
-                payment = database.scalar(
-                    select(Payment).where(
-                        Payment.idempotency_key == idempotency_key,
+            else:
+                # -------------------------------------------------
+                # 3. Один пользователь не должен иметь пачку
+                # неоплаченных счетов.
+                # -------------------------------------------------
+
+                pending_payment = database.scalar(
+                    select(Payment)
+                    .where(
+                        Payment.user_id == locked_user.id,
+                        Payment.status == "pending",
+                    )
+                    .order_by(
+                        Payment.created_at.desc()
                     )
                 )
 
-                if payment is None:
-                    raise
+                if pending_payment is not None:
+                    pending_subscription = database.get(
+                        Subscription,
+                        pending_payment.subscription_id,
+                    )
+
+                    if pending_subscription is None:
+                        raise HTTPException(
+                            status_code=(
+                                status.HTTP_500_INTERNAL_SERVER_ERROR
+                            ),
+                            detail="Payment subscription not found",
+                        )
+
+                    # Тот же тариф + тот же provider:
+                    # возвращаем существующий счёт.
+                    if (
+                        pending_subscription.plan_id == plan.id
+                        and pending_payment.provider == provider
+                    ):
+                        payment = pending_payment
+
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail="Payment already pending",
+                        )
+
+                else:
+                    subscription = Subscription(
+                        user_id=locked_user.id,
+                        plan_id=plan.id,
+                        status="pending",
+                    )
+
+                    payment = Payment(
+                        user_id=locked_user.id,
+                        subscription_id=0,
+                        provider=provider,
+                        provider_payment_id=None,
+                        idempotency_key=idempotency_key,
+                        status="pending",
+                        amount=plan.price_amount,
+                        currency=plan.currency,
+                        confirmation_url=None,
+                    )
+
+                    try:
+                        database.add(subscription)
+                        database.flush()
+
+                        payment.subscription_id = (
+                            subscription.id
+                        )
+
+                        database.add(payment)
+                        database.commit()
+                        database.refresh(payment)
+
+                    except IntegrityError:
+                        database.rollback()
+
+                        payment = database.scalar(
+                            select(Payment).where(
+                                Payment.idempotency_key
+                                == idempotency_key,
+                            )
+                        )
+
+                        if payment is None:
+                            raise
+
+        # -------------------------------------------------
+        # 4. Provider payment уже создан.
+        # Просто возвращаем существующую ссылку.
+        # -------------------------------------------------
+
+        if payment.provider_payment_id is not None:
+            return payment
+
+        # -------------------------------------------------
+        # 5. Блокируем конкретный Payment перед обращением
+        # к внешнему провайдеру.
+        # -------------------------------------------------
 
         payment = database.scalar(
             select(Payment)
@@ -151,6 +280,8 @@ class PaymentService:
                 detail="Payment not found after creation",
             )
 
+        # Пока запрос ждал блокировку Payment,
+        # другой процесс мог уже создать счёт у провайдера.
         if payment.provider_payment_id is not None:
             return payment
 
@@ -172,6 +303,7 @@ class PaymentService:
             payment.provider_payment_id = (
                 provider_result.provider_payment_id
             )
+
             payment.confirmation_url = (
                 provider_result.confirmation_url
             )

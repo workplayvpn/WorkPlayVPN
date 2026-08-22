@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class PaymentCreate(BaseModel):
     telegram_id: int
     plan_code: str
-    provider: str
+    provider: str | None = None
     idempotency_key: str | None = None
 
 

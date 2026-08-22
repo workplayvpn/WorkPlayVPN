@@ -195,7 +195,7 @@ services:
       [
         "sh",
         "-lc",
-        "alembic upgrade head && pytest -q tests"
+        "python -c \"from sqlalchemy import create_engine, text; from app.core.config import settings; engine=create_engine(settings.database_url); conn=engine.connect(); conn.execute(text('DROP SCHEMA public CASCADE')); conn.execute(text('CREATE SCHEMA public')); conn.commit(); conn.close(); engine.dispose()\" && alembic upgrade head && pytest -q tests"
       ]
 
     profiles:

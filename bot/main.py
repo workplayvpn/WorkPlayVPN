@@ -9,6 +9,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
 
 from keyboards import (
+    build_payment_keyboard,
     build_back_to_main_keyboard,
     build_device_keyboard,
     build_device_manage_keyboard,
@@ -237,8 +238,8 @@ async def show_plans(
         if plan["code"] == "trial_1d":
             lines.append(
                 f"🎁 {plan['name']}\n"
-                f"   3 дня • "
-                f"{devices} устройство • бесплатно"
+                f"   1 день • "
+                f"до {devices} устройств • бесплатно"
             )
         else:
             lines.append(
@@ -279,46 +280,140 @@ async def select_plan(
         maxsplit=1,
     )[1]
 
-    payload = {
-        "telegram_id": callback.from_user.id,
-        "plan_code": plan_code,
-    }
+    telegram_id = callback.from_user.id
 
-    try:
-        response = await backend_post(
-            "/subscriptions",
-            payload,
-        )
-    except httpx.RequestError:
+    # Пробный тариф активируется без платёжной системы.
+    if plan_code == "trial_1d":
+        payload = {
+            "telegram_id": telegram_id,
+            "plan_code": plan_code,
+        }
+
+        try:
+            response = await backend_post(
+                "/subscriptions",
+                payload,
+            )
+        except httpx.RequestError:
+            await edit_screen(
+                callback,
+                "⚠️ Не удалось активировать "
+                "пробный период.",
+                main_menu,
+            )
+            return
+
+        if response.status_code == 201:
+            await edit_screen(
+                callback,
+                "🎉 Пробный период активирован!\n\n"
+                "Срок: 1 день\n\n"
+                "Теперь можно подключить устройство.",
+                main_menu,
+            )
+            return
+
+        if response.status_code == 409:
+            detail = response.json().get(
+                "detail"
+            )
+
+            messages = {
+                "Trial already used": (
+                    "🎁 Пробный период уже был "
+                    "использован."
+                ),
+                "User already has active subscription": (
+                    "✅ У вас уже есть активная "
+                    "подписка."
+                ),
+            }
+
+            await edit_screen(
+                callback,
+                messages.get(
+                    detail,
+                    "Пробный период сейчас недоступен.",
+                ),
+                main_menu,
+            )
+            return
+
         await edit_screen(
             callback,
-            "⚠️ Не удалось оформить тариф.",
+            "⚠️ Не удалось активировать "
+            "пробный период.",
             main_menu,
         )
         return
 
-    if response.status_code == 201:
-        subscription = response.json()
+    # Для платного тарифа подписку и Payment
+    # создаёт платёжный backend.
+    #
+    # Ключ уникален для конкретного нажатия.
+    # За окончательную идемпотентность платежа
+    # также отвечает backend.
+    idempotency_key = (
+        f"tg-{telegram_id}-"
+        f"{plan_code}-"
+        f"{callback.id}"
+    )
 
-        if subscription["status"] == "active":
-            text = (
-                "🎉 Пробный период активирован!\n\n"
-                "Срок: 3 дня\n"
-                "Устройств: 1\n\n"
-                "Теперь можно подключить устройство."
+    payment_payload = {
+        "telegram_id": telegram_id,
+        "plan_code": plan_code,
+        "idempotency_key": idempotency_key,
+    }
+
+    try:
+        response = await backend_post(
+            "/payments",
+            payment_payload,
+        )
+    except httpx.RequestError:
+        await edit_screen(
+            callback,
+            "⚠️ Платёжный сервис временно "
+            "недоступен.\n\n"
+            "Попробуйте немного позже.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    if response.status_code == 201:
+        payment = response.json()
+
+        confirmation_url = payment.get(
+            "confirmation_url"
+        )
+
+        if not confirmation_url:
+            await edit_screen(
+                callback,
+                "⚠️ Не удалось получить "
+                "ссылку на оплату.\n\n"
+                "Попробуйте ещё раз позже.",
+                build_back_to_main_keyboard(),
             )
-        else:
-            text = (
-                "✅ Тариф выбран.\n\n"
-                "Статус: ожидает оплаты.\n\n"
-                "Платёжная система будет "
-                "подключена позже."
-            )
+            return
+
+        amount = str(
+            payment["amount"]
+        ).removesuffix(".00")
 
         await edit_screen(
             callback,
-            text,
-            main_menu,
+            "💳 Оплата Work&PlayVPN\n\n"
+            f"Сумма: {amount} ₽\n"
+            f"Валюта: {payment['currency']}\n\n"
+            "Нажмите кнопку ниже, чтобы "
+            "перейти на защищённую страницу "
+            "оплаты.\n\n"
+            "После успешной оплаты подписка "
+            "активируется автоматически.",
+            build_payment_keyboard(
+                confirmation_url
+            ),
         )
         return
 
@@ -328,14 +423,15 @@ async def select_plan(
         )
 
         messages = {
-            "Trial already used": (
-                "🎁 Пробный период уже был использован."
-            ),
             "Payment already pending": (
-                "💳 Оплата этого тарифа уже ожидается."
+                "💳 У вас уже есть платёж, "
+                "ожидающий оплаты.\n\n"
+                "Не создавайте несколько "
+                "одинаковых платежей."
             ),
             "User already has active subscription": (
-                "✅ У вас уже есть активная подписка."
+                "✅ У вас уже есть активная "
+                "подписка."
             ),
         }
 
@@ -343,16 +439,39 @@ async def select_plan(
             callback,
             messages.get(
                 detail,
-                "Этот тариф сейчас недоступен.",
+                "Этот платёж сейчас невозможно "
+                "создать.",
             ),
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    if response.status_code == 404:
+        await edit_screen(
+            callback,
+            "⚠️ Пользователь или тариф "
+            "не найден.\n\n"
+            "Попробуйте отправить /start.",
             main_menu,
+        )
+        return
+
+    if response.status_code == 502:
+        await edit_screen(
+            callback,
+            "⚠️ Платёжная система временно "
+            "недоступна.\n\n"
+            "Деньги не списаны. "
+            "Попробуйте немного позже.",
+            build_back_to_main_keyboard(),
         )
         return
 
     await edit_screen(
         callback,
-        "⚠️ Не удалось оформить тариф.",
-        main_menu,
+        "⚠️ Не удалось создать платёж.\n\n"
+        "Попробуйте немного позже.",
+        build_back_to_main_keyboard(),
     )
 
 
