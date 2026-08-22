@@ -8,12 +8,14 @@ from app.db.session import Base
 from app.models.user import User  # noqa: F401
 from app.models.plan import Plan  # noqa: F401
 from app.models.subscription import Subscription  # noqa: F401
+from app.models.payment import Payment  # noqa: F401
 from app.models.location import Location  # noqa: F401
 from app.models.vpn_node import VpnNode  # noqa: F401
 from app.models.vpn_device import VpnDevice  # noqa: F401
 from app.models.device_activation import DeviceActivation  # noqa: F401
 from app.models.subscription_token import SubscriptionToken  # noqa: F401
 from app.models.vpn_node_profile import VpnNodeProfile  # noqa: F401
+
 
 
 config = context.config
