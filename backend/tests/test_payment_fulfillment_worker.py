@@ -42,6 +42,22 @@ def test_worker_delivers_fulfillment() -> None:
         "?type=tcp&security=reality"
     )
 
+    fake_token = SimpleNamespace(
+        id=1,
+        user_id=123,
+        version=1,
+    )
+
+    fake_raw_token = (
+        "123.1."
+        "abcdefghijklmnopqrstuvwxyz0123456789ABCDE"
+    )
+
+    expected_subscription_url = (
+        f"{payment_fulfillment.settings.subscription_base_url.rstrip('/')}/"
+        f"{fake_raw_token}"
+    )
+
     with patch(
         "app.workers.payment_fulfillment."
         "payment_fulfillment_service.recover_stale_processing",
@@ -62,6 +78,13 @@ def test_worker_delivers_fulfillment() -> None:
         ),
     ) as build_access, patch(
         "app.workers.payment_fulfillment."
+        "subscription_token_service.get_or_create_token",
+        return_value=(
+            fake_token,
+            fake_raw_token,
+        ),
+    ) as get_token, patch(
+        "app.workers.payment_fulfillment."
         "send_telegram_message"
     ) as send_message, patch(
         "app.workers.payment_fulfillment."
@@ -72,6 +95,11 @@ def test_worker_delivers_fulfillment() -> None:
     assert result is True
 
     build_access.assert_called_once()
+
+    get_token.assert_called_once()
+
+    token_kwargs = get_token.call_args.kwargs
+    assert token_kwargs["telegram_id"] == 995500001
 
     send_message.assert_called_once()
 
@@ -85,7 +113,10 @@ def test_worker_delivers_fulfillment() -> None:
     assert "Work&PlayVPN" in message_text
     assert "31.12.2026" in message_text
     assert "Основное устройство" in message_text
-    assert fake_vless in message_text
+    assert expected_subscription_url in message_text
+
+    # Сырой VLESS пользователю больше не отправляем.
+    assert fake_vless not in message_text
 
     mark_delivered.assert_called_once()
 

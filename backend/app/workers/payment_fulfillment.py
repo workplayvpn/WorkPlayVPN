@@ -10,7 +10,9 @@ from app.db.session import SessionLocal
 from app.services.payment_fulfillment_service import (
     payment_fulfillment_service,
 )
-
+from app.services.subscription_token_service import (
+    subscription_token_service,
+)
 
 logger = logging.getLogger(
     "payment-fulfillment-worker"
@@ -114,6 +116,17 @@ def process_once() -> bool:
                 database=database,
                 fulfillment=fulfillment,
             )
+            token, raw_token = (
+                subscription_token_service.get_or_create_token(
+                    database=database,
+                    telegram_id=user.telegram_id,
+                )
+            )
+
+            subscription_url = (
+                f"{settings.subscription_base_url.rstrip('/')}/"
+                f"{raw_token}"
+            )
 
             expires_text = "не ограничен"
 
@@ -137,10 +150,13 @@ def process_once() -> bool:
                 f"📅 Действует до: {expires_text}\n\n"
                 f"📱 Устройство: "
                 f"{device.device_name}\n\n"
-                "🔑 Ваш VPN-ключ:\n"
-                f"{vless_url}\n\n"
-                "Скопируйте ссылку и импортируйте "
-                "её в совместимое VPN-приложение."
+                "🔐 Ваша подписка Work&PlayVPN:\n"
+                f"{subscription_url}\n\n"
+                "Добавьте эту ссылку в HAPP или "
+                "другое совместимое VPN-приложение.\n\n"
+                "При продлении тарифа ссылка останется "
+                "той же. Новые серверы также будут "
+                "появляться в этой подписке автоматически."
             )
 
             send_telegram_message(

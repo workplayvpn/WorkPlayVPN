@@ -1,26 +1,66 @@
+import base64
 import hashlib
-import secrets
+import hmac
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.subscription_token import SubscriptionToken
 from app.models.user import User
 
 
 class SubscriptionTokenService:
+
+    def _sign(
+        self,
+        user_id: int,
+        version: int,
+    ) -> str:
+        message = f"{user_id}:{version}".encode("utf-8")
+
+        digest = hmac.new(
+            settings.subscription_token_secret.encode("utf-8"),
+            message,
+            hashlib.sha256,
+        ).digest()
+
+        return (
+            base64.urlsafe_b64encode(digest)
+            .decode("ascii")
+            .rstrip("=")
+        )
+
+    def _build_raw_token(
+        self,
+        user_id: int,
+        version: int,
+    ) -> str:
+        signature = self._sign(
+            user_id=user_id,
+            version=version,
+        )
+
+        return (
+            f"{user_id}."
+            f"{version}."
+            f"{signature}"
+        )
+
     def get_or_create_token(
         self,
         database: Session,
         telegram_id: int,
     ) -> tuple[SubscriptionToken, str]:
         user = database.scalar(
-            select(User).where(
+            select(User)
+            .where(
                 User.telegram_id == telegram_id,
                 User.is_active.is_(True),
             )
+            .with_for_update()
         )
 
         if user is None:
@@ -29,32 +69,26 @@ class SubscriptionTokenService:
                 detail="User not found",
             )
 
-        existing = database.scalar(
+        token = database.scalar(
             select(SubscriptionToken).where(
-                SubscriptionToken.user_id == user.id
+                SubscriptionToken.user_id == user.id,
             )
         )
 
-        if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Subscription token already exists",
+        if token is None:
+            token = SubscriptionToken(
+                user_id=user.id,
+                version=1,
             )
 
-        raw_token = secrets.token_urlsafe(32)
+            database.add(token)
+            database.commit()
+            database.refresh(token)
 
-        token_hash = hashlib.sha256(
-            raw_token.encode("utf-8")
-        ).hexdigest()
-
-        token = SubscriptionToken(
+        raw_token = self._build_raw_token(
             user_id=user.id,
-            token_hash=token_hash,
+            version=token.version,
         )
-
-        database.add(token)
-        database.commit()
-        database.refresh(token)
 
         return token, raw_token
 
@@ -64,10 +98,12 @@ class SubscriptionTokenService:
         telegram_id: int,
     ) -> tuple[SubscriptionToken, str]:
         user = database.scalar(
-            select(User).where(
+            select(User)
+            .where(
                 User.telegram_id == telegram_id,
                 User.is_active.is_(True),
             )
+            .with_for_update()
         )
 
         if user is None:
@@ -77,9 +113,11 @@ class SubscriptionTokenService:
             )
 
         token = database.scalar(
-            select(SubscriptionToken).where(
-                SubscriptionToken.user_id == user.id
+            select(SubscriptionToken)
+            .where(
+                SubscriptionToken.user_id == user.id,
             )
+            .with_for_update()
         )
 
         if token is None:
@@ -88,16 +126,16 @@ class SubscriptionTokenService:
                 detail="Subscription token not found",
             )
 
-        raw_token = secrets.token_urlsafe(32)
-
-        token.token_hash = hashlib.sha256(
-            raw_token.encode("utf-8")
-        ).hexdigest()
-
+        token.version += 1
         token.rotated_at = datetime.now(UTC)
 
         database.commit()
         database.refresh(token)
+
+        raw_token = self._build_raw_token(
+            user_id=user.id,
+            version=token.version,
+        )
 
         return token, raw_token
 
@@ -106,13 +144,28 @@ class SubscriptionTokenService:
         database: Session,
         raw_token: str,
     ) -> User:
-        token_hash = hashlib.sha256(
-            raw_token.encode("utf-8")
-        ).hexdigest()
+        parts = raw_token.split(".")
+
+        if len(parts) != 3:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Subscription token not found",
+            )
+
+        user_id_raw, version_raw, provided_signature = parts
+
+        try:
+            user_id = int(user_id_raw)
+            version = int(version_raw)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Subscription token not found",
+            ) from exc
 
         token = database.scalar(
             select(SubscriptionToken).where(
-                SubscriptionToken.token_hash == token_hash
+                SubscriptionToken.user_id == user_id,
             )
         )
 
@@ -122,9 +175,29 @@ class SubscriptionTokenService:
                 detail="Subscription token not found",
             )
 
+        if token.version != version:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Subscription token not found",
+            )
+
+        expected_signature = self._sign(
+            user_id=user_id,
+            version=version,
+        )
+
+        if not hmac.compare_digest(
+            expected_signature,
+            provided_signature,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Subscription token not found",
+            )
+
         user = database.get(
             User,
-            token.user_id,
+            user_id,
         )
 
         if user is None or not user.is_active:

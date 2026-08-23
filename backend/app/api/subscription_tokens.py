@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.dependencies import get_db
 from app.schemas.subscription_token import (
     SubscriptionTokenCreate,
@@ -34,7 +35,7 @@ def create_subscription_token(
     )
 
     subscription_url = (
-        "https://sub.workplayvpn.local/"
+        f"{settings.subscription_base_url.rstrip('/')}/"
         f"{raw_token}"
     )
 
@@ -61,7 +62,7 @@ def rotate_subscription_token(
     )
 
     subscription_url = (
-        "https://sub.workplayvpn.local/"
+        f"{settings.subscription_base_url.rstrip('/')}/"
         f"{raw_token}"
     )
 

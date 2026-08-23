@@ -69,5 +69,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # -------------------------------------------------
+    # Subscription tokens
+    # -------------------------------------------------
+
+    subscription_token_secret: str
+    subscription_base_url: str = (
+        "https://sub.workplayvpn.local/sub"
+    )
+
 
 settings = Settings()
