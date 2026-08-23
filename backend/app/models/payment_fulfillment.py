@@ -68,6 +68,17 @@ class PaymentFulfillment(Base):
         nullable=False,
     )
 
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        index=True,
+        nullable=True,
+    )
+
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     last_error: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,

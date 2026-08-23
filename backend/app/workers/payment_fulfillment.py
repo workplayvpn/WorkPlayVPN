@@ -1,7 +1,7 @@
 import argparse
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import UTC
 
 import httpx
 
@@ -30,7 +30,7 @@ def send_telegram_message(
         )
 
     url = (
-        f"https://api.telegram.org/"
+        "https://api.telegram.org/"
         f"bot{token}/sendMessage"
     )
 
@@ -71,14 +71,37 @@ def process_once() -> bool:
     database = SessionLocal()
 
     try:
+        recovered = (
+            payment_fulfillment_service
+            .recover_stale_processing(
+                database=database,
+            )
+        )
+
+        if recovered:
+            logger.warning(
+                "Recovered stale fulfillments: count=%s",
+                recovered,
+            )
+
         fulfillment = (
-            payment_fulfillment_service.get_next_pending(
+            payment_fulfillment_service.claim_next(
                 database=database,
             )
         )
 
         if fulfillment is None:
             return False
+
+        logger.info(
+            "Fulfillment claimed: "
+            "fulfillment_id=%s "
+            "payment_id=%s "
+            "attempt=%s",
+            fulfillment.id,
+            fulfillment.payment_id,
+            fulfillment.attempts,
+        )
 
         try:
             (
@@ -109,13 +132,15 @@ def process_once() -> bool:
 
             text = (
                 "✅ Оплата получена!\n\n"
-                "🛡 Подписка Work&PlayVPN активирована.\n"
+                "🛡 Подписка Work&PlayVPN "
+                "активирована.\n"
                 f"📅 Действует до: {expires_text}\n\n"
-                f"📱 Устройство: {device.device_name}\n\n"
+                f"📱 Устройство: "
+                f"{device.device_name}\n\n"
                 "🔑 Ваш VPN-ключ:\n"
                 f"{vless_url}\n\n"
-                "Скопируйте ссылку и импортируйте её "
-                "в совместимое VPN-приложение."
+                "Скопируйте ссылку и импортируйте "
+                "её в совместимое VPN-приложение."
             )
 
             send_telegram_message(
@@ -152,8 +177,11 @@ def process_once() -> bool:
             )
 
             logger.exception(
-                "Fulfillment failed: id=%s",
+                "Fulfillment attempt failed: "
+                "fulfillment_id=%s "
+                "attempt=%s",
                 fulfillment.id,
+                fulfillment.attempts,
             )
 
             return True
@@ -181,16 +209,18 @@ def main() -> None:
         ),
     )
 
+    # Не допускаем попадания Telegram Bot Token
+    # в INFO-логи HTTP-клиента.
     logging.getLogger("httpx").setLevel(
         logging.WARNING
     )
-
     logging.getLogger("httpcore").setLevel(
         logging.WARNING
     )
 
     logger.info(
-        "Payment fulfillment worker started; interval=%ss",
+        "Payment fulfillment worker started; "
+        "interval=%ss",
         args.interval,
     )
 

@@ -1,7 +1,7 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.payment import Payment
@@ -24,14 +24,55 @@ class PaymentFulfillmentService:
     default_node_code = "NL-01"
     default_device_name = "Основное устройство"
 
-    def get_next_pending(
+    max_attempts = 8
+    processing_lease_minutes = 5
+
+    def recover_stale_processing(
+        self,
+        database: Session,
+    ) -> int:
+        now = datetime.now(UTC)
+
+        stale_before = now - timedelta(
+            minutes=self.processing_lease_minutes
+        )
+
+        fulfillments = list(
+            database.scalars(
+                select(PaymentFulfillment).where(
+                    PaymentFulfillment.status == "processing",
+                    PaymentFulfillment.processing_started_at
+                    <= stale_before,
+                )
+            ).all()
+        )
+
+        for fulfillment in fulfillments:
+            fulfillment.status = "pending"
+            fulfillment.processing_started_at = None
+            fulfillment.next_attempt_at = now
+
+        if fulfillments:
+            database.commit()
+
+        return len(fulfillments)
+
+    def claim_next(
         self,
         database: Session,
     ) -> PaymentFulfillment | None:
-        return database.scalar(
+        now = datetime.now(UTC)
+
+        fulfillment = database.scalar(
             select(PaymentFulfillment)
             .where(
                 PaymentFulfillment.status == "pending",
+                PaymentFulfillment.attempts
+                < self.max_attempts,
+                or_(
+                    PaymentFulfillment.next_attempt_at.is_(None),
+                    PaymentFulfillment.next_attempt_at <= now,
+                ),
             )
             .order_by(
                 PaymentFulfillment.created_at.asc()
@@ -40,6 +81,19 @@ class PaymentFulfillmentService:
                 skip_locked=True
             )
         )
+
+        if fulfillment is None:
+            return None
+
+        fulfillment.status = "processing"
+        fulfillment.attempts += 1
+        fulfillment.processing_started_at = now
+        fulfillment.next_attempt_at = None
+
+        database.commit()
+        database.refresh(fulfillment)
+
+        return fulfillment
 
     def build_access(
         self,
@@ -169,6 +223,8 @@ class PaymentFulfillmentService:
     ) -> None:
         fulfillment.status = "delivered"
         fulfillment.delivered_at = datetime.now(UTC)
+        fulfillment.processing_started_at = None
+        fulfillment.next_attempt_at = None
         fulfillment.last_error = None
 
         database.commit()
@@ -179,8 +235,30 @@ class PaymentFulfillmentService:
         fulfillment: PaymentFulfillment,
         error: str,
     ) -> None:
-        fulfillment.attempts += 1
+        now = datetime.now(UTC)
+
         fulfillment.last_error = error[:4000]
+        fulfillment.processing_started_at = None
+
+        if fulfillment.attempts >= self.max_attempts:
+            fulfillment.status = "failed"
+            fulfillment.next_attempt_at = None
+
+        else:
+            # 10s, 20s, 40s, 80s, 160s...
+            # Максимум 30 минут.
+            delay_seconds = min(
+                10 * (2 ** (fulfillment.attempts - 1)),
+                1800,
+            )
+
+            fulfillment.status = "pending"
+            fulfillment.next_attempt_at = (
+                now
+                + timedelta(
+                    seconds=delay_seconds
+                )
+            )
 
         database.commit()
 
