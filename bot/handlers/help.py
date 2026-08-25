@@ -1,7 +1,7 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
-from keyboards import build_back_to_main_keyboard
+from ui.common import build_back_to_main_keyboard
 from ui.helpers import edit_screen
 
 

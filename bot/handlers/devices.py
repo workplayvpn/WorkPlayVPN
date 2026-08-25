@@ -9,7 +9,7 @@ from api.backend import (
     backend_get,
     backend_post,
 )
-from keyboards import (
+from ui.devices import (
     build_activation_keyboard,
     build_device_keyboard,
     build_device_manage_keyboard,
@@ -17,8 +17,8 @@ from keyboards import (
     build_locations_keyboard,
     build_remove_confirm_keyboard,
     build_user_devices_keyboard,
-    main_menu,
 )
+from ui.main import main_menu
 from ui.helpers import edit_screen
 
 

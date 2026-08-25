@@ -6,12 +6,10 @@ from api.backend import (
     backend_get,
     backend_post,
 )
-from keyboards import (
-    build_back_to_main_keyboard,
-    build_payment_keyboard,
-    build_plans_keyboard,
-    main_menu,
-)
+from ui.common import build_back_to_main_keyboard
+from ui.main import main_menu
+from ui.payments import build_payment_keyboard
+from ui.plans import build_plans_keyboard
 from ui.helpers import edit_screen
 
 

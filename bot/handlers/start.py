@@ -4,7 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from api.backend import backend_post
-from keyboards import main_menu
+from ui.main import main_menu
 
 
 router = Router(
