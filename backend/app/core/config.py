@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     subscription_base_url: str = (
         "https://sub.workplayvpn.local/sub"
     )
+    connect_base_url: str = (
+        "https://connect.workplayvpn.local/connect/happ"
+    )
 
 
 settings = Settings()

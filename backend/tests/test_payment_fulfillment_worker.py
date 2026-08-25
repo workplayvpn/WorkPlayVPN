@@ -53,8 +53,8 @@ def test_worker_delivers_fulfillment() -> None:
         "abcdefghijklmnopqrstuvwxyz0123456789ABCDE"
     )
 
-    expected_subscription_url = (
-        f"{payment_fulfillment.settings.subscription_base_url.rstrip('/')}/"
+    expected_connect_url = (
+        f"{payment_fulfillment.settings.connect_base_url.rstrip('/')}/"
         f"{fake_raw_token}"
     )
 
@@ -95,7 +95,6 @@ def test_worker_delivers_fulfillment() -> None:
     assert result is True
 
     build_access.assert_called_once()
-
     get_token.assert_called_once()
 
     token_kwargs = get_token.call_args.kwargs
@@ -106,6 +105,7 @@ def test_worker_delivers_fulfillment() -> None:
     telegram_call = send_message.call_args.kwargs
 
     assert telegram_call["telegram_id"] == 995500001
+    assert telegram_call["connect_url"] == expected_connect_url
 
     message_text = telegram_call["text"]
 
@@ -113,16 +113,70 @@ def test_worker_delivers_fulfillment() -> None:
     assert "Work&PlayVPN" in message_text
     assert "31.12.2026" in message_text
     assert "Основное устройство" in message_text
-    assert expected_subscription_url in message_text
+    assert "VPN готов к подключению" in message_text
 
-    # Сырой VLESS пользователю больше не отправляем.
+    # Технические ссылки больше не показываем в тексте.
     assert fake_vless not in message_text
+    assert fake_raw_token not in message_text
+    assert expected_connect_url not in message_text
+    assert "vless://" not in message_text
 
     mark_delivered.assert_called_once()
 
     delivered_kwargs = mark_delivered.call_args.kwargs
 
     assert delivered_kwargs["fulfillment"] is fake_fulfillment
+
+
+def test_send_telegram_message_builds_connect_button() -> None:
+    fake_response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {"ok": True},
+    )
+
+    connect_url = (
+        "https://connect.test.local/connect/happ/"
+        "123.1.test-token"
+    )
+
+    with patch.object(
+        payment_fulfillment.settings,
+        "telegram_bot_token",
+        "test-telegram-bot-token",
+    ), patch(
+        "app.workers.payment_fulfillment.httpx.post",
+        return_value=fake_response,
+    ) as http_post:
+        payment_fulfillment.send_telegram_message(
+            telegram_id=995500001,
+            text="VPN готов к подключению.",
+            connect_url=connect_url,
+        )
+
+    http_post.assert_called_once()
+
+    args, kwargs = http_post.call_args
+
+    assert args[0] == (
+        "https://api.telegram.org/"
+        "bottest-telegram-bot-token/sendMessage"
+    )
+
+    payload = kwargs["json"]
+
+    assert payload["chat_id"] == 995500001
+    assert payload["text"] == "VPN готов к подключению."
+    assert payload["disable_web_page_preview"] is True
+
+    keyboard = payload["reply_markup"]["inline_keyboard"]
+
+    assert len(keyboard) == 1
+    assert len(keyboard[0]) == 1
+
+    button = keyboard[0][0]
+
+    assert button["text"] == "🚀 Подключить VPN"
+    assert button["url"] == connect_url
 
 
 def test_worker_marks_failed_when_delivery_raises() -> None:

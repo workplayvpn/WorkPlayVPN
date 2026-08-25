@@ -1,7 +1,7 @@
 import argparse
 import logging
 import time
-from datetime import UTC
+from datetime import UTC, datetime
 
 import httpx
 
@@ -14,6 +14,7 @@ from app.services.subscription_token_service import (
     subscription_token_service,
 )
 
+
 logger = logging.getLogger(
     "payment-fulfillment-worker"
 )
@@ -23,6 +24,7 @@ def send_telegram_message(
     *,
     telegram_id: int,
     text: str,
+    connect_url: str | None = None,
 ) -> None:
     token = settings.telegram_bot_token
 
@@ -36,14 +38,28 @@ def send_telegram_message(
         f"bot{token}/sendMessage"
     )
 
+    payload: dict = {
+        "chat_id": telegram_id,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+
+    if connect_url is not None:
+        payload["reply_markup"] = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "🚀 Подключить VPN",
+                        "url": connect_url,
+                    }
+                ]
+            ]
+        }
+
     try:
         response = httpx.post(
             url,
-            json={
-                "chat_id": telegram_id,
-                "text": text,
-                "disable_web_page_preview": True,
-            },
+            json=payload,
             timeout=15.0,
         )
     except httpx.HTTPError as exc:
@@ -57,13 +73,13 @@ def send_telegram_message(
         )
 
     try:
-        payload = response.json()
+        response_payload = response.json()
     except ValueError as exc:
         raise RuntimeError(
             "Invalid Telegram response"
         ) from exc
 
-    if payload.get("ok") is not True:
+    if response_payload.get("ok") is not True:
         raise RuntimeError(
             "Telegram sendMessage failed"
         )
@@ -73,18 +89,9 @@ def process_once() -> bool:
     database = SessionLocal()
 
     try:
-        recovered = (
-            payment_fulfillment_service
-            .recover_stale_processing(
-                database=database,
-            )
+        payment_fulfillment_service.recover_stale_processing(
+            database=database,
         )
-
-        if recovered:
-            logger.warning(
-                "Recovered stale fulfillments: count=%s",
-                recovered,
-            )
 
         fulfillment = (
             payment_fulfillment_service.claim_next(
@@ -94,16 +101,6 @@ def process_once() -> bool:
 
         if fulfillment is None:
             return False
-
-        logger.info(
-            "Fulfillment claimed: "
-            "fulfillment_id=%s "
-            "payment_id=%s "
-            "attempt=%s",
-            fulfillment.id,
-            fulfillment.payment_id,
-            fulfillment.attempts,
-        )
 
         try:
             (
@@ -115,17 +112,6 @@ def process_once() -> bool:
             ) = payment_fulfillment_service.build_access(
                 database=database,
                 fulfillment=fulfillment,
-            )
-            token, raw_token = (
-                subscription_token_service.get_or_create_token(
-                    database=database,
-                    telegram_id=user.telegram_id,
-                )
-            )
-
-            subscription_url = (
-                f"{settings.subscription_base_url.rstrip('/')}/"
-                f"{raw_token}"
             )
 
             expires_text = "не ограничен"
@@ -143,25 +129,31 @@ def process_once() -> bool:
                     .strftime("%d.%m.%Y")
                 )
 
+            _, raw_token = (
+                subscription_token_service.get_or_create_token(
+                    database=database,
+                    telegram_id=user.telegram_id,
+                )
+            )
+
+            connect_url = (
+                f"{settings.connect_base_url.rstrip('/')}/"
+                f"{raw_token}"
+            )
+
             text = (
                 "✅ Оплата получена!\n\n"
-                "🛡 Подписка Work&PlayVPN "
-                "активирована.\n"
+                "🛡 Подписка Work&PlayVPN активирована.\n"
                 f"📅 Действует до: {expires_text}\n\n"
-                f"📱 Устройство: "
-                f"{device.device_name}\n\n"
-                "🔐 Ваша подписка Work&PlayVPN:\n"
-                f"{subscription_url}\n\n"
-                "Добавьте эту ссылку в HAPP или "
-                "другое совместимое VPN-приложение.\n\n"
-                "При продлении тарифа ссылка останется "
-                "той же. Новые серверы также будут "
-                "появляться в этой подписке автоматически."
+                f"📱 Устройство: {device.device_name}\n\n"
+                "VPN готов к подключению.\n"
+                "Нажмите кнопку ниже."
             )
 
             send_telegram_message(
                 telegram_id=user.telegram_id,
                 text=text,
+                connect_url=connect_url,
             )
 
             payment_fulfillment_service.mark_delivered(
@@ -194,8 +186,7 @@ def process_once() -> bool:
 
             logger.exception(
                 "Fulfillment attempt failed: "
-                "fulfillment_id=%s "
-                "attempt=%s",
+                "fulfillment_id=%s attempt=%s",
                 fulfillment.id,
                 fulfillment.attempts,
             )
@@ -225,18 +216,16 @@ def main() -> None:
         ),
     )
 
-    # Не допускаем попадания Telegram Bot Token
-    # в INFO-логи HTTP-клиента.
     logging.getLogger("httpx").setLevel(
         logging.WARNING
     )
+
     logging.getLogger("httpcore").setLevel(
         logging.WARNING
     )
 
     logger.info(
-        "Payment fulfillment worker started; "
-        "interval=%ss",
+        "Payment fulfillment worker started; interval=%ss",
         args.interval,
     )
 
