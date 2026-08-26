@@ -18,6 +18,29 @@ router = APIRouter(
 )
 
 
+def build_token_response(
+    *,
+    token,
+    raw_token: str,
+) -> SubscriptionTokenRead:
+    subscription_url = (
+        f"{settings.subscription_base_url.rstrip('/')}/"
+        f"{raw_token}"
+    )
+
+    connect_url = (
+        f"{settings.connect_base_url.rstrip('/')}/"
+        f"{raw_token}"
+    )
+
+    return SubscriptionTokenRead(
+        subscription_url=subscription_url,
+        connect_url=connect_url,
+        created_at=token.created_at,
+        rotated_at=token.rotated_at,
+    )
+
+
 @router.post(
     "",
     response_model=SubscriptionTokenRead,
@@ -34,15 +57,9 @@ def create_subscription_token(
         )
     )
 
-    subscription_url = (
-        f"{settings.subscription_base_url.rstrip('/')}/"
-        f"{raw_token}"
-    )
-
-    return SubscriptionTokenRead(
-        subscription_url=subscription_url,
-        created_at=token.created_at,
-        rotated_at=token.rotated_at,
+    return build_token_response(
+        token=token,
+        raw_token=raw_token,
     )
 
 
@@ -61,13 +78,7 @@ def rotate_subscription_token(
         )
     )
 
-    subscription_url = (
-        f"{settings.subscription_base_url.rstrip('/')}/"
-        f"{raw_token}"
-    )
-
-    return SubscriptionTokenRead(
-        subscription_url=subscription_url,
-        created_at=token.created_at,
-        rotated_at=token.rotated_at,
+    return build_token_response(
+        token=token,
+        raw_token=raw_token,
     )

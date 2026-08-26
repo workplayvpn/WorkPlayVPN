@@ -68,7 +68,7 @@ def build_device_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🔗 Получить подключение",
+                    text="🚀 Подключить через HAPP",
                     callback_data=f"device_link:{device_id}",
                 )
             ],
@@ -184,6 +184,28 @@ def build_activation_keyboard(
                 InlineKeyboardButton(
                     text="⬅️ Назад",
                     callback_data="add_device",
+                )
+            ],
+        ]
+    )
+
+def build_happ_connect_keyboard(
+    *,
+    connect_url: str,
+    device_id: int,
+) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🚀 Открыть HAPP",
+                    url=connect_url,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Назад",
+                    callback_data=f"device:{device_id}",
                 )
             ],
         ]

@@ -16,6 +16,7 @@ from ui.devices import (
     build_devices_keyboard,
     build_locations_keyboard,
     build_remove_confirm_keyboard,
+    build_happ_connect_keyboard,
     build_user_devices_keyboard,
 )
 from ui.main import main_menu
@@ -221,7 +222,7 @@ async def show_device_link(
     except httpx.RequestError:
         await edit_screen(
             callback,
-            "⚠️ Не удалось получить подключение.",
+            "⚠️ Не удалось подготовить подключение.",
             build_devices_keyboard(),
         )
         return
@@ -235,21 +236,82 @@ async def show_device_link(
         )
         return
 
-    text = (
-        "🔗 Подключение для "
-        f"{device['device_name']}\n\n"
-        "Скопируйте ссылку и импортируйте "
-        "её в совместимое приложение.\n\n"
-        f"{device['vless_url']}\n\n"
-        "После импорта сохраните профиль "
-        "в приложении."
+    try:
+        response = await backend_post(
+            "/subscription-tokens",
+            {
+                "telegram_id": callback.from_user.id,
+            },
+        )
+    except httpx.RequestError:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось подготовить подключение.\n\n"
+            "Попробуйте немного позже.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
+
+    if response.status_code == 403:
+        await edit_screen(
+            callback,
+            "🔒 Для подключения нужна "
+            "активная подписка.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
+
+    if response.status_code == 404:
+        await edit_screen(
+            callback,
+            "⚠️ Профиль пользователя не найден.\n\n"
+            "Попробуйте отправить /start.",
+            main_menu,
+        )
+        return
+
+    if response.status_code != 201:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось подготовить подключение.\n\n"
+            "Попробуйте немного позже.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
+
+    token_data = response.json()
+
+    connect_url = token_data.get(
+        "connect_url"
     )
+
+    if not connect_url:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось получить "
+            "ссылку подключения.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
 
     await edit_screen(
         callback,
-        text,
-        build_device_keyboard(
-            device_id
+        f"🚀 Подключение {device['device_name']}\n\n"
+        "Нажмите кнопку ниже.\n\n"
+        "Если HAPP установлен на устройстве, "
+        "приложение откроется автоматически "
+        "и предложит добавить подписку Work&PlayVPN.",
+        build_happ_connect_keyboard(
+            connect_url=connect_url,
+            device_id=device_id,
         ),
     )
 
