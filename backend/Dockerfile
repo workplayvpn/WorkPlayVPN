@@ -4,7 +4,9 @@ WORKDIR /app
 
 ARG INSTALL_DEV=false
 
-RUN apt-get update \
+RUN sed -i 's|http://deb.debian.org/debian|https://mirror.yandex.ru/debian|g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's|http://deb.debian.org/debian-security|https://mirror.yandex.ru/debian-security|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install -y --no-install-recommends openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
