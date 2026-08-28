@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from app.workers import payment_fulfillment
 
@@ -134,28 +134,44 @@ def test_send_telegram_message_builds_connect_button() -> None:
         json=lambda: {"ok": True},
     )
 
+    fake_client = MagicMock()
+    fake_client.__enter__.return_value = fake_client
+    fake_client.__exit__.return_value = None
+    fake_client.post.return_value = fake_response
+
     connect_url = (
         "https://connect.test.local/connect/happ/"
         "123.1.test-token"
     )
 
+    proxy_url = "socks5://telegram-egress:1080"
+
     with patch.object(
         payment_fulfillment.settings,
         "telegram_bot_token",
         "test-telegram-bot-token",
+    ), patch.object(
+        payment_fulfillment.settings,
+        "telegram_proxy_url",
+        proxy_url,
     ), patch(
-        "app.workers.payment_fulfillment.httpx.post",
-        return_value=fake_response,
-    ) as http_post:
+        "app.workers.payment_fulfillment.httpx.Client",
+        return_value=fake_client,
+    ) as http_client:
         payment_fulfillment.send_telegram_message(
             telegram_id=995500001,
             text="VPN готов к подключению.",
             connect_url=connect_url,
         )
 
-    http_post.assert_called_once()
+    http_client.assert_called_once_with(
+        proxy=proxy_url,
+        timeout=15.0,
+    )
 
-    args, kwargs = http_post.call_args
+    fake_client.post.assert_called_once()
+
+    args, kwargs = fake_client.post.call_args
 
     assert args[0] == (
         "https://api.telegram.org/"

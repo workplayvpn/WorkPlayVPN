@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------
 
     telegram_bot_token: str | None = None
+    telegram_proxy_url: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

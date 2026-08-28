@@ -1,8 +1,9 @@
 import asyncio
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
 
-from config import telegram_bot_token
+from config import telegram_bot_token, telegram_proxy_url
 from handlers.devices import router as devices_router
 from handlers.help import router as help_router
 from handlers.locations import router as locations_router
@@ -43,10 +44,24 @@ dispatcher.include_router(
 )
 
 
-async def main() -> None:
-    bot = Bot(
-        token=telegram_bot_token
+def create_bot() -> Bot:
+    if telegram_proxy_url:
+        session = AiohttpSession(
+            proxy=telegram_proxy_url,
+        )
+
+        return Bot(
+            token=telegram_bot_token,
+            session=session,
+        )
+
+    return Bot(
+        token=telegram_bot_token,
     )
+
+
+async def main() -> None:
+    bot = create_bot()
 
     try:
         await bot.delete_webhook(

@@ -57,11 +57,14 @@ def send_telegram_message(
         }
 
     try:
-        response = httpx.post(
-            url,
-            json=payload,
+        with httpx.Client(
+            proxy=settings.telegram_proxy_url,
             timeout=15.0,
-        )
+        ) as client:
+            response = client.post(
+                url,
+                json=payload,
+            )
     except httpx.HTTPError as exc:
         raise RuntimeError(
             "Telegram request failed"

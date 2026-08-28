@@ -164,6 +164,7 @@ services:
       VPN_REALITY_PORT: ${VPN_REALITY_PORT}
 
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_PROXY_URL: socks5://telegram-egress:1080
 
     volumes:
       - ./backend:/app
@@ -175,6 +176,9 @@ services:
 
     depends_on:
       database:
+        condition: service_healthy
+
+      telegram-egress:
         condition: service_healthy
 
     restart: unless-stopped
@@ -263,6 +267,31 @@ services:
     profiles:
       - testing
 
+  telegram-egress:
+    build:
+      context: ./telegram-egress
+      dockerfile: Dockerfile
+
+    container_name: workplayvpn-telegram-egress
+
+    environment:
+      TELEGRAM_EGRESS_HOST: ${TELEGRAM_EGRESS_HOST}
+      TELEGRAM_EGRESS_USER: ${TELEGRAM_EGRESS_USER}
+      TELEGRAM_EGRESS_SSH_KEY: /run/secrets/workplayvpn_telegram_egress
+
+    volumes:
+      - type: bind
+        source: ${USERPROFILE}/.ssh/workplayvpn_telegram_egress
+        target: /run/secrets/workplayvpn_telegram_egress
+        read_only: true
+
+      - type: bind
+        source: ./telegram-egress/known_hosts
+        target: /run/secrets/known_hosts
+        read_only: true
+
+    restart: unless-stopped
+
   bot:
     build:
       context: ./bot
@@ -279,7 +308,10 @@ services:
 
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
+
+      telegram-egress:
+        condition: service_healthy
 
     restart: unless-stopped
 

@@ -7,3 +7,7 @@ backend_url = os.getenv(
     "BACKEND_URL",
     "http://backend:8000",
 )
+
+telegram_proxy_url = os.getenv(
+    "TELEGRAM_PROXY_URL",
+)
