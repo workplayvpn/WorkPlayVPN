@@ -1,9 +1,12 @@
 FROM alpine:3.22
 
-RUN apk add --no-cache \
-    openssh-client \
-    autossh \
-    netcat-openbsd
+RUN sed -i \
+    's|https://dl-cdn.alpinelinux.org/alpine|https://mirror.yandex.ru/mirrors/alpine|g' \
+    /etc/apk/repositories \
+    && apk add --no-cache \
+        openssh-client \
+        autossh \
+        netcat-openbsd
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
