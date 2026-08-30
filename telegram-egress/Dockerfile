@@ -6,17 +6,26 @@ RUN sed -i \
     && apk add --no-cache \
         openssh-client \
         autossh \
-        netcat-openbsd
+        netcat-openbsd \
+        curl
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod 755 /usr/local/bin/entrypoint.sh
 
 HEALTHCHECK \
-    --interval=10s \
-    --timeout=3s \
-    --start-period=5s \
+    --interval=30s \
+    --timeout=10s \
+    --start-period=10s \
     --retries=3 \
-    CMD nc -z 127.0.0.1 1080 || exit 1
+    CMD curl \
+        --silent \
+        --show-error \
+        --fail \
+        --max-time 8 \
+        --socks5-hostname 127.0.0.1:1080 \
+        https://api.telegram.org/ \
+        --output /dev/null \
+        || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
