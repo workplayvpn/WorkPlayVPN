@@ -4,6 +4,7 @@ import httpx
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
+from api.backend import backend_get
 from ui.common import build_back_to_main_keyboard
 from ui.main import main_menu
 from ui.helpers import edit_screen
