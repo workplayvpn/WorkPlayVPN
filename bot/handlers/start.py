@@ -4,6 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 
 from api.backend import backend_post
+from ui.home import build_home_text
 from ui.main import main_menu
 
 
@@ -39,28 +40,15 @@ async def handle_start(
         )
         return
 
-    if response.status_code == 201:
-        greeting = (
-            f"Добро пожаловать, "
-            f"{telegram_user.first_name}!"
-        )
-    elif response.status_code == 409:
-        greeting = (
-            f"С возвращением, "
-            f"{telegram_user.first_name}!"
-        )
-    else:
+    if response.status_code not in (201, 409):
         await message.answer(
             "Не удалось загрузить профиль."
         )
         return
 
-    text = (
-        "🛡 Work&PlayVPN\n\n"
-        f"{greeting}\n\n"
-        "Быстрый и безопасный доступ "
-        "к интернету.\n\n"
-        "Выберите нужный раздел:"
+    text = build_home_text(
+        telegram_user.first_name,
+        is_new_user=response.status_code == 201,
     )
 
     await message.answer(

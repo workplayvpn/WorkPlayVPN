@@ -1,8 +1,9 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
-from ui.main import main_menu
 from ui.helpers import edit_screen
+from ui.home import build_home_text
+from ui.main import main_menu
 
 
 router = Router(
@@ -18,10 +19,12 @@ async def show_main_menu(
 ) -> None:
     await callback.answer()
 
+    telegram_user = callback.from_user
+
     await edit_screen(
         callback,
-        "🛡 Work&PlayVPN\n\n"
-        "Главное меню\n\n"
-        "Выберите нужный раздел:",
+        build_home_text(
+            telegram_user.first_name,
+        ),
         main_menu,
     )
