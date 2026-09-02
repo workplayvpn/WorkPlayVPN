@@ -8,7 +8,10 @@ from api.backend import (
 )
 from ui.common import build_back_to_main_keyboard
 from ui.main import main_menu
-from ui.payments import build_payment_keyboard
+from ui.payments import (
+    build_payment_confirmation_keyboard,
+    build_payment_keyboard,
+)
 from ui.plans import build_plans_keyboard
 from ui.helpers import edit_screen
 
@@ -171,6 +174,81 @@ async def select_plan(
         )
         return
 
+    try:
+        response = await backend_get(
+            "/catalog/plans"
+        )
+    except httpx.RequestError:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось загрузить тариф.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    if response.status_code != 200:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось загрузить тариф.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    plans = response.json()
+
+    plan = next(
+        (
+            item
+            for item in plans
+            if item["code"] == plan_code
+        ),
+        None,
+    )
+
+    if plan is None:
+        await edit_screen(
+            callback,
+            "⚠️ Тариф не найден.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    price = str(
+        plan["price_amount"]
+    ).removesuffix(".00")
+
+    await edit_screen(
+        callback,
+        "💳 Оформление подписки\n\n"
+        f"Тариф: {plan['name']}\n"
+        f"Стоимость: {price} ₽\n"
+        f"Устройств: до {plan['device_limit']}\n\n"
+        "Проверьте выбранный тариф и "
+        "продолжите к оплате.",
+        build_payment_confirmation_keyboard(
+            plan_code
+        ),
+    )
+
+
+@router.callback_query(
+    F.data.startswith("pay_plan:")
+)
+async def pay_plan(
+    callback: CallbackQuery,
+) -> None:
+    await callback.answer()
+
+    if callback.data is None:
+        return
+
+    plan_code = callback.data.split(
+        ":",
+        maxsplit=1,
+    )[1]
+
+    telegram_id = callback.from_user.id
+
     idempotency_key = (
         f"tg-{telegram_id}-"
         f"{plan_code}-"
@@ -224,9 +302,9 @@ async def select_plan(
             "💳 Оплата Work&PlayVPN\n\n"
             f"Сумма: {amount} ₽\n"
             f"Валюта: {payment['currency']}\n\n"
-            "Нажмите кнопку ниже, чтобы "
-            "перейти на защищённую страницу "
-            "оплаты.\n\n"
+            "Откройте защищённую страницу "
+            "оплаты. Там можно будет выбрать "
+            "доступный способ оплаты.\n\n"
             "После успешной оплаты подписка "
             "активируется автоматически.",
             build_payment_keyboard(
@@ -243,9 +321,7 @@ async def select_plan(
         messages = {
             "Payment already pending": (
                 "💳 У вас уже есть платёж, "
-                "ожидающий оплаты.\n\n"
-                "Не создавайте несколько "
-                "одинаковых платежей."
+                "ожидающий оплаты."
             ),
             "User already has active subscription": (
                 "✅ У вас уже есть активная "
