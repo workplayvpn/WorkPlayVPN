@@ -462,10 +462,38 @@ class PaymentService:
                 detail="Payment cannot be canceled",
             )
 
+        subscription = database.get(
+            Subscription,
+            payment.subscription_id,
+        )
+
+        if subscription is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Payment subscription not found",
+            )
+
+        provider_service = payment_provider_registry.get(
+            payment.provider
+        )
+
+        if payment.provider_payment_id is not None:
+            provider_service.cancel_payment(
+                provider_payment_id=payment.provider_payment_id,
+            )
+
         payment.status = "canceled"
 
-        database.commit()
-        database.refresh(payment)
+        if subscription.status == "pending":
+            subscription.status = "canceled"
+
+        try:
+            database.commit()
+            database.refresh(payment)
+
+        except Exception:
+            database.rollback()
+            raise
 
         return payment
 

@@ -22,3 +22,11 @@ class PaymentProvider(ABC):
         metadata: dict[str, str],
     ) -> ProviderPaymentResult:
         raise NotImplementedError
+
+    @abstractmethod
+    def cancel_payment(
+        self,
+        *,
+        provider_payment_id: str,
+    ) -> None:
+        raise NotImplementedError

@@ -37,3 +37,16 @@ def create_payment(
         provider=provider,
         idempotency_key=payload.idempotency_key,
     )
+
+@router.post(
+    "/{payment_id}/cancel",
+    response_model=PaymentRead,
+)
+def cancel_payment(
+    payment_id: int,
+    database: Session = Depends(get_db),
+):
+    return payment_service.mark_canceled(
+        database=database,
+        payment_id=payment_id,
+    )

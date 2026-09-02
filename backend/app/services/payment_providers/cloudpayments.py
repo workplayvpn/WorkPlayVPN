@@ -158,3 +158,76 @@ class CloudPaymentsProvider(PaymentProvider):
                 confirmation_url
             ),
         )
+
+    def cancel_payment(
+        self,
+        *,
+        provider_payment_id: str,
+    ) -> None:
+        public_id, api_secret = self._get_credentials()
+
+        payload = {
+            "Id": provider_payment_id,
+        }
+
+        body = json.dumps(
+            payload,
+            ensure_ascii=False,
+        ).encode("utf-8")
+
+        credentials = (
+            f"{public_id}:{api_secret}"
+        ).encode("utf-8")
+
+        basic_auth = base64.b64encode(
+            credentials
+        ).decode("ascii")
+
+        request = Request(
+            "https://api.cloudpayments.ru/orders/cancel",
+            data=body,
+            method="POST",
+            headers={
+                "Authorization": f"Basic {basic_auth}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+
+        try:
+            with urlopen(
+                request,
+                timeout=15,
+            ) as response:
+                raw_response = response.read()
+
+        except HTTPError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="CloudPayments rejected payment cancellation",
+            ) from exc
+
+        except URLError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="CloudPayments unavailable",
+            ) from exc
+
+        try:
+            response_data = json.loads(
+                raw_response.decode("utf-8")
+            )
+        except (
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+        ) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Invalid CloudPayments response",
+            ) from exc
+
+        if response_data.get("Success") is not True:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="CloudPayments payment cancellation failed",
+            )

@@ -46,3 +46,10 @@ class TestPaymentProvider(PaymentProvider):
             provider_payment_id=provider_payment_id,
             confirmation_url=confirmation_url,
         )
+
+    def cancel_payment(
+        self,
+        *,
+        provider_payment_id: str,
+    ) -> None:
+        return None
