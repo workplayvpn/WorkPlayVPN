@@ -1,7 +1,6 @@
 from decimal import Decimal
 
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import func, select
 
 from app.db.session import SessionLocal
@@ -23,7 +22,7 @@ def database():
         db.close()
 
 
-def test_different_idempotency_keys_reuse_same_pending_payment(
+def test_different_idempotency_keys_create_separate_pending_payments(
     database,
 ) -> None:
     user = User(
@@ -53,8 +52,17 @@ def test_different_idempotency_keys_reuse_same_pending_payment(
         idempotency_key="payment-create-key-b",
     )
 
-    assert first_payment.id == second_payment.id
-    assert first_payment.subscription_id == second_payment.subscription_id
+    assert first_payment.id != second_payment.id
+    assert (
+        first_payment.subscription_id
+        != second_payment.subscription_id
+    )
+
+    assert first_payment.status == "pending"
+    assert second_payment.status == "pending"
+
+    assert first_payment.expires_at is not None
+    assert second_payment.expires_at is not None
 
     payment_count = database.scalar(
         select(func.count(Payment.id)).where(
@@ -70,11 +78,11 @@ def test_different_idempotency_keys_reuse_same_pending_payment(
         )
     )
 
-    assert payment_count == 1
-    assert subscription_count == 1
+    assert payment_count == 2
+    assert subscription_count == 2
 
 
-def test_different_plan_is_rejected_when_payment_pending(
+def test_different_plan_is_allowed_when_payment_pending(
     database,
 ) -> None:
     user = User(
@@ -111,24 +119,29 @@ def test_different_plan_is_rejected_when_payment_pending(
         idempotency_key="payment-create-plan-a",
     )
 
+    second_payment = payment_service.create_payment(
+        database=database,
+        telegram_id=user.telegram_id,
+        plan_code=plan_3m.code,
+        provider="test",
+        idempotency_key="payment-create-plan-b",
+    )
+
+    assert first_payment.id != second_payment.id
+
     assert first_payment.status == "pending"
+    assert second_payment.status == "pending"
+
     assert first_payment.amount == Decimal("199.00")
+    assert second_payment.amount == Decimal("499.00")
 
-    with pytest.raises(HTTPException) as exc_info:
-        payment_service.create_payment(
-            database=database,
-            telegram_id=user.telegram_id,
-            plan_code=plan_3m.code,
-            provider="test",
-            idempotency_key="payment-create-plan-b",
-        )
-
-    assert exc_info.value.status_code == 409
-    assert exc_info.value.detail == "Payment already pending"
+    assert first_payment.expires_at is not None
+    assert second_payment.expires_at is not None
 
     payment_count = database.scalar(
         select(func.count(Payment.id)).where(
             Payment.user_id == user.id,
+            Payment.status == "pending",
         )
     )
 
@@ -139,5 +152,5 @@ def test_different_plan_is_rejected_when_payment_pending(
         )
     )
 
-    assert payment_count == 1
-    assert pending_subscription_count == 1
+    assert payment_count == 2
+    assert pending_subscription_count == 2

@@ -1,5 +1,6 @@
+import logging
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -13,6 +14,8 @@ from app.models.subscription import Subscription
 from app.models.user import User
 from app.services.payment_providers import payment_provider_registry
 from app.services.subscription_service import subscription_service
+
+logger = logging.getLogger(__name__)
 
 
 class PaymentService:
@@ -167,92 +170,53 @@ class PaymentService:
 
             else:
                 # -------------------------------------------------
-                # 3. Один пользователь не должен иметь пачку
-                # неоплаченных счетов.
+                # 3. Каждый новый запрос с новым idempotency_key
+                # создаёт отдельный pending-платёж.
                 # -------------------------------------------------
 
-                pending_payment = database.scalar(
-                    select(Payment)
-                    .where(
-                        Payment.user_id == locked_user.id,
-                        Payment.status == "pending",
-                    )
-                    .order_by(
-                        Payment.created_at.desc()
-                    )
+                subscription = Subscription(
+                    user_id=locked_user.id,
+                    plan_id=plan.id,
+                    status="pending",
                 )
 
-                if pending_payment is not None:
-                    pending_subscription = database.get(
-                        Subscription,
-                        pending_payment.subscription_id,
+                payment = Payment(
+                    user_id=locked_user.id,
+                    subscription_id=0,
+                    provider=provider,
+                    provider_payment_id=None,
+                    idempotency_key=idempotency_key,
+                    status="pending",
+                    expires_at=datetime.now(UTC) + timedelta(hours=24),
+                    amount=plan.price_amount,
+                    currency=plan.currency,
+                    confirmation_url=None,
+                )
+
+                try:
+                    database.add(subscription)
+                    database.flush()
+
+                    payment.subscription_id = (
+                        subscription.id
                     )
 
-                    if pending_subscription is None:
-                        raise HTTPException(
-                            status_code=(
-                                status.HTTP_500_INTERNAL_SERVER_ERROR
-                            ),
-                            detail="Payment subscription not found",
+                    database.add(payment)
+                    database.commit()
+                    database.refresh(payment)
+
+                except IntegrityError:
+                    database.rollback()
+
+                    payment = database.scalar(
+                        select(Payment).where(
+                            Payment.idempotency_key
+                            == idempotency_key,
                         )
-
-                    # Тот же тариф + тот же provider:
-                    # возвращаем существующий счёт.
-                    if (
-                        pending_subscription.plan_id == plan.id
-                        and pending_payment.provider == provider
-                    ):
-                        payment = pending_payment
-
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_409_CONFLICT,
-                            detail="Payment already pending",
-                        )
-
-                else:
-                    subscription = Subscription(
-                        user_id=locked_user.id,
-                        plan_id=plan.id,
-                        status="pending",
                     )
 
-                    payment = Payment(
-                        user_id=locked_user.id,
-                        subscription_id=0,
-                        provider=provider,
-                        provider_payment_id=None,
-                        idempotency_key=idempotency_key,
-                        status="pending",
-                        amount=plan.price_amount,
-                        currency=plan.currency,
-                        confirmation_url=None,
-                    )
-
-                    try:
-                        database.add(subscription)
-                        database.flush()
-
-                        payment.subscription_id = (
-                            subscription.id
-                        )
-
-                        database.add(payment)
-                        database.commit()
-                        database.refresh(payment)
-
-                    except IntegrityError:
-                        database.rollback()
-
-                        payment = database.scalar(
-                            select(Payment).where(
-                                Payment.idempotency_key
-                                == idempotency_key,
-                            )
-                        )
-
-                        if payment is None:
-                            raise
+                    if payment is None:
+                        raise
 
         # -------------------------------------------------
         # 4. Provider payment уже создан.
@@ -372,6 +336,11 @@ class PaymentService:
                 except IntegrityError:
                     database.rollback()
 
+            self._cancel_other_pending_payments(
+                database=database,
+                succeeded_payment=payment,
+            )
+
             database.refresh(payment)
             return payment
 
@@ -432,12 +401,96 @@ class PaymentService:
             database.rollback()
             raise
 
+        self._cancel_other_pending_payments(
+            database=database,
+            succeeded_payment=payment,
+        )
+
+        database.refresh(payment)
+
         return payment
+
+    def _cancel_other_pending_payments(
+        self,
+        database: Session,
+        *,
+        succeeded_payment: Payment,
+    ) -> None:
+        pending_payment_ids = list(
+            database.scalars(
+                select(Payment.id).where(
+                    Payment.user_id
+                    == succeeded_payment.user_id,
+                    Payment.id
+                    != succeeded_payment.id,
+                    Payment.status == "pending",
+                )
+            ).all()
+        )
+
+        for pending_payment_id in pending_payment_ids:
+            try:
+                pending_payment = database.scalar(
+                    select(Payment)
+                    .where(
+                        Payment.id
+                        == pending_payment_id,
+                    )
+                    .with_for_update()
+                )
+
+                if pending_payment is None:
+                    continue
+
+                if pending_payment.status != "pending":
+                    continue
+
+                subscription = database.get(
+                    Subscription,
+                    pending_payment.subscription_id,
+                )
+
+                provider_service = (
+                    payment_provider_registry.get(
+                        pending_payment.provider
+                    )
+                )
+
+                if (
+                    pending_payment.provider_payment_id
+                    is not None
+                ):
+                    provider_service.cancel_payment(
+                        provider_payment_id=(
+                            pending_payment.provider_payment_id
+                        ),
+                    )
+
+                pending_payment.status = "canceled"
+
+                if (
+                    subscription is not None
+                    and subscription.status == "pending"
+                ):
+                    subscription.status = "canceled"
+
+                database.commit()
+
+            except Exception:
+                database.rollback()
+
+                logger.exception(
+                    "Failed to cancel pending payment %s "
+                    "after payment %s succeeded",
+                    pending_payment_id,
+                    succeeded_payment.id,
+                )
 
     def mark_canceled(
         self,
         database: Session,
         payment_id: int,
+        telegram_id: int,
     ) -> Payment:
         payment = database.scalar(
             select(Payment)
@@ -448,6 +501,18 @@ class PaymentService:
         )
 
         if payment is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payment not found",
+            )
+
+        user = database.scalar(
+            select(User).where(
+                User.telegram_id == telegram_id,
+            )
+        )
+
+        if user is None or payment.user_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Payment not found",

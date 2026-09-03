@@ -308,7 +308,8 @@ async def pay_plan(
             "После успешной оплаты подписка "
             "активируется автоматически.",
             build_payment_keyboard(
-                confirmation_url
+                confirmation_url,
+                payment["id"],
             ),
         )
         return
@@ -319,10 +320,6 @@ async def pay_plan(
         )
 
         messages = {
-            "Payment already pending": (
-                "💳 У вас уже есть платёж, "
-                "ожидающий оплаты."
-            ),
             "User already has active subscription": (
                 "✅ У вас уже есть активная "
                 "подписка."
@@ -364,6 +361,96 @@ async def pay_plan(
     await edit_screen(
         callback,
         "⚠️ Не удалось создать платёж.\n\n"
+        "Попробуйте немного позже.",
+        build_back_to_main_keyboard(),
+    )
+
+@router.callback_query(
+    F.data.startswith("cancel_payment:")
+)
+async def cancel_payment(
+    callback: CallbackQuery,
+) -> None:
+    await callback.answer()
+
+    try:
+        payment_id = int(
+            callback.data.split(":", 1)[1]
+        )
+    except (ValueError, IndexError):
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось определить платёж.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    try:
+        response = await backend_post(
+            f"/payments/{payment_id}/cancel",
+            {
+                "telegram_id": callback.from_user.id,
+            },
+        )
+    except httpx.RequestError:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось отменить платёж.\n\n"
+            "Попробуйте немного позже.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    if response.status_code == 200:
+        try:
+            plans_response = await backend_get(
+                "/catalog/plans"
+            )
+        except httpx.RequestError:
+            await edit_screen(
+                callback,
+                "✅ Платёж отменён.",
+                build_back_to_main_keyboard(),
+            )
+            return
+
+        if plans_response.status_code != 200:
+            await edit_screen(
+                callback,
+                "✅ Платёж отменён.",
+                build_back_to_main_keyboard(),
+            )
+            return
+
+        plans = plans_response.json()
+
+        await edit_screen(
+            callback,
+            "✅ Платёж отменён.\n\n"
+            "Теперь вы можете выбрать другой тариф.",
+            build_plans_keyboard(plans),
+        )
+        return
+
+    if response.status_code == 404:
+        await edit_screen(
+            callback,
+            "⚠️ Платёж не найден.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    if response.status_code == 409:
+        await edit_screen(
+            callback,
+            "⚠️ Этот платёж уже нельзя отменить.",
+            build_back_to_main_keyboard(),
+        )
+        return
+
+    await edit_screen(
+        callback,
+        "⚠️ Не удалось отменить платёж.\n\n"
         "Попробуйте немного позже.",
         build_back_to_main_keyboard(),
     )

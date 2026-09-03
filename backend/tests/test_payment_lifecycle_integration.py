@@ -242,6 +242,7 @@ def test_payment_activates_subscription_when_no_active_exists(
         == expected_expires_at
     )
 
+
 def test_successful_payment_creates_single_fulfillment(
     database,
 ) -> None:
@@ -337,3 +338,159 @@ def test_successful_payment_creates_single_fulfillment(
     )
 
     assert second_count == 1
+
+
+def test_successful_payment_cancels_other_pending_payments(
+    database,
+) -> None:
+    user = User(
+        telegram_id=991000004,
+        username="integration_multiple_payments",
+        first_name="MultiplePayments",
+        is_active=True,
+    )
+
+    database.add(user)
+    database.commit()
+    database.refresh(user)
+
+    first_payment = payment_service.create_payment(
+        database=database,
+        telegram_id=user.telegram_id,
+        plan_code="standard_3m",
+        provider="test",
+        idempotency_key="multiple-payment-3m",
+    )
+
+    second_payment = payment_service.create_payment(
+        database=database,
+        telegram_id=user.telegram_id,
+        plan_code="standard_6m",
+        provider="test",
+        idempotency_key="multiple-payment-6m",
+    )
+
+    first_payment_id = first_payment.id
+    first_subscription_id = (
+        first_payment.subscription_id
+    )
+
+    second_payment_id = second_payment.id
+    second_subscription_id = (
+        second_payment.subscription_id
+    )
+
+    result = payment_service.mark_succeeded(
+        database=database,
+        payment_id=second_payment_id,
+        provider_payment_id=(
+            second_payment.provider_payment_id
+        ),
+    )
+
+    assert result.status == "succeeded"
+
+    database.expire_all()
+
+    first_payment = database.get(
+        Payment,
+        first_payment_id,
+    )
+
+    second_payment = database.get(
+        Payment,
+        second_payment_id,
+    )
+
+    first_subscription = database.get(
+        Subscription,
+        first_subscription_id,
+    )
+
+    second_subscription = database.get(
+        Subscription,
+        second_subscription_id,
+    )
+
+    assert first_payment is not None
+    assert second_payment is not None
+    assert first_subscription is not None
+    assert second_subscription is not None
+
+    assert first_payment.status == "canceled"
+    assert second_payment.status == "succeeded"
+
+    assert first_subscription.status == "canceled"
+    assert second_subscription.status == "active"
+
+
+def test_repeated_success_cancels_leftover_pending_payment(
+    database,
+) -> None:
+    user = User(
+        telegram_id=991000005,
+        username="integration_repeated_cleanup",
+        first_name="RepeatedCleanup",
+        is_active=True,
+    )
+
+    database.add(user)
+    database.commit()
+    database.refresh(user)
+
+    succeeded_payment = payment_service.create_payment(
+        database=database,
+        telegram_id=user.telegram_id,
+        plan_code="standard_3m",
+        provider="test",
+        idempotency_key="repeated-cleanup-paid",
+    )
+
+    payment_service.mark_succeeded(
+        database=database,
+        payment_id=succeeded_payment.id,
+        provider_payment_id=(
+            succeeded_payment.provider_payment_id
+        ),
+    )
+
+    leftover_payment = payment_service.create_payment(
+        database=database,
+        telegram_id=user.telegram_id,
+        plan_code="standard_6m",
+        provider="test",
+        idempotency_key="repeated-cleanup-leftover",
+    )
+
+    leftover_payment_id = leftover_payment.id
+    leftover_subscription_id = (
+        leftover_payment.subscription_id
+    )
+
+    result = payment_service.mark_succeeded(
+        database=database,
+        payment_id=succeeded_payment.id,
+        provider_payment_id=(
+            succeeded_payment.provider_payment_id
+        ),
+    )
+
+    assert result.status == "succeeded"
+
+    database.expire_all()
+
+    leftover_payment = database.get(
+        Payment,
+        leftover_payment_id,
+    )
+
+    leftover_subscription = database.get(
+        Subscription,
+        leftover_subscription_id,
+    )
+
+    assert leftover_payment is not None
+    assert leftover_subscription is not None
+
+    assert leftover_payment.status == "canceled"
+    assert leftover_subscription.status == "canceled"

@@ -267,6 +267,34 @@ services:
     profiles:
       - testing
 
+  payment-expiry-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: workplayvpn-payment-expiry-worker
+
+    command:
+      [
+        "python",
+        "-m",
+        "app.workers.payment_expiry",
+        "--interval",
+        "60"
+      ]
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+
+    volumes:
+      - ./backend:/app
+
+    depends_on:
+      database:
+        condition: service_healthy
+
+    restart: unless-stopped
+
   telegram-egress:
     build:
       context: ./telegram-egress

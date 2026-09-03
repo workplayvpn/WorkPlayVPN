@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.dependencies import get_db
 from app.schemas.payment import (
+    PaymentCancel,
     PaymentCreate,
     PaymentRead,
 )
@@ -44,9 +45,11 @@ def create_payment(
 )
 def cancel_payment(
     payment_id: int,
+    payload: PaymentCancel,
     database: Session = Depends(get_db),
 ):
     return payment_service.mark_canceled(
         database=database,
         payment_id=payment_id,
+        telegram_id=payload.telegram_id,
     )

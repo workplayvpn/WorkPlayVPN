@@ -104,24 +104,9 @@ def create_subscription(
         )
 
     else:
-        pending_subscription = database.scalar(
-            select(Subscription).where(
-                Subscription.user_id == user.id,
-                Subscription.plan_id == plan.id,
-                Subscription.status == "pending",
-            )
-        )
-
-        if pending_subscription is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Payment already pending",
-            )
-
-        subscription = Subscription(
-            user_id=user.id,
-            plan_id=plan.id,
-            status="pending",
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Paid plans require payment",
         )
 
     database.add(subscription)

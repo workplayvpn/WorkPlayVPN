@@ -27,13 +27,20 @@ def build_payment_confirmation_keyboard(
 
 def build_payment_keyboard(
     confirmation_url: str,
+    payment_id: int,
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="💳 Перейти к оплате",
+                    text="💳 Открыть страницу оплаты",
                     url=confirmation_url,
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Отменить платёж",
+                    callback_data=f"cancel_payment:{payment_id}",
                 )
             ],
             [

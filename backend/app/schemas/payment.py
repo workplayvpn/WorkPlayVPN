@@ -21,8 +21,12 @@ class PaymentRead(BaseModel):
     currency: str
     confirmation_url: str | None
     created_at: datetime
+    expires_at: datetime | None
     paid_at: datetime | None
 
 
 class PaymentComplete(BaseModel):
     provider_payment_id: str | None = None
+
+class PaymentCancel(BaseModel):
+    telegram_id: int
