@@ -78,6 +78,19 @@ services:
       database:
         condition: service_healthy
 
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
     restart: unless-stopped
 
   subscription-worker:
@@ -285,6 +298,21 @@ services:
 
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
+
+      VPN_NODE_NAME: ${VPN_NODE_NAME}
+      VPN_NODE_HOST: ${VPN_NODE_HOST}
+      VPN_NODE_SSH_PORT: ${VPN_NODE_SSH_PORT}
+      VPN_NODE_SSH_USER: ${VPN_NODE_SSH_USER}
+      VPN_NODE_SSH_KEY_PATH: ${VPN_NODE_SSH_KEY_PATH}
+
+      VPN_REALITY_PUBLIC_KEY: ${VPN_REALITY_PUBLIC_KEY}
+      VPN_REALITY_SNI: ${VPN_REALITY_SNI}
+      VPN_REALITY_SHORT_ID: ${VPN_REALITY_SHORT_ID}
+      VPN_REALITY_FINGERPRINT: ${VPN_REALITY_FINGERPRINT}
+      VPN_REALITY_PORT: ${VPN_REALITY_PORT}
+
+      SUBSCRIPTION_TOKEN_SECRET: ${SUBSCRIPTION_TOKEN_SECRET}
+      SUBSCRIPTION_BASE_URL: ${SUBSCRIPTION_BASE_URL}
 
     volumes:
       - ./backend:/app
