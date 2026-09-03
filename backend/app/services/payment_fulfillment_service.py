@@ -21,7 +21,7 @@ from app.services.vpn_profile_link_builder import (
 
 class PaymentFulfillmentService:
 
-    default_node_code = "NL-01"
+    default_node_code = "nl-01"
     default_device_name = "Основное устройство"
 
     max_attempts = 8

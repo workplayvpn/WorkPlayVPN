@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class VpnDeviceCreate(BaseModel):
     telegram_id: int
-    node_code: str = "NL-01"
+    node_code: str = "nl-01"
     device_name: str = Field(min_length=1, max_length=100)
 
 

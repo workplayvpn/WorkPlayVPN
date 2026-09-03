@@ -61,7 +61,7 @@ def test_first_purchase_creates_device_and_vless() -> None:
 
         node = VpnNode(
             location_id=location.id,
-            code="NL-01",
+            code="nl-01",
             name="Netherlands Test",
             host="vpn-test.example.com",
             ssh_port=22,
