@@ -79,7 +79,7 @@ class Settings(BaseSettings):
         "https://sub.workplayvpn.local/sub"
     )
     connect_base_url: str = (
-        "https://connect.workplayvpn.local/connect/happ"
+        "https://connect.workplayvpn.ru/connect/happ"
     )
 
 
