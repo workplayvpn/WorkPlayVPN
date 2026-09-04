@@ -176,12 +176,6 @@ def connect_happ(
             и предложит добавить подписку автоматически.
         </p>
     </div>
-
-    <script>
-        setTimeout(function () {{
-            window.location.href = "{safe_happ_url}";
-        }}, 500);
-    </script>
 </body>
 </html>
 """
