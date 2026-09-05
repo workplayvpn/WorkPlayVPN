@@ -39,12 +39,6 @@ def build_payment_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="❌ Отменить платёж",
-                    callback_data=f"cancel_payment:{payment_id}",
-                )
-            ],
-            [
-                InlineKeyboardButton(
                     text="⬅️ К тарифам",
                     callback_data="plans",
                 )
