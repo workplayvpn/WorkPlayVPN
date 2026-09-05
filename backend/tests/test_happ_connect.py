@@ -70,6 +70,10 @@ def test_happ_connect_returns_one_click_page() -> None:
         assert "Work&PlayVPN" in body
         assert "Подключить в HAPP" in body
         assert "happ://add/" in body
+        assert (
+            f"happ://add/https://connect.workplayvpn.ru/sub/{raw_token}"
+            in body
+        )
         assert raw_token in body
 
     finally:
