@@ -76,7 +76,7 @@ class Settings(BaseSettings):
 
     subscription_token_secret: str
     subscription_base_url: str = (
-        "https://sub.workplayvpn.local/sub"
+        "https://connect.workplayvpn.ru/sub"
     )
     connect_base_url: str = (
         "https://connect.workplayvpn.ru/connect/happ"
