@@ -1,9 +1,9 @@
 connect.workplayvpn.ru {
-	@internal_subscription_tokens {
-		path /subscription-tokens /subscription-tokens/*
+	@internal_api {
+		path /subscription-tokens /subscription-tokens/* /test /test/*
 	}
 
-	respond @internal_subscription_tokens 404
+	respond @internal_api 404
 
 	reverse_proxy backend:8000
 }
