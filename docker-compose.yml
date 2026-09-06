@@ -71,8 +71,8 @@ services:
         target: /run/secrets/workplayvpn_backend
         read_only: true
 
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
 
     depends_on:
       database:
