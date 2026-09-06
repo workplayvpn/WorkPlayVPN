@@ -1,1 +1,2 @@
 *.sh text eol=lf
+caddy/Caddyfile text eol=lf
