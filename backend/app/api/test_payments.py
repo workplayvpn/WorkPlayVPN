@@ -6,6 +6,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.api.internal_auth import require_internal_api_secret
 from app.core.config import settings
 from app.db.dependencies import get_db
 from app.models.payment import Payment
@@ -15,6 +16,9 @@ from app.services.payment_service import payment_service
 router = APIRouter(
     prefix="/test/payments",
     tags=["test-payments"],
+    dependencies=[
+        Depends(require_internal_api_secret),
+    ],
 )
 
 
