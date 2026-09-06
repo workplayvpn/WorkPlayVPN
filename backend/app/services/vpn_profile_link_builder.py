@@ -47,9 +47,19 @@ class VpnProfileLinkBuilder:
         if header_type:
             params["headerType"] = header_type
 
+        path = settings.get("path")
+
+        if path:
+            params["path"] = path
+
+        mode = settings.get("mode")
+
+        if mode:
+            params["mode"] = mode
+
         query = urlencode(
             params,
-            safe="-_",
+            safe="-_/",
         )
 
         name = quote(

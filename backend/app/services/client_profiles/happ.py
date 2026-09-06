@@ -24,6 +24,9 @@ class HappProfile(ClientProfile):
         ] = {}
 
         for profile in profiles:
+            if not profile.is_active:
+                continue
+
             profiles_by_node.setdefault(
                 profile.node_id,
                 [],
@@ -35,25 +38,25 @@ class HappProfile(ClientProfile):
                 [],
             )
 
-            tls_profile = next(
+            xhttp_profile = next(
                 (
                     profile
                     for profile in node_profiles
                     if profile.protocol == "vless"
-                    and profile.network == "tcp"
+                    and profile.network == "xhttp"
                     and profile.security == "tls"
                 ),
                 None,
             )
 
-            if tls_profile is None:
+            if xhttp_profile is None:
                 continue
 
             links.append(
                 vpn_profile_link_builder.build_vless_link(
                     device=device,
                     node=node,
-                    profile=tls_profile,
+                    profile=xhttp_profile,
                 )
             )
 
