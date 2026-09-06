@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.api.internal_auth import require_internal_api_secret
 from app.core.config import settings
 from app.db.dependencies import get_db
 from app.schemas.subscription_token import (
@@ -15,6 +16,9 @@ from app.services.subscription_token_service import (
 router = APIRouter(
     prefix="/subscription-tokens",
     tags=["subscription-tokens"],
+    dependencies=[
+        Depends(require_internal_api_secret),
+    ],
 )
 
 

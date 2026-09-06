@@ -1,6 +1,11 @@
 import httpx
 
-from config import backend_url
+from config import backend_url, internal_api_secret
+
+
+_internal_headers = {
+    "Authorization": f"Bearer {internal_api_secret}",
+}
 
 
 async def backend_get(
@@ -10,7 +15,8 @@ async def backend_get(
         timeout=10.0,
     ) as client:
         return await client.get(
-            f"{backend_url}{path}"
+            f"{backend_url}{path}",
+            headers=_internal_headers,
         )
 
 
@@ -24,6 +30,7 @@ async def backend_post(
         return await client.post(
             f"{backend_url}{path}",
             json=payload,
+            headers=_internal_headers,
         )
 
 
@@ -34,5 +41,6 @@ async def backend_delete(
         timeout=10.0,
     ) as client:
         return await client.delete(
-            f"{backend_url}{path}"
+            f"{backend_url}{path}",
+            headers=_internal_headers,
         )

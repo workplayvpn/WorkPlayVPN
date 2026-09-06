@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
+from app.core.config import settings
 from sqlalchemy import select
 
 from app.main import app
@@ -70,8 +71,13 @@ def test_happ_connect_returns_one_click_page() -> None:
         assert "Work&PlayVPN" in body
         assert "Подключить в HAPP" in body
         assert "happ://add/" in body
+        expected_subscription_url = (
+            f"{settings.subscription_base_url.rstrip('/')}/"
+            f"{raw_token}"
+        )
+
         assert (
-            f"happ://add/https://connect.workplayvpn.ru/sub/{raw_token}"
+            f"happ://add/{expected_subscription_url}"
             in body
         )
         assert raw_token in body

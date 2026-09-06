@@ -1,10 +1,17 @@
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     database_url: str
+
+    # -------------------------------------------------
+    # Internal API security
+    # -------------------------------------------------
+
+    internal_api_secret: str = Field(min_length=32)
 
     # -------------------------------------------------
     # VPN

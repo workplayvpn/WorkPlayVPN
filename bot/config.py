@@ -2,6 +2,7 @@ import os
 
 
 telegram_bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+internal_api_secret = os.environ["INTERNAL_API_SECRET"]
 
 backend_url = os.getenv(
     "BACKEND_URL",
