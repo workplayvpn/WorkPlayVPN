@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.models.vpn_node import VpnNode
 from app.schemas.vpn_device import VpnDeviceCreate, VpnDeviceRead
@@ -16,6 +17,9 @@ from app.services.vpn_profile_link_builder import (
 router = APIRouter(
     prefix="/devices",
     tags=["devices"],
+    dependencies=[
+        Depends(require_internal_api_secret),
+    ],
 )
 
 

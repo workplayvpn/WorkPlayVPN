@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.schemas.device_activation import (
     DeviceActivationComplete,
@@ -29,6 +30,9 @@ router = APIRouter(
     "",
     response_model=DeviceActivationRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(require_internal_api_secret),
+    ],
 )
 def create_device_activation(
     payload: DeviceActivationCreate,

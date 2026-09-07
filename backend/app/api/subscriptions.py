@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.models.plan import Plan
 from app.models.subscription import Subscription
@@ -21,6 +22,9 @@ from app.services.subscription_service import (
 router = APIRouter(
     prefix="/subscriptions",
     tags=["subscriptions"],
+    dependencies=[
+        Depends(require_internal_api_secret),
+    ],
 )
 
 

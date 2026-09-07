@@ -1,6 +1,20 @@
 connect.workplayvpn.ru {
 	@internal_api {
-		path /subscription-tokens /subscription-tokens/* /test /test/*
+		path \
+ /subscription-tokens \
+ /subscription-tokens/* \
+ /test \
+ /test/* \
+ /users \
+ /users/* \
+ /subscriptions \
+ /subscriptions/* \
+ /devices \
+ /devices/* \
+ /payments \
+ /payments/* \
+ /device-activations \
+ /device-activations/
 	}
 
 	respond @internal_api 404

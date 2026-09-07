@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead
@@ -10,6 +11,9 @@ from app.schemas.user import UserCreate, UserRead
 router = APIRouter(
     prefix="/users",
     tags=["users"],
+    dependencies=[
+        Depends(require_internal_api_secret),
+    ],
 )
 
 
