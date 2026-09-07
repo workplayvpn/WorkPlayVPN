@@ -88,6 +88,9 @@ class Settings(BaseSettings):
     connect_base_url: str = (
         "https://connect.workplayvpn.ru/connect/happ"
     )
+    activation_base_url: str = (
+        "https://connect.workplayvpn.ru/activate"
+    )
 
 
 settings = Settings()

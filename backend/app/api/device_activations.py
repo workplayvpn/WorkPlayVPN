@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.api.internal_auth import require_internal_api_secret
+from app.core.config import settings
 from app.db.dependencies import get_db
 from app.schemas.device_activation import (
     DeviceActivationComplete,
@@ -26,6 +27,15 @@ router = APIRouter(
 )
 
 
+def build_activation_url(
+    raw_token: str,
+) -> str:
+    return (
+        f"{settings.activation_base_url.rstrip('/')}/"
+        f"{raw_token}"
+    )
+
+
 @router.post(
     "",
     response_model=DeviceActivationRead,
@@ -46,10 +56,7 @@ def create_device_activation(
         )
     )
 
-    activation_url = (
-        "https://connect.workplayvpn.local/"
-        f"activate/{raw_token}"
-    )
+    activation_url = build_activation_url(raw_token)
 
     return DeviceActivationRead(
         activation_id=activation.id,

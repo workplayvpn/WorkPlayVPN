@@ -63,6 +63,8 @@ services:
       SUBSCRIPTION_TOKEN_SECRET: ${SUBSCRIPTION_TOKEN_SECRET}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       SUBSCRIPTION_BASE_URL: ${SUBSCRIPTION_BASE_URL}
+      CONNECT_BASE_URL: ${CONNECT_BASE_URL}
+      ACTIVATION_BASE_URL: ${ACTIVATION_BASE_URL}
 
     volumes:
       - ./backend:/app
@@ -235,6 +237,7 @@ services:
       DATABASE_URL: postgresql+psycopg://workplayvpn_test:workplayvpn_test@test-database:5432/workplayvpn_test
 
       CONNECT_BASE_URL: https://connect.test.local/connect/happ
+      ACTIVATION_BASE_URL: https://connect.test.local/activate
 
       VPN_NODE_NAME: WorkPlayVPN-Test
       VPN_NODE_HOST: 127.0.0.1
