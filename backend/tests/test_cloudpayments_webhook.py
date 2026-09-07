@@ -208,6 +208,7 @@ def test_amount_mismatch_is_rejected() -> None:
         "Amount": "198.00",
         "Currency": "RUB",
         "AccountId": "4",
+        "TestMode": "1",
     }
 
     with patch(
@@ -246,6 +247,7 @@ def test_currency_mismatch_is_rejected() -> None:
         "Amount": "199.00",
         "Currency": "USD",
         "AccountId": "4",
+        "TestMode": "1",
     }
 
     with patch(
@@ -284,6 +286,7 @@ def test_account_mismatch_is_rejected() -> None:
         "Amount": "199.00",
         "Currency": "RUB",
         "AccountId": "999",
+        "TestMode": "1",
     }
 
     with patch(
@@ -359,6 +362,7 @@ def test_valid_payment_calls_mark_succeeded() -> None:
         "Amount": "199.00",
         "Currency": "RUB",
         "AccountId": "4",
+        "TestMode": "1",
     }
 
     expected_result = object()
@@ -403,6 +407,7 @@ def test_succeeded_payment_with_other_transaction_is_rejected() -> None:
         "Amount": "199.00",
         "Currency": "RUB",
         "AccountId": "4",
+        "TestMode": "1",
     }
 
     with patch(
@@ -421,5 +426,113 @@ def test_succeeded_payment_with_other_transaction_is_rejected() -> None:
     assert (
         exc_info.value.detail
         == "Payment transaction mismatch"
+    )
+    mark_succeeded.assert_not_called()
+
+
+def test_missing_test_mode_is_rejected() -> None:
+    service = CloudPaymentsWebhookService()
+
+    payload = {
+        "InvoiceId": "100",
+        "TransactionId": "cp-test-100",
+        "Amount": "199.00",
+        "Currency": "RUB",
+        "AccountId": "4",
+    }
+
+    database = MagicMock()
+
+    with patch(
+        "app.services.cloudpayments_webhook."
+        "payment_service.mark_succeeded"
+    ) as mark_succeeded:
+        with pytest.raises(
+            HTTPException
+        ) as exc_info:
+            service.handle_pay(
+                database=database,
+                payload=payload,
+            )
+
+    assert exc_info.value.status_code == 400
+    assert (
+        exc_info.value.detail
+        == "TestMode is required"
+    )
+    mark_succeeded.assert_not_called()
+
+
+def test_invalid_test_mode_is_rejected() -> None:
+    service = CloudPaymentsWebhookService()
+
+    payload = {
+        "InvoiceId": "100",
+        "TransactionId": "cp-test-100",
+        "Amount": "199.00",
+        "Currency": "RUB",
+        "AccountId": "4",
+        "TestMode": "unexpected",
+    }
+
+    database = MagicMock()
+
+    with patch(
+        "app.services.cloudpayments_webhook."
+        "payment_service.mark_succeeded"
+    ) as mark_succeeded:
+        with pytest.raises(
+            HTTPException
+        ) as exc_info:
+            service.handle_pay(
+                database=database,
+                payload=payload,
+            )
+
+    assert exc_info.value.status_code == 400
+    assert (
+        exc_info.value.detail
+        == "Invalid TestMode"
+    )
+    mark_succeeded.assert_not_called()
+
+
+def test_test_webhook_is_rejected_in_live_mode() -> None:
+    service = CloudPaymentsWebhookService()
+
+    payload = {
+        "InvoiceId": "100",
+        "TransactionId": "cp-test-100",
+        "Amount": "199.00",
+        "Currency": "RUB",
+        "AccountId": "4",
+        "TestMode": "1",
+    }
+
+    database = MagicMock()
+
+    with (
+        patch(
+            "app.services.cloudpayments_webhook."
+            "settings.payment_mode",
+            "live",
+        ),
+        patch(
+            "app.services.cloudpayments_webhook."
+            "payment_service.mark_succeeded"
+        ) as mark_succeeded,
+    ):
+        with pytest.raises(
+            HTTPException
+        ) as exc_info:
+            service.handle_pay(
+                database=database,
+                payload=payload,
+            )
+
+    assert exc_info.value.status_code == 409
+    assert (
+        exc_info.value.detail
+        == "Payment mode mismatch"
     )
     mark_succeeded.assert_not_called()

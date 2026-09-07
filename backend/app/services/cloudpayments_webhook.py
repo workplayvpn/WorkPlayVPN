@@ -124,12 +124,36 @@ class CloudPaymentsWebhookService:
             if values
         }
 
+    def _parse_test_mode(
+        self,
+        raw_value: str | None,
+    ) -> bool:
+        if raw_value is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="TestMode is required",
+            )
+
+        normalized_value = raw_value.strip().lower()
+
+        if normalized_value in {"1", "true"}:
+            return True
+
+        if normalized_value in {"0", "false"}:
+            return False
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid TestMode",
+        )
+
     def handle_pay(
         self,
         *,
         database: Session,
         payload: dict[str, str],
     ) -> Payment:
+        test_mode_raw = payload.get("TestMode")
         invoice_id = payload.get("InvoiceId")
         transaction_id = payload.get("TransactionId")
         amount_raw = payload.get("Amount")
@@ -164,6 +188,20 @@ class CloudPaymentsWebhookService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="AccountId is required",
+            )
+
+        webhook_is_test = self._parse_test_mode(
+            test_mode_raw
+        )
+
+        expected_test_mode = (
+            settings.payment_mode == "test"
+        )
+
+        if webhook_is_test != expected_test_mode:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Payment mode mismatch",
             )
 
         try:
