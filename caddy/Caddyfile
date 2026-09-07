@@ -13,6 +13,11 @@ connect.workplayvpn.ru {
  /devices/* \
  /payments \
  /payments/* \
+ /docs \
+ /docs/* \
+ /redoc \
+ /redoc/* \
+ /openapi.json \
  /device-activations \
  /device-activations/
 	}
