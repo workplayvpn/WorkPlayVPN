@@ -27,6 +27,11 @@ connect.workplayvpn.ru {
 	reverse_proxy backend:8000
 }
 
+www.workplayvpn.ru {
+        header -Server
+        redir https://workplayvpn.ru{uri} permanent
+}
+
 workplayvpn.ru {
         encode zstd gzip
 
