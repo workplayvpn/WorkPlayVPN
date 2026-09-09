@@ -71,3 +71,19 @@ class MiniAppDeviceRead(BaseModel):
     node_name: str
     is_active: bool
     created_at: datetime
+
+
+class MiniAppPaymentCreate(BaseModel):
+    plan_code: str = Field(min_length=1, max_length=50)
+    idempotency_key: str = Field(min_length=16, max_length=255)
+
+
+class MiniAppPaymentRead(BaseModel):
+    id: int
+    status: str
+    amount: Decimal
+    currency: str
+    confirmation_url: str | None
+    created_at: datetime
+    expires_at: datetime | None
+    paid_at: datetime | None

@@ -2,3 +2,6 @@ services:
   backend:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/workplayvpn_test
+      PAYMENT_DEFAULT_PROVIDER: test
+      PAYMENT_MODE: test
+      ROBOKASSA_IS_TEST: "true"

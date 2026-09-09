@@ -1,7 +1,8 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -9,14 +10,18 @@ from app.api.device_activations import build_activation_url
 from app.api.telegram_webapp_auth import (
     require_telegram_webapp_auth,
 )
+from app.core.config import settings
 from app.db.dependencies import get_db
 from app.models.location import Location
+from app.models.payment import Payment
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.schemas.mini_app import (
+    MiniAppPaymentCreate,
+    MiniAppPaymentRead,
     MiniAppActivationCreate,
     MiniAppActivationRead,
     MiniAppDeviceRead,
@@ -29,6 +34,7 @@ from app.schemas.mini_app import (
     MiniAppUserRead,
 )
 from app.services.device_activation_service import device_activation_service
+from app.services.payment_service import payment_service
 from app.services.subscription_service import subscription_service
 from app.services.vpn_device_service import vpn_device_service
 from app.services.telegram_webapp_auth import (
@@ -421,4 +427,95 @@ def remove_device(
 
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
+    )
+
+
+@router.post(
+    "/payments",
+    response_model=MiniAppPaymentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_payment(
+    payload: MiniAppPaymentCreate,
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppPaymentRead:
+    payment = payment_service.create_payment(
+        database=database,
+        telegram_id=auth.user.id,
+        plan_code=payload.plan_code,
+        provider=settings.payment_default_provider,
+        idempotency_key=payload.idempotency_key,
+    )
+
+    return MiniAppPaymentRead(
+        id=payment.id,
+        status=payment.status,
+        amount=payment.amount,
+        currency=payment.currency,
+        confirmation_url=payment.confirmation_url,
+        created_at=payment.created_at,
+        expires_at=payment.expires_at,
+        paid_at=payment.paid_at,
+    )
+
+
+@router.get(
+    "/payments/current",
+    response_model=MiniAppPaymentRead | None,
+)
+def get_current_payment(
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppPaymentRead | None:
+    user = database.scalar(
+        select(User).where(
+            User.telegram_id == auth.user.id,
+            User.is_active.is_(True),
+        )
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    payment = database.scalar(
+        select(Payment)
+        .where(
+            Payment.user_id == user.id,
+            Payment.status == "pending",
+            or_(
+                Payment.expires_at.is_(None),
+                Payment.expires_at > datetime.now(UTC),
+            ),
+        )
+        .order_by(Payment.created_at.desc())
+    )
+
+    if payment is None:
+        return None
+
+    return MiniAppPaymentRead(
+        id=payment.id,
+        status=payment.status,
+        amount=payment.amount,
+        currency=payment.currency,
+        confirmation_url=payment.confirmation_url,
+        created_at=payment.created_at,
+        expires_at=payment.expires_at,
+        paid_at=payment.paid_at,
     )

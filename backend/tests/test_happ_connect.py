@@ -1,8 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from app.core.config import settings
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.main import app
 from app.db.session import SessionLocal
@@ -15,6 +16,27 @@ from app.services.subscription_token_service import (
 
 
 client = TestClient(app)
+
+TEST_TELEGRAM_IDS = (996000001, 996000002)
+
+
+def remove_test_users() -> None:
+    with SessionLocal() as database:
+        database.execute(
+            delete(User).where(
+                User.telegram_id.in_(TEST_TELEGRAM_IDS)
+            )
+        )
+        database.commit()
+
+
+@pytest.fixture(autouse=True)
+def clean_test_users():
+    remove_test_users()
+
+    yield
+
+    remove_test_users()
 
 
 def test_happ_connect_returns_one_click_page() -> None:
