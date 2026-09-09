@@ -983,3 +983,65 @@ h1 {
     transition-duration: 0.01ms !important;
   }
 }
+
+.error-page {
+  min-height: 100vh;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 70% 25%, rgba(47, 125, 244, 0.25), transparent 30%),
+    linear-gradient(145deg, #07111f, #0b2038);
+}
+
+.error-main {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 28px;
+}
+
+.error-card {
+  width: min(100%, 680px);
+  padding: 52px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: var(--radius-large);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
+}
+
+.error-code {
+  margin: 60px 0 4px;
+  color: var(--cyan);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.error-card h1 {
+  margin: 0;
+  font-size: clamp(42px, 7vw, 68px);
+}
+
+.error-card > p:not(.error-code) {
+  max-width: 520px;
+  margin: 20px 0 0;
+  color: #aebed2;
+  font-size: 17px;
+}
+
+@media (max-width: 680px) {
+  .error-card {
+    padding: 34px 24px;
+  }
+
+  .error-code {
+    margin-top: 48px;
+  }
+
+  .error-card .hero-actions {
+    flex-direction: column;
+  }
+
+  .error-card .button {
+    width: 100%;
+  }
+}
