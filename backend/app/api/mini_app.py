@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from app.api.device_activations import build_activation_url
 from app.api.telegram_webapp_auth import (
     require_telegram_webapp_auth,
 )
@@ -14,7 +15,11 @@ from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
+from app.models.vpn_node import VpnNode
 from app.schemas.mini_app import (
+    MiniAppActivationCreate,
+    MiniAppActivationRead,
+    MiniAppDeviceRead,
     MiniAppCatalogRead,
     MiniAppLocationRead,
     MiniAppPlanRead,
@@ -23,7 +28,9 @@ from app.schemas.mini_app import (
     MiniAppSubscriptionRead,
     MiniAppUserRead,
 )
+from app.services.device_activation_service import device_activation_service
 from app.services.subscription_service import subscription_service
+from app.services.vpn_device_service import vpn_device_service
 from app.services.telegram_webapp_auth import (
     TelegramWebAppAuthResult,
 )
@@ -300,4 +307,118 @@ def start_trial(
         plan_name=plan.name,
         starts_at=subscription.starts_at,
         expires_at=subscription.expires_at,
+    )
+
+
+def build_mini_app_device(
+    *,
+    database: Session,
+    device: VpnDevice,
+) -> MiniAppDeviceRead:
+    node = database.get(
+        VpnNode,
+        device.node_id,
+    )
+
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="VPN node not found",
+        )
+
+    return MiniAppDeviceRead(
+        id=device.id,
+        device_name=device.device_name,
+        node_code=node.code,
+        node_name=node.name,
+        is_active=device.is_active,
+        created_at=device.created_at,
+    )
+
+
+@router.get(
+    "/devices",
+    response_model=list[MiniAppDeviceRead],
+)
+def get_devices(
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> list[MiniAppDeviceRead]:
+    devices = vpn_device_service.get_devices(
+        database=database,
+        telegram_id=auth.user.id,
+    )
+
+    return [
+        build_mini_app_device(
+            database=database,
+            device=device,
+        )
+        for device in devices
+    ]
+
+
+
+
+
+@router.post(
+    "/device-activations",
+    response_model=MiniAppActivationRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_device_activation(
+    payload: MiniAppActivationCreate,
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppActivationRead:
+    activation, raw_token = (
+        device_activation_service.create_activation(
+            database=database,
+            telegram_id=auth.user.id,
+            location_code=payload.location_code.upper(),
+        )
+    )
+
+    return MiniAppActivationRead(
+        activation_id=activation.id,
+        expires_at=activation.expires_at,
+        activation_url=build_activation_url(raw_token),
+    )
+
+
+@router.delete(
+    "/devices/{device_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_device(
+    device_id: int,
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> Response:
+    vpn_device_service.remove_device(
+        database=database,
+        telegram_id=auth.user.id,
+        device_id=device_id,
+    )
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
     )

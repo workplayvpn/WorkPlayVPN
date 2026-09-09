@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class MiniAppUserRead(BaseModel):
@@ -47,3 +47,27 @@ class MiniAppLocationRead(BaseModel):
 class MiniAppCatalogRead(BaseModel):
     plans: list[MiniAppPlanRead]
     locations: list[MiniAppLocationRead]
+
+
+class MiniAppActivationCreate(BaseModel):
+    location_code: str = Field(min_length=1, max_length=50)
+
+
+class MiniAppActivationRead(BaseModel):
+    activation_id: int
+    expires_at: datetime
+    activation_url: str
+
+class MiniAppActivationRead(BaseModel):
+    activation_id: int
+    expires_at: datetime
+    activation_url: str
+
+
+class MiniAppDeviceRead(BaseModel):
+    id: int
+    device_name: str = Field(min_length=1, max_length=100)
+    node_code: str = Field(min_length=1, max_length=50)
+    node_name: str
+    is_active: bool
+    created_at: datetime
