@@ -1,5 +1,3 @@
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -62,62 +60,16 @@ def create_subscription(
             detail="Plan not found",
         )
 
-    now = datetime.now(UTC)
-
-    if plan.code == "trial_1d":
-        previous_trial = database.scalar(
-            select(Subscription)
-            .join(
-                Plan,
-                Subscription.plan_id == Plan.id,
-            )
-            .where(
-                Subscription.user_id == user.id,
-                Plan.code == "trial_1d",
-            )
-        )
-
-        if previous_trial is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Trial already used",
-            )
-
-        active_subscription = database.scalar(
-            select(Subscription).where(
-                Subscription.user_id == user.id,
-                Subscription.status == "active",
-            )
-        )
-
-        if active_subscription is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="User already has active subscription",
-            )
-
-        subscription = Subscription(
-            user_id=user.id,
-            plan_id=plan.id,
-            status="active",
-            starts_at=now,
-            expires_at=now
-            + timedelta(
-                days=plan.duration_days
-            ),
-        )
-
-    else:
+    if plan.code != "trial_1d":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Paid plans require payment",
         )
 
-    database.add(subscription)
-    database.commit()
-    database.refresh(subscription)
-
-    return subscription
+    return subscription_service.create_trial(
+        database=database,
+        user_id=user.id,
+    )
 
 
 @router.get(

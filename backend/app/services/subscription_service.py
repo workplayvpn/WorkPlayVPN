@@ -330,6 +330,90 @@ class SubscriptionService:
 
         return subscription
 
+    def create_trial(
+        self,
+        database: Session,
+        user_id: int,
+    ) -> Subscription:
+        user = database.scalar(
+            select(User)
+            .where(User.id == user_id)
+            .with_for_update()
+        )
+
+        if user is None:
+            database.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        plan = database.scalar(
+            select(Plan).where(
+                Plan.code == "trial_1d",
+                Plan.is_active.is_(True),
+            )
+        )
+
+        if plan is None:
+            database.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Trial plan not found",
+            )
+
+        previous_trial = database.scalar(
+            select(Subscription)
+            .join(
+                Plan,
+                Subscription.plan_id == Plan.id,
+            )
+            .where(
+                Subscription.user_id == user.id,
+                Plan.code == "trial_1d",
+            )
+        )
+
+        if previous_trial is not None:
+            database.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Trial already used",
+            )
+
+        active_subscription = self.get_active_subscription(
+            database=database,
+            user_id=user.id,
+        )
+
+        if active_subscription is not None:
+            database.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="User already has active subscription",
+            )
+
+        now = datetime.now(UTC)
+        subscription = Subscription(
+            user_id=user.id,
+            plan_id=plan.id,
+            status="active",
+            starts_at=now,
+            expires_at=now + timedelta(days=plan.duration_days),
+        )
+
+        database.add(subscription)
+
+        try:
+            database.commit()
+            database.refresh(subscription)
+        except Exception:
+            database.rollback()
+            raise
+
+        return subscription
+
+
     def restore_user_access(
         self,
         database: Session,

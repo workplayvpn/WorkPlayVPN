@@ -157,3 +157,62 @@ def test_me_updates_profile_from_new_signed_data() -> None:
         assert user is not None
         assert user.first_name == "Nikita Updated"
         assert user.username == "new_username"
+
+
+def test_start_trial_requires_telegram_credentials() -> None:
+    response = client.post("/mini-app/trial")
+
+    assert response.status_code == 401
+
+
+def test_start_trial_can_only_be_used_once() -> None:
+    init_data = build_init_data()
+
+    profile_response = client.get(
+        "/mini-app/me",
+        headers={
+            "X-Telegram-Init-Data": init_data,
+        },
+    )
+    assert profile_response.status_code == 200
+
+    first_response = client.post(
+        "/mini-app/trial",
+        headers={
+            "X-Telegram-Init-Data": init_data,
+        },
+    )
+
+    assert first_response.status_code == 201
+
+    subscription = first_response.json()
+    assert subscription["status"] == "active"
+    assert subscription["plan_code"] == "trial_1d"
+    assert subscription["starts_at"] is not None
+    assert subscription["expires_at"] is not None
+
+    second_response = client.post(
+        "/mini-app/trial",
+        headers={
+            "X-Telegram-Init-Data": init_data,
+        },
+    )
+
+    assert second_response.status_code == 409
+    assert second_response.json() == {
+        "detail": "Trial already used"
+    }
+
+    refreshed_profile = client.get(
+        "/mini-app/me",
+        headers={
+            "X-Telegram-Init-Data": init_data,
+        },
+    )
+
+    assert refreshed_profile.status_code == 200
+    assert refreshed_profile.json()["trial_available"] is False
+    assert (
+        refreshed_profile.json()["subscription"]["plan_code"]
+        == "trial_1d"
+    )

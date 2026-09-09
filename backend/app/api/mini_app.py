@@ -9,11 +9,15 @@ from app.api.telegram_webapp_auth import (
     require_telegram_webapp_auth,
 )
 from app.db.dependencies import get_db
+from app.models.location import Location
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
 from app.schemas.mini_app import (
+    MiniAppCatalogRead,
+    MiniAppLocationRead,
+    MiniAppPlanRead,
     MiniAppDeviceSummaryRead,
     MiniAppMeRead,
     MiniAppSubscriptionRead,
@@ -187,4 +191,113 @@ def get_me(
             total_limit=total_device_limit,
         ),
         trial_available=trial_was_used is None,
+    )
+
+
+@router.get(
+    "/catalog",
+    response_model=MiniAppCatalogRead,
+)
+def get_catalog(
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppCatalogRead:
+    plans = database.scalars(
+        select(Plan)
+        .where(
+            Plan.is_active.is_(True),
+            Plan.code.like("standard_%"),
+        )
+        .order_by(Plan.duration_days)
+    ).all()
+
+    locations = database.scalars(
+        select(Location)
+        .where(Location.is_active.is_(True))
+        .order_by(Location.name)
+    ).all()
+
+    return MiniAppCatalogRead(
+        plans=[
+            MiniAppPlanRead(
+                code=plan.code,
+                name=plan.name,
+                duration_days=plan.duration_days,
+                price_amount=plan.price_amount,
+                currency=plan.currency,
+                device_limit=plan.device_limit,
+            )
+            for plan in plans
+        ],
+        locations=[
+            MiniAppLocationRead(
+                code=location.code,
+                name=location.name,
+            )
+            for location in locations
+        ],
+    )
+
+
+@router.post(
+    "/trial",
+    response_model=MiniAppSubscriptionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def start_trial(
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppSubscriptionRead:
+    user = database.scalar(
+        select(User).where(
+            User.telegram_id == auth.user.id
+        )
+    )
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mini App user not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is inactive",
+        )
+
+    subscription = subscription_service.create_trial(
+        database=database,
+        user_id=user.id,
+    )
+
+    plan = database.get(
+        Plan,
+        subscription.plan_id,
+    )
+
+    if plan is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Trial plan not found",
+        )
+
+    return MiniAppSubscriptionRead(
+        status=subscription.status,
+        plan_code=plan.code,
+        plan_name=plan.name,
+        starts_at=subscription.starts_at,
+        expires_at=subscription.expires_at,
     )

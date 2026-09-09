@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel
 
@@ -27,3 +28,22 @@ class MiniAppMeRead(BaseModel):
     subscription: MiniAppSubscriptionRead | None
     devices: MiniAppDeviceSummaryRead
     trial_available: bool
+
+
+class MiniAppPlanRead(BaseModel):
+    code: str
+    name: str
+    duration_days: int
+    price_amount: Decimal
+    currency: str
+    device_limit: int
+
+
+class MiniAppLocationRead(BaseModel):
+    code: str
+    name: str
+
+
+class MiniAppCatalogRead(BaseModel):
+    plans: list[MiniAppPlanRead]
+    locations: list[MiniAppLocationRead]
