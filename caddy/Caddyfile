@@ -1,6 +1,8 @@
 connect.workplayvpn.ru {
-	@internal_api {
-		path \
+        encode zstd gzip
+
+        @internal_api {
+                path \
  /subscription-tokens \
  /subscription-tokens/* \
  /test \
@@ -20,11 +22,37 @@ connect.workplayvpn.ru {
  /openapi.json \
  /device-activations \
  /device-activations/
-	}
+        }
 
-	respond @internal_api 404
+        redir /app /app/ 308
 
-	reverse_proxy backend:8000
+        handle_path /app/* {
+                root * /etc/caddy/mini-app
+                try_files {path} /index.html
+                file_server
+        }
+
+        handle @internal_api {
+                respond 404
+        }
+
+        handle {
+                reverse_proxy backend:8000
+        }
+
+        @mini_app_assets path /app/assets/*
+        header @mini_app_assets Cache-Control "public, max-age=3600"
+
+        @mini_app_entry path /app/
+        header @mini_app_entry Cache-Control "no-store"
+
+        header {
+                -Server
+                X-Content-Type-Options "nosniff"
+                Referrer-Policy "strict-origin-when-cross-origin"
+                Permissions-Policy "camera=(), microphone=(), geolocation=()"
+                Content-Security-Policy "default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors https://telegram.org https://*.telegram.org; base-uri 'self'; form-action 'self'"
+        }
 }
 
 www.workplayvpn.ru {

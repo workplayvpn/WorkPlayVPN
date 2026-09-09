@@ -58,11 +58,6 @@ class MiniAppActivationRead(BaseModel):
     expires_at: datetime
     activation_url: str
 
-class MiniAppActivationRead(BaseModel):
-    activation_id: int
-    expires_at: datetime
-    activation_url: str
-
 
 class MiniAppDeviceRead(BaseModel):
     id: int
