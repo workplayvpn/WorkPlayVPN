@@ -26,3 +26,22 @@ connect.workplayvpn.ru {
 
 	reverse_proxy backend:8000
 }
+
+workplayvpn.ru {
+        encode zstd gzip
+
+        root * /etc/caddy/site
+        file_server
+
+        @assets path /assets/*
+        header @assets Cache-Control "public, max-age=86400"
+
+        header {
+                -Server
+                X-Content-Type-Options "nosniff"
+                X-Frame-Options "DENY"
+                Referrer-Policy "strict-origin-when-cross-origin"
+                Permissions-Policy "camera=(), microphone=(), geolocation=()"
+                Content-Security-Policy "default-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        }
+}
