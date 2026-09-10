@@ -1073,3 +1073,25 @@ h1 {
     width: 100%;
   }
 }
+
+/* Mobile tariff grid fix */
+@media (max-width: 680px) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .plans-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plans-grid .plan-card,
+  .plans-grid .plan-card:nth-child(4),
+  .plans-grid .plan-card:nth-child(5),
+  .plans-grid .plan-card:last-child {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+  }
+}
