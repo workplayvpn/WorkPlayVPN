@@ -25,4 +25,4 @@ class DeviceActivationCompleteRead(BaseModel):
     node_code: str
     node_name: str
     platform: str | None = None
-    vless_url: str
+    vless_url: str | None = None

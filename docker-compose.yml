@@ -65,6 +65,7 @@ services:
       SUBSCRIPTION_BASE_URL: ${SUBSCRIPTION_BASE_URL}
       CONNECT_BASE_URL: ${CONNECT_BASE_URL}
       ACTIVATION_BASE_URL: ${ACTIVATION_BASE_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
 
     volumes:
       - ./backend:/app
@@ -385,6 +386,7 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       BACKEND_URL: ${BACKEND_URL}
+      MINI_APP_URL: ${MINI_APP_URL}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       TELEGRAM_PROXY_URL: socks5://telegram-egress:1080
 

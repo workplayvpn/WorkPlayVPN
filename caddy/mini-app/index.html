@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081321">
+  <meta name="robots" content="noindex, nofollow">
+  <title>WorkPlayVPN</title>
+  <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260909-1">
+  <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
+  <script src="/app/assets/app.js?v=20260910-1" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <div id="loading-screen" class="state-screen">
+    <div class="loader-mark" aria-hidden="true">W</div>
+    <p>Загружаем WorkPlayVPN</p>
+    <span class="loader"></span>
+  </div>
+
+  <div id="error-screen" class="state-screen hidden">
+    <div class="state-icon" aria-hidden="true">!</div>
+    <h1>Не удалось открыть приложение</h1>
+    <p id="error-message">Откройте WorkPlayVPN из Telegram-бота и попробуйте ещё раз.</p>
+    <button id="retry-button" class="button button-primary" type="button">Повторить</button>
+    <a class="button button-secondary" href="https://t.me/workplayvpn_bot">Открыть бота</a>
+  </div>
+
+  <div id="app" class="app-shell hidden">
+    <header class="topbar">
+      <a class="brand" href="#" data-view-link="home" aria-label="WorkPlayVPN — главная">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span>WorkPlayVPN</span>
+      </a>
+      <button id="refresh-button" class="icon-button" type="button" aria-label="Обновить данные">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 11a8 8 0 1 0-2.34 5.66M20 11V5m0 6h-6"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="content">
+      <section id="view-home" class="view active" aria-labelledby="home-title">
+        <div class="welcome">
+          <p class="eyebrow">Личный кабинет</p>
+          <h1 id="home-title">Здравствуйте, <span id="user-first-name">пользователь</span></h1>
+        </div>
+
+        <article id="subscription-card" class="status-card">
+          <div class="status-card-head">
+            <span id="subscription-indicator" class="status-indicator" aria-hidden="true"></span>
+            <span id="subscription-label">Проверяем подписку</span>
+          </div>
+          <strong id="subscription-title">Загрузка…</strong>
+          <p id="subscription-description">Получаем актуальные данные аккаунта.</p>
+          <div class="status-meta">
+            <div>
+              <span>Устройства</span>
+              <strong id="device-summary">—</strong>
+            </div>
+            <div>
+              <span>Действует до</span>
+              <strong id="subscription-expiry">—</strong>
+            </div>
+          </div>
+        </article>
+
+        <div id="pending-payment" class="notice-card hidden">
+          <div>
+            <span class="notice-label">Ожидает оплаты</span>
+            <strong id="pending-payment-amount">—</strong>
+          </div>
+          <button id="resume-payment-button" class="button button-compact" type="button">
+            Продолжить
+          </button>
+        </div>
+
+        <div class="primary-actions">
+          <button id="trial-button" class="action-card hidden" type="button">
+            <span class="action-icon action-icon-cyan" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
+            </span>
+            <span>
+              <strong>Попробовать бесплатно</strong>
+              <small>Пробный доступ на 24 часа</small>
+            </span>
+            <span class="action-arrow" aria-hidden="true">›</span>
+          </button>
+
+          <button class="action-card" type="button" data-view-link="plans">
+            <span class="action-icon action-icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 7h16v12H4zM4 10h16M8 15h3"/></svg>
+            </span>
+            <span>
+              <strong>Выбрать тариф</strong>
+              <small>От 99 ₽ за 7 дней</small>
+            </span>
+            <span class="action-arrow" aria-hidden="true">›</span>
+          </button>
+
+          <button class="action-card" type="button" data-view-link="devices">
+            <span class="action-icon action-icon-violet" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 18h4"/></svg>
+            </span>
+            <span>
+              <strong>Подключить устройство</strong>
+              <small>Создать безопасную ссылку активации</small>
+            </span>
+            <span class="action-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="view-plans" class="view" aria-labelledby="plans-title">
+        <div class="section-head">
+          <p class="eyebrow">Тарифы</p>
+          <h1 id="plans-title">Выберите срок</h1>
+          <p>В каждом тарифе доступно до трёх устройств.</p>
+        </div>
+        <div id="plans-list" class="plans-list" aria-live="polite"></div>
+      </section>
+
+      <section id="view-devices" class="view" aria-labelledby="devices-title">
+        <div class="section-head section-head-row">
+          <div>
+            <p class="eyebrow">Подключения</p>
+            <h1 id="devices-title">Устройства</h1>
+          </div>
+          <span id="devices-counter" class="counter">0 / 0</span>
+        </div>
+
+        <button id="add-device-button" class="button button-primary button-wide" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          Подключить устройство
+        </button>
+
+        <div id="devices-list" class="devices-list" aria-live="polite"></div>
+
+        <div class="help-card">
+          <strong>Как подключить?</strong>
+          <p>Выберите страну сервера. Мы создадим одноразовую ссылку и откроем пошаговую инструкцию.</p>
+        </div>
+      </section>
+
+      <section id="view-profile" class="view" aria-labelledby="profile-title">
+        <div class="section-head">
+          <p class="eyebrow">Аккаунт</p>
+          <h1 id="profile-title">Профиль</h1>
+        </div>
+
+        <article class="profile-card">
+          <div id="profile-avatar" class="profile-avatar" aria-hidden="true">W</div>
+          <div>
+            <strong id="profile-name">—</strong>
+            <span id="profile-username">—</span>
+          </div>
+        </article>
+
+        <div class="details-card">
+          <div class="detail-row">
+            <span>Telegram ID</span>
+            <strong id="profile-telegram-id">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Подписка</span>
+            <strong id="profile-subscription">—</strong>
+          </div>
+          <div class="detail-row">
+            <span>Устройства</span>
+            <strong id="profile-devices">—</strong>
+          </div>
+        </div>
+
+        <div class="security-card">
+          <span class="security-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.7 2.8 8 7 10 4.2-2 7-5.3 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+          </span>
+          <div>
+            <strong>Защищённый вход</strong>
+            <p>Аккаунт подтверждён Telegram. Пароль не требуется.</p>
+          </div>
+        </div>
+
+        <a class="button button-secondary button-wide" href="https://t.me/workplayvpn_bot">
+          Написать в поддержку
+        </a>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Основная навигация">
+      <button class="nav-item active" type="button" data-view-link="home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8v9H6v-9M9 20v-6h6v6"/></svg>
+        <span>Главная</span>
+      </button>
+      <button class="nav-item" type="button" data-view-link="plans">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v12H4zM4 10h16M8 15h3"/></svg>
+        <span>Тарифы</span>
+      </button>
+      <button class="nav-item" type="button" data-view-link="devices">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 18h4"/></svg>
+        <span>Устройства</span>
+      </button>
+      <button class="nav-item" type="button" data-view-link="profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+        <span>Профиль</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="location-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="location-title">
+    <div class="sheet">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <div>
+          <p class="eyebrow">Новый доступ</p>
+          <h2 id="location-title">Выберите страну</h2>
+        </div>
+        <button id="close-location-sheet" class="icon-button" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div id="locations-list" class="locations-list"></div>
+    </div>
+  </div>
+
+  <div id="confirm-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="sheet sheet-small">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <h2 id="confirm-title">Удалить устройство?</h2>
+      <p id="confirm-message">Доступ на выбранном устройстве будет отключён.</p>
+      <div class="sheet-actions">
+        <button id="confirm-cancel" class="button button-secondary" type="button">Отмена</button>
+        <button id="confirm-delete" class="button button-danger" type="button">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+</body>
+</html>
