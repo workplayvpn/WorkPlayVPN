@@ -168,11 +168,9 @@ def process_once() -> bool:
                 "Fulfillment delivered: "
                 "fulfillment_id=%s "
                 "payment_id=%s "
-                "telegram_id=%s "
                 "device_id=%s",
                 fulfillment.id,
                 payment.id,
-                user.telegram_id,
                 device.id,
             )
 

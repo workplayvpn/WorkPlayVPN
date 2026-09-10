@@ -2,6 +2,8 @@ services:
   database:
     image: postgres:17-alpine
     container_name: workplayvpn-database
+    logging:
+      driver: journald
 
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -29,6 +31,8 @@ services:
       dockerfile: Dockerfile
 
     container_name: workplayvpn-backend
+    logging:
+      driver: journald
 
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
@@ -103,6 +107,8 @@ services:
       dockerfile: Dockerfile
 
     container_name: workplayvpn-subscription-worker
+    logging:
+      driver: journald
 
     command:
       [
@@ -152,6 +158,8 @@ services:
       dockerfile: Dockerfile
 
     container_name: workplayvpn-payment-fulfillment-worker
+    logging:
+      driver: journald
 
     command:
       [
@@ -205,6 +213,8 @@ services:
   test-database:
     image: postgres:17-alpine
     container_name: workplayvpn-test-database
+    logging:
+      driver: journald
 
     environment:
       POSTGRES_DB: workplayvpn_test
@@ -295,6 +305,8 @@ services:
       dockerfile: Dockerfile
 
     container_name: workplayvpn-payment-expiry-worker
+    logging:
+      driver: journald
 
     command:
       [
@@ -339,6 +351,8 @@ services:
       dockerfile: Dockerfile
 
     container_name: workplayvpn-telegram-egress
+    logging:
+      driver: journald
 
     environment:
       TELEGRAM_EGRESS_HOST: ${TELEGRAM_EGRESS_HOST}
@@ -361,6 +375,8 @@ services:
   caddy:
     image: caddy:2-alpine
     container_name: workplayvpn-caddy
+    logging:
+      driver: journald
 
     ports:
       - "80:80"
@@ -383,6 +399,8 @@ services:
       dockerfile: Dockerfile
 
     container_name: workplayvpn-bot
+    logging:
+      driver: journald
 
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
