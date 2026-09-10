@@ -386,6 +386,7 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       BACKEND_URL: ${BACKEND_URL}
+      MINI_APP_URL: ${MINI_APP_URL}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       TELEGRAM_PROXY_URL: socks5://telegram-egress:1080
 

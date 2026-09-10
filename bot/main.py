@@ -2,8 +2,13 @@ import asyncio
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
-from config import telegram_bot_token, telegram_proxy_url
+from config import (
+    mini_app_url,
+    telegram_bot_token,
+    telegram_proxy_url,
+)
 from handlers.devices import router as devices_router
 from handlers.help import router as help_router
 from handlers.locations import router as locations_router
@@ -66,6 +71,15 @@ async def main() -> None:
     try:
         await bot.delete_webhook(
             drop_pending_updates=True
+        )
+
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="Открыть",
+                web_app=WebAppInfo(
+                    url=mini_app_url,
+                ),
+            )
         )
 
         await dispatcher.start_polling(

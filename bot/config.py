@@ -12,3 +12,8 @@ backend_url = os.getenv(
 telegram_proxy_url = os.getenv(
     "TELEGRAM_PROXY_URL",
 )
+
+mini_app_url = os.getenv(
+    "MINI_APP_URL",
+    "https://connect.workplayvpn.ru/app/",
+)
