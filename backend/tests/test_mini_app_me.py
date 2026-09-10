@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import pytest
@@ -11,6 +11,8 @@ from sqlalchemy import delete, select
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.main import app
+from app.models.plan import Plan
+from app.models.subscription import Subscription
 from app.models.user import User
 
 
@@ -157,6 +159,48 @@ def test_me_updates_profile_from_new_signed_data() -> None:
         assert user is not None
         assert user.first_name == "Nikita Updated"
         assert user.username == "new_username"
+
+
+def test_trial_is_unavailable_with_active_paid_subscription() -> None:
+    with SessionLocal() as database:
+        plan = database.scalar(
+            select(Plan).where(
+                Plan.code == "standard_1m"
+            )
+        )
+        assert plan is not None
+
+        user = User(
+            telegram_id=TELEGRAM_ID,
+            first_name="Nikita",
+            username="nikita_mini_app",
+            is_active=True,
+        )
+        database.add(user)
+        database.flush()
+
+        now = datetime.now(UTC)
+        database.add(
+            Subscription(
+                user_id=user.id,
+                plan_id=plan.id,
+                status="active",
+                starts_at=now,
+                expires_at=now + timedelta(days=30),
+            )
+        )
+        database.commit()
+
+    response = client.get(
+        "/mini-app/me",
+        headers={
+            "X-Telegram-Init-Data": build_init_data(),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["subscription"]["status"] == "active"
+    assert response.json()["trial_available"] is False
 
 
 def test_start_trial_requires_telegram_credentials() -> None:

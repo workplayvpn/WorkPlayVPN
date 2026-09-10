@@ -203,7 +203,13 @@ def get_me(
             active_count=active_device_count or 0,
             total_limit=total_device_limit,
         ),
-        trial_available=trial_was_used is None,
+        trial_available=(
+            trial_was_used is None
+            and (
+                subscription is None
+                or subscription.status != "active"
+            )
+        ),
     )
 
 

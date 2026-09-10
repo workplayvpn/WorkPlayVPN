@@ -220,9 +220,14 @@ function renderSubscription() {
     elements.subscriptionExpiry.textContent = "—";
   }
 
+  const canStartTrial = (
+    state.me.trial_available
+    && state.me.subscription?.status !== "active"
+  );
+
   elements.trialButton.classList.toggle(
     "hidden",
-    !state.me.trial_available
+    !canStartTrial
   );
 }
 
