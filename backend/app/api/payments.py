@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 from app.api.internal_auth import require_internal_api_secret
 from app.core.config import settings
 from app.db.dependencies import get_db
+from app.models.payment import Payment
 from app.schemas.payment import (
     PaymentCancel,
     PaymentCreate,
     PaymentRead,
+)
+from app.services.payment_redirect_service import (
+    payment_redirect_service,
 )
 from app.services.payment_service import payment_service
 
@@ -21,6 +25,27 @@ router = APIRouter(
 )
 
 
+def build_payment_response(
+    payment: Payment,
+) -> PaymentRead:
+    return PaymentRead(
+        id=payment.id,
+        subscription_id=payment.subscription_id,
+        provider=payment.provider,
+        provider_payment_id=payment.provider_payment_id,
+        status=payment.status,
+        amount=payment.amount,
+        currency=payment.currency,
+        confirmation_url=(
+            payment_redirect_service
+            .build_public_confirmation_url(payment)
+        ),
+        created_at=payment.created_at,
+        expires_at=payment.expires_at,
+        paid_at=payment.paid_at,
+    )
+
+
 @router.post(
     "",
     response_model=PaymentRead,
@@ -29,19 +54,22 @@ router = APIRouter(
 def create_payment(
     payload: PaymentCreate,
     database: Session = Depends(get_db),
-):
+) -> PaymentRead:
     provider = (
         payload.provider
         or settings.payment_default_provider
     )
 
-    return payment_service.create_payment(
+    payment = payment_service.create_payment(
         database=database,
         telegram_id=payload.telegram_id,
         plan_code=payload.plan_code,
         provider=provider,
         idempotency_key=payload.idempotency_key,
     )
+
+    return build_payment_response(payment)
+
 
 @router.post(
     "/{payment_id}/cancel",
@@ -51,9 +79,11 @@ def cancel_payment(
     payment_id: int,
     payload: PaymentCancel,
     database: Session = Depends(get_db),
-):
-    return payment_service.mark_canceled(
+) -> PaymentRead:
+    payment = payment_service.mark_canceled(
         database=database,
         payment_id=payment_id,
         telegram_id=payload.telegram_id,
     )
+
+    return build_payment_response(payment)

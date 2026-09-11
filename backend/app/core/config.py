@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     payment_success_url: str | None = None
     payment_fail_url: str | None = None
     payment_webhook_base_url: str | None = None
+    payment_redirect_base_url: str = (
+        "https://connect.workplayvpn.ru/pay"
+    )
 
     # -------------------------------------------------
     # CloudPayments

@@ -10,11 +10,13 @@ from app.api.devices import router as devices_router
 from app.api.test_payments import router as test_payments_router
 from app.api.payment_webhooks import router as payment_webhooks_router
 from app.api.payments import router as payments_router
+from app.api.payment_redirects import router as payment_redirects_router
 from app.api.subscription_feed import router as subscription_feed_router
 from app.api.subscription_tokens import router as subscription_tokens_router
 from app.api.subscriptions import router as subscriptions_router
 from app.api.users import router as users_router
 from app.db.session import engine
+
 
 
 app = FastAPI(
@@ -34,6 +36,7 @@ app.include_router(activation_page_router)
 app.include_router(subscription_tokens_router)
 app.include_router(subscription_feed_router)
 app.include_router(payments_router)
+app.include_router(payment_redirects_router)
 app.include_router(payment_webhooks_router)
 
 

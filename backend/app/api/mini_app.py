@@ -37,6 +37,9 @@ from app.services.device_activation_service import device_activation_service
 from app.services.payment_service import payment_service
 from app.services.subscription_service import subscription_service
 from app.services.vpn_device_service import vpn_device_service
+from app.services.payment_redirect_service import (
+    payment_redirect_service,
+)
 from app.services.telegram_webapp_auth import (
     TelegramWebAppAuthResult,
 )
@@ -465,7 +468,10 @@ def create_payment(
         status=payment.status,
         amount=payment.amount,
         currency=payment.currency,
-        confirmation_url=payment.confirmation_url,
+        confirmation_url=(
+            payment_redirect_service
+            .build_public_confirmation_url(payment)
+        ),
         created_at=payment.created_at,
         expires_at=payment.expires_at,
         paid_at=payment.paid_at,
@@ -520,7 +526,10 @@ def get_current_payment(
         status=payment.status,
         amount=payment.amount,
         currency=payment.currency,
-        confirmation_url=payment.confirmation_url,
+        confirmation_url=(
+            payment_redirect_service
+            .build_public_confirmation_url(payment)
+        ),
         created_at=payment.created_at,
         expires_at=payment.expires_at,
         paid_at=payment.paid_at,
