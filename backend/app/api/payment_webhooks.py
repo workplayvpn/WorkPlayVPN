@@ -1,15 +1,17 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     Request,
-    status,
 )
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
 from app.services.cloudpayments_webhook import (
     cloudpayments_webhook_service,
+)
+from app.services.robokassa_webhook import (
+    robokassa_webhook_service,
 )
 
 
@@ -52,11 +54,29 @@ async def cloudpayments_pay_webhook(
     }
 
 
-@router.post("/robokassa")
+@router.post(
+    "/robokassa",
+    response_class=PlainTextResponse,
+)
 async def robokassa_webhook(
     request: Request,
+    database: Session = Depends(get_db),
 ):
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Robokassa webhook is not configured",
+    raw_body = await request.body()
+
+    payload = robokassa_webhook_service.parse_payload(
+        raw_body
+    )
+
+    robokassa_webhook_service.verify_signature(
+        payload
+    )
+
+    payment = robokassa_webhook_service.handle_result(
+        database=database,
+        payload=payload,
+    )
+
+    return PlainTextResponse(
+        content=f"OK{payment.id}",
     )
