@@ -3,7 +3,7 @@ services:
     image: postgres:17-alpine
     container_name: workplayvpn-database
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -32,7 +32,7 @@ services:
 
     container_name: workplayvpn-backend
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}
@@ -108,8 +108,7 @@ services:
 
     container_name: workplayvpn-subscription-worker
     logging:
-      driver: journald
-
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
     command:
       [
         "python",
@@ -159,7 +158,7 @@ services:
 
     container_name: workplayvpn-payment-fulfillment-worker
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     command:
       [
@@ -214,7 +213,7 @@ services:
     image: postgres:17-alpine
     container_name: workplayvpn-test-database
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     environment:
       POSTGRES_DB: workplayvpn_test
@@ -306,7 +305,7 @@ services:
 
     container_name: workplayvpn-payment-expiry-worker
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     command:
       [
@@ -352,7 +351,7 @@ services:
 
     container_name: workplayvpn-telegram-egress
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     environment:
       TELEGRAM_EGRESS_HOST: ${TELEGRAM_EGRESS_HOST}
@@ -376,7 +375,7 @@ services:
     image: caddy:2-alpine
     container_name: workplayvpn-caddy
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     ports:
       - "80:80"
@@ -400,7 +399,7 @@ services:
 
     container_name: workplayvpn-bot
     logging:
-      driver: journald
+      driver: ${DOCKER_LOG_DRIVER:-json-file}
 
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
