@@ -254,7 +254,7 @@ class PaymentService:
             provider_result = provider_service.create_payment(
                 amount=payment.amount,
                 currency=payment.currency,
-                description=f"Work&PlayVPN {plan.name}",
+                description=f"WorkPlayVPN {plan.name}",
                 idempotency_key=payment.idempotency_key,
                 metadata={
                     "payment_id": str(payment.id),
@@ -262,6 +262,11 @@ class PaymentService:
                         payment.subscription_id
                     ),
                     "user_id": str(user.id),
+                    "expires_at": (
+                        payment.expires_at.isoformat()
+                        if payment.expires_at
+                        else ""
+                    ),
                 },
             )
 

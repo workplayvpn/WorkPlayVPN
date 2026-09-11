@@ -4,6 +4,9 @@ from app.services.payment_providers.base import PaymentProvider
 from app.services.payment_providers.cloudpayments import (
     CloudPaymentsProvider,
 )
+from app.services.payment_providers.robokassa import (
+    RobokassaProvider,
+)
 from app.services.payment_providers.test import TestPaymentProvider
 
 
@@ -13,6 +16,7 @@ class PaymentProviderRegistry:
         self._providers: dict[str, PaymentProvider] = {
             "test": TestPaymentProvider(),
             "cloudpayments": CloudPaymentsProvider(),
+            "robokassa": RobokassaProvider(),
         }
 
     def get(
