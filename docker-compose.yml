@@ -236,6 +236,7 @@ services:
 
     environment:
       DATABASE_URL: postgresql+psycopg://workplayvpn_test:workplayvpn_test@test-database:5432/workplayvpn_test
+      TELEGRAM_BOT_TOKEN: "123456789:test-token-for-local-tests"
 
       CONNECT_BASE_URL: https://connect.test.local/connect/happ
       ACTIVATION_BASE_URL: https://connect.test.local/activate
