@@ -195,6 +195,42 @@ def test_send_telegram_message_builds_connect_button() -> None:
     assert button["url"] == connect_url
 
 
+def test_send_telegram_message_uses_direct_connection_when_proxy_is_blank() -> None:
+    fake_response = SimpleNamespace(
+        status_code=200,
+        json=lambda: {"ok": True},
+    )
+
+    fake_client = MagicMock()
+    fake_client.__enter__.return_value = fake_client
+    fake_client.__exit__.return_value = None
+    fake_client.post.return_value = fake_response
+
+    with patch.object(
+        payment_fulfillment.settings,
+        "telegram_bot_token",
+        "test-telegram-bot-token",
+    ), patch.object(
+        payment_fulfillment.settings,
+        "telegram_proxy_url",
+        "",
+    ), patch(
+        "app.workers.payment_fulfillment.httpx.Client",
+        return_value=fake_client,
+    ) as http_client:
+        payment_fulfillment.send_telegram_message(
+            telegram_id=995500002,
+            text="VPN is ready.",
+        )
+
+    http_client.assert_called_once_with(
+        proxy=None,
+        timeout=15.0,
+    )
+
+    fake_client.post.assert_called_once()
+
+
 def test_worker_marks_failed_when_delivery_raises() -> None:
     fake_fulfillment = SimpleNamespace(
         id=700001,

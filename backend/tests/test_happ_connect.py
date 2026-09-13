@@ -2,11 +2,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from app.core.config import settings
 from sqlalchemy import delete, select
 
-from app.main import app
+from app.core.config import settings
 from app.db.session import SessionLocal
+from app.main import app
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
@@ -90,19 +90,36 @@ def test_happ_connect_returns_one_click_page() -> None:
 
         body = response.text
 
-        assert "Work&PlayVPN" in body
-        assert "Подключить в HAPP" in body
-        assert "happ://add/" in body
         expected_subscription_url = (
             f"{settings.subscription_base_url.rstrip('/')}/"
             f"{raw_token}"
         )
 
-        assert (
+        expected_happ_url = (
             f"happ://add/{expected_subscription_url}"
-            in body
         )
-        assert raw_token in body
+
+        assert "Work&PlayVPN" in body
+        assert "Открыть HAPP" in body
+        assert 'id="happ-link"' in body
+        assert expected_happ_url in body
+
+        assert "window.location.replace" in body
+        assert "happLink.href" in body
+
+        assert "Открыть подписку" not in body
+        assert 'class="button secondary"' not in body
+
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
+        assert (
+            response.headers["referrer-policy"]
+            == "no-referrer"
+        )
+        assert (
+            response.headers["x-robots-tag"]
+            == "noindex, nofollow, noarchive"
+        )
 
     finally:
         database.rollback()

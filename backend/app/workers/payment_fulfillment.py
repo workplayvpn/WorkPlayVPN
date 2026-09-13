@@ -58,7 +58,7 @@ def send_telegram_message(
 
     try:
         with httpx.Client(
-            proxy=settings.telegram_proxy_url,
+            proxy=settings.telegram_proxy_url or None,
             timeout=15.0,
         ) as client:
             response = client.post(

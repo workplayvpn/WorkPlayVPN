@@ -190,7 +190,7 @@ services:
       VPN_REALITY_PORT: ${VPN_REALITY_PORT}
 
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_PROXY_URL: socks5://telegram-egress:1080
+      TELEGRAM_PROXY_URL: "${TELEGRAM_PROXY_URL:-}"
 
     volumes:
       - ./backend:/app
@@ -202,9 +202,6 @@ services:
 
     depends_on:
       database:
-        condition: service_healthy
-
-      telegram-egress:
         condition: service_healthy
 
     restart: unless-stopped
@@ -406,16 +403,13 @@ services:
       BACKEND_URL: ${BACKEND_URL}
       MINI_APP_URL: ${MINI_APP_URL}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
-      TELEGRAM_PROXY_URL: socks5://telegram-egress:1080
+      TELEGRAM_PROXY_URL: "${TELEGRAM_PROXY_URL:-}"
 
     volumes:
       - ./bot:/app
 
     depends_on:
       backend:
-        condition: service_healthy
-
-      telegram-egress:
         condition: service_healthy
 
     restart: unless-stopped
