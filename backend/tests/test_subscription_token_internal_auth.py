@@ -1,6 +1,10 @@
+from datetime import UTC, datetime
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.subscription_tokens import build_token_response
 from app.core.config import settings
 from app.main import app
 
@@ -61,3 +65,29 @@ def test_subscription_token_endpoint_accepts_valid_credentials(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "User not found"
+
+
+def test_build_token_response_includes_access_key() -> None:
+    now = datetime.now(UTC)
+    raw_token = "123.1.test-access-key"
+    token = SimpleNamespace(
+        created_at=now,
+        rotated_at=None,
+    )
+
+    response = build_token_response(
+        token=token,
+        raw_token=raw_token,
+    )
+
+    assert response.access_key == raw_token
+    assert response.subscription_url == (
+        f"{settings.subscription_base_url.rstrip('/')}/"
+        f"{raw_token}"
+    )
+    assert response.connect_url == (
+        f"{settings.connect_base_url.rstrip('/')}/"
+        f"{raw_token}"
+    )
+    assert response.created_at == now
+    assert response.rotated_at is None

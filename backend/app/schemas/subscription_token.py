@@ -8,7 +8,8 @@ class SubscriptionTokenCreate(BaseModel):
 
 
 class SubscriptionTokenRead(BaseModel):
+    access_key: str
     subscription_url: str
     connect_url: str
     created_at: datetime
-    rotated_at: datetime | None = None
+    rotated_at: datetime | None

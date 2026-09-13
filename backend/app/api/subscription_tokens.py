@@ -38,6 +38,7 @@ def build_token_response(
     )
 
     return SubscriptionTokenRead(
+        access_key=raw_token,
         subscription_url=subscription_url,
         connect_url=connect_url,
         created_at=token.created_at,

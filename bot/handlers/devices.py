@@ -179,6 +179,23 @@ async def show_device(
         )
         return
 
+    instructions_url = None
+
+    try:
+        token_response = await backend_post(
+            "/subscription-tokens",
+            {
+                "telegram_id": callback.from_user.id,
+            },
+        )
+
+        if token_response.status_code == 201:
+            instructions_url = token_response.json().get(
+                "connect_url"
+            )
+    except httpx.RequestError:
+        pass
+
     text = (
         f"📱 {device['device_name']}\n\n"
         "Статус: 🟢 Подключено\n"
@@ -191,7 +208,122 @@ async def show_device(
         callback,
         text,
         build_device_keyboard(
-            device_id
+            device_id,
+            instructions_url=instructions_url,
+        ),
+    )
+
+
+@router.callback_query(
+    F.data.startswith("device_key:")
+)
+async def show_device_key(
+    callback: CallbackQuery,
+) -> None:
+    await callback.answer()
+
+    if callback.data is None:
+        return
+
+    device_id = int(
+        callback.data.split(
+            ":",
+            maxsplit=1,
+        )[1]
+    )
+
+    try:
+        device = await find_device(
+            callback.from_user.id,
+            device_id,
+        )
+    except httpx.RequestError:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось получить ключ.",
+            build_devices_keyboard(),
+        )
+        return
+
+    if device is None:
+        await edit_screen(
+            callback,
+            "Устройство не найдено "
+            "или уже отключено.",
+            build_devices_keyboard(),
+        )
+        return
+
+    try:
+        response = await backend_post(
+            "/subscription-tokens",
+            {
+                "telegram_id": callback.from_user.id,
+            },
+        )
+    except httpx.RequestError:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось получить ключ.\n\n"
+            "Попробуйте немного позже.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
+
+    if response.status_code == 403:
+        await edit_screen(
+            callback,
+            "🔒 Для получения ключа нужна "
+            "активная подписка.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
+
+    if response.status_code == 404:
+        await edit_screen(
+            callback,
+            "⚠️ Профиль пользователя не найден.\n\n"
+            "Попробуйте отправить /start.",
+            main_menu,
+        )
+        return
+
+    if response.status_code != 201:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось получить ключ.\n\n"
+            "Попробуйте немного позже.",
+            build_device_keyboard(
+                device_id
+            ),
+        )
+        return
+
+    token_data = response.json()
+    access_key = token_data.get("access_key")
+    instructions_url = token_data.get("connect_url")
+
+    if not access_key:
+        await edit_screen(
+            callback,
+            "⚠️ Не удалось получить ключ.",
+            build_device_keyboard(
+                device_id,
+                instructions_url=instructions_url,
+            ),
+        )
+        return
+
+    await edit_screen(
+        callback,
+        access_key,
+        build_device_keyboard(
+            device_id,
+            instructions_url=instructions_url,
         ),
     )
 
@@ -304,11 +436,10 @@ async def show_device_link(
 
     await edit_screen(
         callback,
-        f"🚀 Подключение {device['device_name']}\n\n"
-        "Нажмите кнопку ниже.\n\n"
-        "Если HAPP установлен на устройстве, "
-        "приложение откроется автоматически "
-        "и предложит добавить подписку Work&PlayVPN.",
+        f"📖 Инструкция для {device['device_name']}\n\n"
+        "Откройте Mini App, выберите свою платформу "
+        "и следуйте инструкции по установке HAPP "
+        "и добавлению подписки Work&PlayVPN.",
         build_happ_connect_keyboard(
             connect_url=connect_url,
             device_id=device_id,

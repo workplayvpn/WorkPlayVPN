@@ -39,7 +39,7 @@ def clean_test_users():
     remove_test_users()
 
 
-def test_happ_connect_returns_one_click_page() -> None:
+def test_happ_connect_returns_instruction_mini_app() -> None:
     database = SessionLocal()
 
     try:
@@ -99,16 +99,28 @@ def test_happ_connect_returns_one_click_page() -> None:
             f"happ://add/{expected_subscription_url}"
         )
 
-        assert "Work&PlayVPN" in body
-        assert "Открыть HAPP" in body
-        assert 'id="happ-link"' in body
+        assert "Work&amp;PlayVPN" in body
+        assert "Инструкция по подключению" in body
+        assert "Открыть в HAPP" in body
         assert expected_happ_url in body
 
-        assert "window.location.replace" in body
-        assert "happLink.href" in body
+        assert "data-platform=\"ios\"" in body
+        assert "data-platform=\"android\"" in body
+        assert "data-platform=\"windows\"" in body
+        assert "data-platform=\"macos\"" in body
+        assert "data-platform=\"linux\"" in body
+        assert "data-platform=\"tv\"" in body
 
+        assert (
+            "https://telegram.org/js/telegram-web-app.js"
+            in body
+        )
+        assert "apps.apple.com" in body
+        assert "play.google.com" in body
+        assert "github.com/Happ-proxy" in body
+
+        assert "window.location.replace" not in body
         assert "Открыть подписку" not in body
-        assert 'class="button secondary"' not in body
 
         assert response.headers["cache-control"] == "no-store"
         assert response.headers["pragma"] == "no-cache"

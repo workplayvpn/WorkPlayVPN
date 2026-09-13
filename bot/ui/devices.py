@@ -1,6 +1,7 @@
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    WebAppInfo,
 )
 
 
@@ -63,14 +64,31 @@ def build_user_devices_keyboard(
 
 def build_device_keyboard(
     device_id: int,
+    instructions_url: str | None = None,
 ) -> InlineKeyboardMarkup:
+    if instructions_url:
+        instructions_button = InlineKeyboardButton(
+            text="📖 Открыть инструкцию",
+            web_app=WebAppInfo(
+                url=instructions_url,
+            ),
+        )
+    else:
+        instructions_button = InlineKeyboardButton(
+            text="📖 Открыть инструкцию",
+            callback_data=f"device_link:{device_id}",
+        )
+
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚀 Подключить через HAPP",
-                    callback_data=f"device_link:{device_id}",
+                    text="🔑 Показать ключ",
+                    callback_data=f"device_key:{device_id}",
                 )
+            ],
+            [
+                instructions_button,
             ],
             [
                 InlineKeyboardButton(
@@ -189,6 +207,7 @@ def build_activation_keyboard(
         ]
     )
 
+
 def build_happ_connect_keyboard(
     *,
     connect_url: str,
@@ -198,8 +217,10 @@ def build_happ_connect_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚀 Открыть HAPP",
-                    url=connect_url,
+                    text="📖 Открыть инструкцию",
+                    web_app=WebAppInfo(
+                        url=connect_url,
+                    ),
                 )
             ],
             [
