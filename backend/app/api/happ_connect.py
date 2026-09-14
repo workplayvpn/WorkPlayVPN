@@ -8,7 +8,11 @@ from fastapi import (
     HTTPException,
     status,
 )
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -62,6 +66,34 @@ def get_happ_connect_script() -> FileResponse:
 
 
 @router.get(
+    "/launch/{token}",
+    include_in_schema=False,
+)
+def launch_happ(
+    token: str,
+) -> RedirectResponse:
+    subscription_url = (
+        f"{settings.subscription_base_url.rstrip('/')}/"
+        f"{token}"
+    )
+
+    happ_url = (
+        "happ://add/"
+        f"{subscription_url}"
+    )
+
+    return RedirectResponse(
+        url=happ_url,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+            "Referrer-Policy": "no-referrer",
+        },
+    )
+
+
+@router.get(
     "/{token}",
     response_class=HTMLResponse,
 )
@@ -106,18 +138,12 @@ def connect_happ(
                 detail="Subscription expired",
             )
 
-    subscription_url = (
-        f"{settings.subscription_base_url.rstrip('/')}/"
-        f"{token}"
+    launch_url = (
+        f"/connect/happ/launch/{token}"
     )
 
-    happ_url = (
-        "happ://add/"
-        f"{subscription_url}"
-    )
-
-    safe_happ_url = escape(
-        happ_url,
+    safe_launch_url = escape(
+        launch_url,
         quote=True,
     )
 
@@ -145,7 +171,7 @@ def connect_happ(
     ></script>
 
     <script
-        src="/connect/happ/assets/happ-connect.js?v=2"
+        src="/connect/happ/assets/happ-connect.js?v=3"
         defer
     ></script>
 </head>
@@ -422,7 +448,7 @@ def connect_happ(
 
                 <a
                     class="button button-primary"
-                    href="{safe_happ_url}"
+                    href="{safe_launch_url}"
                     data-happ-link
                 >
                     Открыть в HAPP
@@ -511,7 +537,7 @@ def connect_happ(
 
                 <a
                     class="button button-primary"
-                    href="{safe_happ_url}"
+                    href="{safe_launch_url}"
                     data-happ-link
                 >
                     Открыть в HAPP
@@ -577,7 +603,7 @@ def connect_happ(
 
                 <a
                     class="button button-primary"
-                    href="{safe_happ_url}"
+                    href="{safe_launch_url}"
                     data-happ-link
                 >
                     Открыть в HAPP
@@ -651,7 +677,7 @@ def connect_happ(
 
                 <a
                     class="button button-primary"
-                    href="{safe_happ_url}"
+                    href="{safe_launch_url}"
                     data-happ-link
                 >
                     Открыть в HAPP
@@ -734,7 +760,7 @@ def connect_happ(
 
                 <a
                     class="button button-primary"
-                    href="{safe_happ_url}"
+                    href="{safe_launch_url}"
                     data-happ-link
                 >
                     Открыть в HAPP

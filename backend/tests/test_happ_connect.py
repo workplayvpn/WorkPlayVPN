@@ -103,7 +103,26 @@ def test_happ_connect_returns_instruction_mini_app() -> None:
         assert "Инструкция по подключению" not in body
         assert "Подключите HAPP за несколько шагов" in body
         assert "Открыть в HAPP" in body
-        assert expected_happ_url in body
+        expected_launch_url = (
+            f"/connect/happ/launch/{raw_token}"
+        )
+
+        assert expected_launch_url in body
+
+        launch_response = client.get(
+            expected_launch_url,
+            follow_redirects=False,
+        )
+
+        assert launch_response.status_code == 307
+        assert (
+            launch_response.headers["location"]
+            == expected_happ_url
+        )
+        assert (
+            launch_response.headers["cache-control"]
+            == "no-store"
+        )
 
         assert "data-platform=\"ios\"" in body
         assert "data-platform=\"android\"" in body
