@@ -137,7 +137,7 @@ def connect_happ(
 
     <link
         rel="stylesheet"
-        href="/connect/happ/assets/happ-connect.css"
+        href="/connect/happ/assets/happ-connect.css?v=2"
     >
 
     <script
@@ -145,7 +145,7 @@ def connect_happ(
     ></script>
 
     <script
-        src="/connect/happ/assets/happ-connect.js"
+        src="/connect/happ/assets/happ-connect.js?v=2"
         defer
     ></script>
 </head>
