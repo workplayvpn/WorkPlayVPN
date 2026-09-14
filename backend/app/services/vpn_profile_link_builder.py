@@ -12,7 +12,6 @@ class VpnProfileLinkBuilder:
         device: VpnDevice,
         node: VpnNode,
         profile: VpnNodeProfile,
-        display_name: str | None = None,
     ) -> str:
         settings = profile.settings or {}
 
@@ -64,7 +63,7 @@ class VpnProfileLinkBuilder:
         )
 
         name = quote(
-            display_name or node.name,
+            node.name,
             safe="",
         )
 
