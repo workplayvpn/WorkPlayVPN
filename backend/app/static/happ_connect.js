@@ -16,6 +16,7 @@ if (telegramApp) {
 
 function detectPlatform() {
     const userAgent = navigator.userAgent.toLowerCase();
+
     const platform = (
         navigator.userAgentData?.platform
         || navigator.platform
@@ -72,7 +73,10 @@ function initializePlatformSwitcher() {
         return;
     }
 
-    function activatePlatform(platform, scrollToPanel = false) {
+    function activatePlatform(
+        platform,
+        scrollToPanel = false
+    ) {
         const selectedTab = tabs.find(
             (tab) => tab.dataset.platform === platform
         );
@@ -89,10 +93,12 @@ function initializePlatformSwitcher() {
             const isActive = tab === selectedTab;
 
             tab.classList.toggle("active", isActive);
+
             tab.setAttribute(
                 "aria-selected",
                 String(isActive)
             );
+
             tab.tabIndex = isActive ? 0 : -1;
         });
 
@@ -100,6 +106,7 @@ function initializePlatformSwitcher() {
             const isActive = panel === selectedPanel;
 
             panel.classList.toggle("active", isActive);
+
             panel.setAttribute(
                 "aria-hidden",
                 String(!isActive)
@@ -133,6 +140,7 @@ function initializePlatformSwitcher() {
             event.preventDefault();
 
             const currentIndex = tabs.indexOf(tab);
+
             const direction = (
                 event.key === "ArrowRight" ? 1 : -1
             );
@@ -162,12 +170,25 @@ function initializeHappLinks() {
     );
 
     links.forEach((link) => {
-        link.addEventListener("click", () => {
+        link.addEventListener("click", (event) => {
+            event.preventDefault();
+
+            const happUrl = link.getAttribute("href");
+
+            if (
+                !happUrl
+                || !happUrl.startsWith("happ://")
+            ) {
+                return;
+            }
+
             if (telegramApp?.HapticFeedback) {
                 telegramApp.HapticFeedback.impactOccurred(
                     "medium"
                 );
             }
+
+            window.location.assign(happUrl);
         });
     });
 }

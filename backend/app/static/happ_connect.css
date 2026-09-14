@@ -540,3 +540,40 @@ button {
         transition-duration: 0.01ms !important;
     }
 }
+
+.platform-tab > span:last-child {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.platform-detail {
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+@media (max-width: 430px) {
+    .platforms {
+        gap: 8px;
+    }
+
+    .platform-tab {
+        min-height: 78px;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .platform-icon {
+        flex-basis: 40px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .platform-label {
+        font-size: 14px;
+    }
+
+    .platform-detail {
+        font-size: 10px;
+    }
+}
