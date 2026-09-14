@@ -38,7 +38,7 @@ class HappProfile(ClientProfile):
                 [],
             )
 
-            xhttp_profile = next(
+            wifi_profile = next(
                 (
                     profile
                     for profile in node_profiles
@@ -49,15 +49,39 @@ class HappProfile(ClientProfile):
                 None,
             )
 
-            if xhttp_profile is None:
-                continue
-
-            links.append(
-                vpn_profile_link_builder.build_vless_link(
-                    device=device,
-                    node=node,
-                    profile=xhttp_profile,
-                )
+            mobile_profile = next(
+                (
+                    profile
+                    for profile in node_profiles
+                    if profile.protocol == "vless"
+                    and profile.network == "tcp"
+                    and profile.security == "reality"
+                ),
+                None,
             )
+
+            if wifi_profile is not None:
+                links.append(
+                    vpn_profile_link_builder.build_vless_link(
+                        device=device,
+                        node=node,
+                        profile=wifi_profile,
+                        display_name=(
+                            f"{node.name} — Wi-Fi"
+                        ),
+                    )
+                )
+
+            if mobile_profile is not None:
+                links.append(
+                    vpn_profile_link_builder.build_vless_link(
+                        device=device,
+                        node=node,
+                        profile=mobile_profile,
+                        display_name=(
+                            f"{node.name} — Mobile"
+                        ),
+                    )
+                )
 
         return links
