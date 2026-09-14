@@ -171,7 +171,7 @@ def connect_happ(
     ></script>
 
     <script
-        src="/connect/happ/assets/happ-connect.js?v=3"
+        src="/connect/happ/assets/happ-connect.js?v=4"
         defer
     ></script>
 </head>

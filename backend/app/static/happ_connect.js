@@ -170,12 +170,30 @@ function initializeHappLinks() {
     );
 
     links.forEach((link) => {
-        link.addEventListener("click", () => {
+        link.addEventListener("click", (event) => {
             if (telegramApp?.HapticFeedback) {
                 telegramApp.HapticFeedback.impactOccurred(
                     "medium"
                 );
             }
+
+            if (!telegramApp?.openLink) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const externalUrl = new URL(
+                link.getAttribute("href"),
+                window.location.href
+            ).toString();
+
+            telegramApp.openLink(
+                externalUrl,
+                {
+                    try_instant_view: false,
+                }
+            );
         });
     });
 }

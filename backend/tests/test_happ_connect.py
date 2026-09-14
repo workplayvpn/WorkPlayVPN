@@ -208,6 +208,9 @@ def test_happ_connect_script_is_served() -> None:
     assert "initializePlatformSwitcher" in body
     assert "detectPlatform" in body
     assert "DOMContentLoaded" in body
+    assert "telegramApp?.openLink" in body
+    assert "telegramApp.openLink" in body
+    assert "try_instant_view: false" in body
 
 
 def test_happ_connect_rejects_invalid_token() -> None:
