@@ -99,8 +99,9 @@ def test_happ_connect_returns_instruction_mini_app() -> None:
             f"happ://add/{expected_subscription_url}"
         )
 
-        assert "Work&amp;PlayVPN" in body
-        assert "Инструкция по подключению" in body
+        assert "WorkPlayVPN" in body
+        assert "Инструкция по подключению" not in body
+        assert "Подключите HAPP за несколько шагов" in body
         assert "Открыть в HAPP" in body
         assert expected_happ_url in body
 
@@ -112,15 +113,25 @@ def test_happ_connect_returns_instruction_mini_app() -> None:
         assert "data-platform=\"tv\"" in body
 
         assert (
+            "/connect/happ/assets/happ-connect.css"
+            in body
+        )
+        assert (
+            "/connect/happ/assets/happ-connect.js"
+            in body
+        )
+        assert (
             "https://telegram.org/js/telegram-web-app.js"
             in body
         )
+
+        assert "<style" not in body
+        assert "document.querySelectorAll" not in body
+        assert "window.location.replace" not in body
+
         assert "apps.apple.com" in body
         assert "play.google.com" in body
         assert "github.com/Happ-proxy" in body
-
-        assert "window.location.replace" not in body
-        assert "Открыть подписку" not in body
 
         assert response.headers["cache-control"] == "no-store"
         assert response.headers["pragma"] == "no-cache"
@@ -136,6 +147,48 @@ def test_happ_connect_returns_instruction_mini_app() -> None:
     finally:
         database.rollback()
         database.close()
+
+
+def test_happ_connect_styles_are_served() -> None:
+    response = client.get(
+        "/connect/happ/assets/happ-connect.css"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(
+        "text/css"
+    )
+    assert (
+        response.headers["cache-control"]
+        == "public, max-age=3600"
+    )
+
+    body = response.text
+
+    assert ".platform-tab" in body
+    assert ".panel.active" in body
+    assert ".button-primary" in body
+
+
+def test_happ_connect_script_is_served() -> None:
+    response = client.get(
+        "/connect/happ/assets/happ-connect.js"
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(
+        "application/javascript"
+    )
+    assert (
+        response.headers["cache-control"]
+        == "public, max-age=3600"
+    )
+
+    body = response.text
+
+    assert "initializePlatformSwitcher" in body
+    assert "detectPlatform" in body
+    assert "DOMContentLoaded" in body
 
 
 def test_happ_connect_rejects_invalid_token() -> None:
