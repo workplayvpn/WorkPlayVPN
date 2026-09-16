@@ -9,6 +9,20 @@ const state = {
   payment: null,
   deleteDeviceId: null,
   toastTimer: null,
+  telegramEventsBound: false,
+};
+
+const THEMES = {
+  dark: {
+    header: "#081321",
+    background: "#07111e",
+    bottomBar: "#081423",
+  },
+  light: {
+    header: "#f7f9fc",
+    background: "#edf3f9",
+    bottomBar: "#ffffff",
+  },
 };
 
 const elements = {
@@ -30,6 +44,8 @@ const elements = {
   resumePaymentButton: document.querySelector("#resume-payment-button"),
   trialButton: document.querySelector("#trial-button"),
   plansList: document.querySelector("#plans-list"),
+  plansStartingPrice: document.querySelector("#plans-starting-price"),
+  plansDeviceLimit: document.querySelector("#plans-device-limit"),
   addDeviceButton: document.querySelector("#add-device-button"),
   devicesList: document.querySelector("#devices-list"),
   devicesCounter: document.querySelector("#devices-counter"),
@@ -65,6 +81,25 @@ function haptic(type = "light") {
   }
 }
 
+function applyTheme() {
+  const theme = telegram?.colorScheme === "light" ? "light" : "dark";
+  const colors = THEMES[theme];
+
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+
+  try {
+    telegram?.setHeaderColor(colors.header);
+    telegram?.setBackgroundColor(colors.background);
+
+    if (telegram?.isVersionAtLeast?.("7.10")) {
+      telegram.setBottomBarColor(colors.bottomBar);
+    }
+  } catch {
+    // Older Telegram clients can still use the CSS theme.
+  }
+}
+
 function showToast(message, kind = "success") {
   window.clearTimeout(state.toastTimer);
   elements.toast.textContent = message;
@@ -87,6 +122,7 @@ function humanError(error) {
     "Device limit reached": "Достигнут лимит устройств.",
     "VPN node not found": "В выбранной стране пока нет доступного сервера.",
     "VPN node unavailable": "Сервер временно недоступен. Попробуйте позже.",
+    "Location not found": "Выбранная страна больше недоступна.",
     "Plan not found": "Тариф больше недоступен.",
     "Paid plans require payment": "Для этого тарифа требуется оплата.",
     "User is inactive": "Аккаунт временно отключён.",
@@ -269,6 +305,32 @@ function renderProfile() {
 function renderPlans() {
   elements.plansList.replaceChildren();
 
+  if (state.catalog.plans.length > 0) {
+    const cheapestPlan = state.catalog.plans.reduce((cheapest, plan) => (
+      Number(plan.price_amount) < Number(cheapest.price_amount)
+        ? plan
+        : cheapest
+    ));
+    const deviceLimit = Math.max(
+      ...state.catalog.plans.map((plan) => plan.device_limit)
+    );
+
+    elements.plansStartingPrice.textContent =
+      `От ${formatMoney(cheapestPlan.price_amount, cheapestPlan.currency)} `
+      + `за ${cheapestPlan.name.toLowerCase()}`;
+    elements.plansDeviceLimit.textContent =
+      `В каждом тарифе доступно до ${deviceLimit} устройств.`;
+  } else {
+    elements.plansStartingPrice.textContent = "Тарифы временно недоступны";
+    elements.plansDeviceLimit.textContent =
+      "Актуальные тарифы появятся после обновления.";
+  }
+
+  const monthlyPlan = state.catalog.plans.find(
+    (plan) => plan.code === "standard_1m"
+  );
+  const monthlyBasePrice = Number(monthlyPlan?.price_amount || 0);
+
   for (const plan of state.catalog.plans) {
     const card = document.createElement("article");
     card.className = "plan-card";
@@ -301,7 +363,24 @@ function renderPlans() {
 
     const detail = document.createElement("span");
     detail.className = "plan-detail";
-    detail.textContent = `До ${plan.device_limit} устройств`;
+
+    const months = Math.max(1, Math.round(plan.duration_days / 30));
+    const equivalentPrice = monthlyBasePrice * months;
+    const saving = Math.max(0, equivalentPrice - Number(plan.price_amount));
+    const monthlyPrice = Number(plan.price_amount) / months;
+
+    if (months > 1) {
+      detail.textContent = `${formatMoney(monthlyPrice, plan.currency)}/мес`;
+    } else {
+      detail.textContent = `До ${plan.device_limit} устройств`;
+    }
+
+    if (saving > 0) {
+      const savingBadge = document.createElement("span");
+      savingBadge.className = "plan-saving";
+      savingBadge.textContent = `Выгода ${formatMoney(saving, plan.currency)}`;
+      card.append(savingBadge);
+    }
 
     const button = document.createElement("button");
     button.className = "button button-primary";
@@ -385,11 +464,20 @@ function renderLocations() {
     const code = document.createElement("span");
 
     title.textContent = location.name;
-    code.textContent = location.code;
+    code.textContent = location.available
+      ? `${location.code} · Доступно`
+      : `${location.code} · Скоро`;
     text.append(title, code);
     button.append(text);
 
-    button.addEventListener("click", () => createActivation(location, button));
+    button.disabled = !location.available;
+
+    if (location.available) {
+      button.addEventListener("click", () => {
+        createActivation(location, button);
+      });
+    }
+
     elements.locationsList.append(button);
   }
 }
@@ -556,11 +644,13 @@ async function loadData() {
     elements.loading.classList.add("hidden");
     elements.error.classList.add("hidden");
     elements.app.classList.remove("hidden");
+    return true;
   } catch (error) {
     elements.loading.classList.add("hidden");
     elements.app.classList.add("hidden");
     elements.errorMessage.textContent = humanError(error);
     elements.error.classList.remove("hidden");
+    return false;
   } finally {
     elements.refreshButton.disabled = false;
   }
@@ -578,15 +668,14 @@ function initializeTelegram() {
   try {
     telegram.ready();
     telegram.expand();
-    telegram.setHeaderColor("#081321");
-    telegram.setBackgroundColor("#07111e");
+    applyTheme();
 
-    if (telegram.isVersionAtLeast?.("7.10")) {
-      telegram.setBottomBarColor("#081423");
+    if (!state.telegramEventsBound) {
+      telegram.BackButton?.onClick(() => setView("home"));
+      telegram.onEvent?.("activated", () => loadData());
+      telegram.onEvent?.("themeChanged", applyTheme);
+      state.telegramEventsBound = true;
     }
-
-    telegram.BackButton?.onClick(() => setView("home"));
-    telegram.onEvent?.("activated", () => loadData());
   } catch {
     // Older clients can still use the core application.
   }
@@ -603,8 +692,11 @@ document.querySelectorAll("[data-view-link]").forEach((button) => {
 
 elements.retryButton.addEventListener("click", initializeTelegram);
 elements.refreshButton.addEventListener("click", async () => {
-  await loadData();
-  showToast("Данные обновлены.");
+  const refreshed = await loadData();
+
+  if (refreshed) {
+    showToast("Данные обновлены.");
+  }
 });
 elements.trialButton.addEventListener("click", startTrial);
 elements.resumePaymentButton.addEventListener("click", () => {

@@ -120,6 +120,50 @@ def test_device_routes_require_telegram_credentials() -> None:
     ).status_code == 401
 
 
+def test_activation_rejects_location_without_active_node() -> None:
+    headers = {
+        "X-Telegram-Init-Data": build_init_data(),
+    }
+
+    catalog_response = client.get(
+        "/mini-app/catalog",
+        headers=headers,
+    )
+    assert catalog_response.status_code == 200
+
+    locations = {
+        location["code"]: location
+        for location in catalog_response.json()["locations"]
+    }
+    assert locations["NL"]["available"] is True
+    assert locations["DE"]["available"] is False
+
+    profile_response = client.get(
+        "/mini-app/me",
+        headers=headers,
+    )
+    assert profile_response.status_code == 200
+
+    trial_response = client.post(
+        "/mini-app/trial",
+        headers=headers,
+    )
+    assert trial_response.status_code == 201
+
+    response = client.post(
+        "/mini-app/device-activations",
+        headers=headers,
+        json={
+            "location_code": "DE",
+        },
+    )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "VPN node unavailable"
+    }
+
+
 def test_device_lifecycle_uses_signed_user(
     monkeypatch,
 ) -> None:

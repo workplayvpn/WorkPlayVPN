@@ -100,6 +100,12 @@ def test_catalog_returns_current_paid_plans() -> None:
         set(location) == {
             "code",
             "name",
+            "available",
         }
+        for location in payload["locations"]
+    )
+
+    assert all(
+        isinstance(location["available"], bool)
         for location in payload["locations"]
     )
