@@ -375,7 +375,7 @@ function renderPlans() {
       detail.textContent = `До ${plan.device_limit} устройств`;
     }
 
-    if (saving > 0) {
+    if (months > 1 && saving > 0) {
       const savingBadge = document.createElement("span");
       savingBadge.className = "plan-saving";
       savingBadge.textContent = `Выгода ${formatMoney(saving, plan.currency)}`;
@@ -660,7 +660,7 @@ function initializeTelegram() {
   if (!telegram || !telegram.initData) {
     elements.loading.classList.add("hidden");
     elements.errorMessage.textContent =
-      "Откройте приложение кнопкой внутри Telegram-бота WorkPlayVPN.";
+      "Откройте приложение кнопкой внутри Telegram-бота Work&PlayVPN.";
     elements.error.classList.remove("hidden");
     return;
   }
