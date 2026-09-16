@@ -245,6 +245,14 @@ def get_catalog(
         .order_by(Location.name)
     ).all()
 
+    available_location_ids = set(
+        database.scalars(
+            select(VpnNode.location_id).where(
+                VpnNode.is_active.is_(True)
+            )
+        ).all()
+    )
+
     return MiniAppCatalogRead(
         plans=[
             MiniAppPlanRead(
@@ -261,6 +269,9 @@ def get_catalog(
             MiniAppLocationRead(
                 code=location.code,
                 name=location.name,
+                available=(
+                    location.id in available_location_ids
+                ),
             )
             for location in locations
         ],

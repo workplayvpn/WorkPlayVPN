@@ -9,6 +9,7 @@ const state = {
   payment: null,
   deleteDeviceId: null,
   toastTimer: null,
+  telegramEventsBound: false,
 };
 
 const elements = {
@@ -30,6 +31,8 @@ const elements = {
   resumePaymentButton: document.querySelector("#resume-payment-button"),
   trialButton: document.querySelector("#trial-button"),
   plansList: document.querySelector("#plans-list"),
+  plansStartingPrice: document.querySelector("#plans-starting-price"),
+  plansDeviceLimit: document.querySelector("#plans-device-limit"),
   addDeviceButton: document.querySelector("#add-device-button"),
   devicesList: document.querySelector("#devices-list"),
   devicesCounter: document.querySelector("#devices-counter"),
@@ -87,6 +90,7 @@ function humanError(error) {
     "Device limit reached": "Достигнут лимит устройств.",
     "VPN node not found": "В выбранной стране пока нет доступного сервера.",
     "VPN node unavailable": "Сервер временно недоступен. Попробуйте позже.",
+    "Location not found": "Выбранная страна больше недоступна.",
     "Plan not found": "Тариф больше недоступен.",
     "Paid plans require payment": "Для этого тарифа требуется оплата.",
     "User is inactive": "Аккаунт временно отключён.",
@@ -269,6 +273,27 @@ function renderProfile() {
 function renderPlans() {
   elements.plansList.replaceChildren();
 
+  if (state.catalog.plans.length > 0) {
+    const cheapestPlan = state.catalog.plans.reduce((cheapest, plan) => (
+      Number(plan.price_amount) < Number(cheapest.price_amount)
+        ? plan
+        : cheapest
+    ));
+    const deviceLimit = Math.max(
+      ...state.catalog.plans.map((plan) => plan.device_limit)
+    );
+
+    elements.plansStartingPrice.textContent =
+      `От ${formatMoney(cheapestPlan.price_amount, cheapestPlan.currency)} `
+      + `за ${cheapestPlan.name.toLowerCase()}`;
+    elements.plansDeviceLimit.textContent =
+      `В каждом тарифе доступно до ${deviceLimit} устройств.`;
+  } else {
+    elements.plansStartingPrice.textContent = "Тарифы временно недоступны";
+    elements.plansDeviceLimit.textContent =
+      "Актуальные тарифы появятся после обновления.";
+  }
+
   for (const plan of state.catalog.plans) {
     const card = document.createElement("article");
     card.className = "plan-card";
@@ -385,11 +410,20 @@ function renderLocations() {
     const code = document.createElement("span");
 
     title.textContent = location.name;
-    code.textContent = location.code;
+    code.textContent = location.available
+      ? `${location.code} · Доступно`
+      : `${location.code} · Скоро`;
     text.append(title, code);
     button.append(text);
 
-    button.addEventListener("click", () => createActivation(location, button));
+    button.disabled = !location.available;
+
+    if (location.available) {
+      button.addEventListener("click", () => {
+        createActivation(location, button);
+      });
+    }
+
     elements.locationsList.append(button);
   }
 }
@@ -556,11 +590,13 @@ async function loadData() {
     elements.loading.classList.add("hidden");
     elements.error.classList.add("hidden");
     elements.app.classList.remove("hidden");
+    return true;
   } catch (error) {
     elements.loading.classList.add("hidden");
     elements.app.classList.add("hidden");
     elements.errorMessage.textContent = humanError(error);
     elements.error.classList.remove("hidden");
+    return false;
   } finally {
     elements.refreshButton.disabled = false;
   }
@@ -585,8 +621,11 @@ function initializeTelegram() {
       telegram.setBottomBarColor("#081423");
     }
 
-    telegram.BackButton?.onClick(() => setView("home"));
-    telegram.onEvent?.("activated", () => loadData());
+    if (!state.telegramEventsBound) {
+      telegram.BackButton?.onClick(() => setView("home"));
+      telegram.onEvent?.("activated", () => loadData());
+      state.telegramEventsBound = true;
+    }
   } catch {
     // Older clients can still use the core application.
   }
@@ -603,8 +642,11 @@ document.querySelectorAll("[data-view-link]").forEach((button) => {
 
 elements.retryButton.addEventListener("click", initializeTelegram);
 elements.refreshButton.addEventListener("click", async () => {
-  await loadData();
-  showToast("Данные обновлены.");
+  const refreshed = await loadData();
+
+  if (refreshed) {
+    showToast("Данные обновлены.");
+  }
 });
 elements.trialButton.addEventListener("click", startTrial);
 elements.resumePaymentButton.addEventListener("click", () => {

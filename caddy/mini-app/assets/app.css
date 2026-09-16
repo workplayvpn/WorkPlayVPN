@@ -829,6 +829,15 @@ h2 {
   font-size: 28px;
 }
 
+.location-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.location-button:disabled::after {
+  content: "";
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 30;

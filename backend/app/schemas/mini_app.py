@@ -42,6 +42,7 @@ class MiniAppPlanRead(BaseModel):
 class MiniAppLocationRead(BaseModel):
     code: str
     name: str
+    available: bool
 
 
 class MiniAppCatalogRead(BaseModel):

@@ -109,6 +109,21 @@ class DeviceActivationService:
                 detail="Location not found",
             )
 
+        available_node_id = database.scalar(
+            select(VpnNode.id)
+            .where(
+                VpnNode.location_id == location.id,
+                VpnNode.is_active.is_(True),
+            )
+            .limit(1)
+        )
+
+        if available_node_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="VPN node unavailable",
+            )
+
         raw_token = secrets.token_urlsafe(32)
 
         token_hash = hashlib.sha256(
