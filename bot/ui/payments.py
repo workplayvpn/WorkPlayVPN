@@ -11,13 +11,13 @@ def build_payment_confirmation_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="💳 Перейти к оплате",
+                    text="Продолжить к оплате →",
                     callback_data=f"pay_plan:{plan_code}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ К тарифам",
+                    text="← Изменить тариф",
                     callback_data="plans",
                 )
             ],
@@ -33,13 +33,13 @@ def build_payment_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="💳 Открыть страницу оплаты",
+                    text="Оплатить безопасно →",
                     url=confirmation_url,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ К тарифам",
+                    text="← К тарифам",
                     callback_data="plans",
                 )
             ],

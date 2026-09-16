@@ -42,20 +42,21 @@ async def show_locations(
         return
 
     lines = [
-        "🌍 Локации Work&PlayVPN",
+        "🌍 Серверы Work&PlayVPN",
         "",
+        "Доступные направления:",
     ]
 
     for location in response.json():
         lines.append(
-            f"• {location['name']}"
+            f"🟢 {location['name']}"
         )
 
     lines.extend(
         [
             "",
-            "Доступность серверов "
-            "будет расширяться постепенно.",
+            "Новые направления будут добавляться "
+            "по мере готовности инфраструктуры.",
         ]
     )
 

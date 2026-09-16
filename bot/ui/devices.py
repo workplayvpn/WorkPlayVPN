@@ -10,13 +10,13 @@ def build_devices_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="➕ Подключить устройство",
+                    text="＋ Подключить устройство",
                     callback_data="add_device",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Главное меню",
+                    text="← На главную",
                     callback_data="main_menu",
                 )
             ],
@@ -41,8 +41,8 @@ def build_user_devices_keyboard(
 
     rows.append(
         [
-            InlineKeyboardButton(
-                text="➕ Подключить устройство",
+                InlineKeyboardButton(
+                    text="＋ Подключить устройство",
                 callback_data="add_device",
             )
         ]
@@ -50,8 +50,8 @@ def build_user_devices_keyboard(
 
     rows.append(
         [
-            InlineKeyboardButton(
-                text="⬅️ Главное меню",
+                InlineKeyboardButton(
+                    text="← На главную",
                 callback_data="main_menu",
             )
         ]
@@ -83,7 +83,7 @@ def build_device_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🔑 Показать ключ",
+                    text="🔑 Ключ подписки",
                     callback_data=f"device_key:{device_id}",
                 )
             ],
@@ -92,13 +92,13 @@ def build_device_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="⚙️ Управление устройством",
+                    text="⚙️ Управление",
                     callback_data=f"device_manage:{device_id}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Мои устройства",
+                    text="← К устройствам",
                     callback_data="devices",
                 )
             ],
@@ -113,13 +113,13 @@ def build_device_manage_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🗑 Отвязать устройство",
+                    text="🗑 Отключить устройство",
                     callback_data=f"remove_device:{device_id}",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Назад",
+                    text="← Назад",
                     callback_data=f"device:{device_id}",
                 )
             ],
@@ -134,7 +134,7 @@ def build_remove_confirm_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="✅ Да, отвязать",
+                    text="Да, отключить",
                     callback_data=(
                         f"confirm_remove_device:{device_id}"
                     ),
@@ -142,7 +142,7 @@ def build_remove_confirm_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="❌ Отмена",
+                    text="← Не отключать",
                     callback_data=f"device:{device_id}",
                 )
             ],
@@ -170,7 +170,7 @@ def build_locations_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="⬅️ Мои устройства",
+                text="← К устройствам",
                 callback_data="devices",
             )
         ]
@@ -188,19 +188,19 @@ def build_activation_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🚀 Подключить это устройство",
+                    text="Подключить устройство →",
                     url=activation_url,
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="🔄 Проверить устройства",
+                    text="Обновить список устройств",
                     callback_data="devices",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Назад",
+                    text="← Назад",
                     callback_data="add_device",
                 )
             ],
@@ -217,7 +217,7 @@ def build_happ_connect_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📖 Открыть инструкцию",
+                    text="Открыть инструкцию →",
                     web_app=WebAppInfo(
                         url=connect_url,
                     ),
@@ -225,7 +225,7 @@ def build_happ_connect_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Назад",
+                    text="← Назад",
                     callback_data=f"device:{device_id}",
                 )
             ],

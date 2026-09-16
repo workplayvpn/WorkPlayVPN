@@ -35,14 +35,15 @@ async def handle_start(
         )
     except httpx.RequestError:
         await message.answer(
-            "⚠️ Сервис временно недоступен.\n"
-            "Попробуйте немного позже."
+            "⚠️ Work&PlayVPN временно недоступен.\n\n"
+            "Попробуйте открыть бот немного позже."
         )
         return
 
     if response.status_code not in (201, 409):
         await message.answer(
-            "Не удалось загрузить профиль."
+            "⚠️ Не удалось загрузить профиль.\n\n"
+            "Попробуйте отправить /start ещё раз."
         )
         return
 

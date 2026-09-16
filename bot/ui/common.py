@@ -9,7 +9,7 @@ def build_back_to_main_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="⬅️ Главное меню",
+                    text="← На главную",
                     callback_data="main_menu",
                 )
             ]

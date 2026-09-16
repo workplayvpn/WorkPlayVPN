@@ -1,14 +1,25 @@
 from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    WebAppInfo,
 )
+
+from config import mini_app_url
 
 
 main_menu = InlineKeyboardMarkup(
     inline_keyboard=[
         [
             InlineKeyboardButton(
-                text="💳 Тарифы",
+                text="🚀 Открыть Work&PlayVPN",
+                web_app=WebAppInfo(
+                    url=mini_app_url,
+                ),
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="💎 Тарифы",
                 callback_data="plans",
             ),
             InlineKeyboardButton(
@@ -18,17 +29,17 @@ main_menu = InlineKeyboardMarkup(
         ],
         [
             InlineKeyboardButton(
-                text="📱 Мои устройства",
+                text="📱 Устройства",
                 callback_data="devices",
+            ),
+            InlineKeyboardButton(
+                text="🌍 Серверы",
+                callback_data="locations",
             ),
         ],
         [
             InlineKeyboardButton(
-                text="🌍 Локации",
-                callback_data="locations",
-            ),
-            InlineKeyboardButton(
-                text="❓ Помощь",
+                text="🛟 Помощь",
                 callback_data="help",
             ),
         ],

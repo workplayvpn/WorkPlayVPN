@@ -58,10 +58,10 @@ async def show_profile(
     )
 
     lines = [
-        "👤 Мой профиль",
+        "👤 Профиль Work&PlayVPN",
         "",
+        f"Аккаунт: {username}",
         f"Telegram ID: {user['telegram_id']}",
-        f"Username: {username}",
     ]
 
     if subscription_response.status_code == 200:
@@ -79,11 +79,11 @@ async def show_profile(
         lines.extend(
             [
                 "",
-                "💳 Подписка",
+                "🛡 Подписка",
                 f"Тариф: {subscription['plan_name']}",
                 "Статус: "
                 f"{status_names.get(subscription['status'], subscription['status'])}",
-                "Лимит устройств: "
+                "Устройства: до "
                 f"{subscription['total_device_limit']}",
             ]
         )
@@ -105,8 +105,9 @@ async def show_profile(
         lines.extend(
             [
                 "",
-                "💳 Подписка",
-                "Подписка не оформлена.",
+                "🛡 Подписка",
+                "Нет активной подписки.",
+                "Выберите тариф, чтобы подключиться.",
             ]
         )
 

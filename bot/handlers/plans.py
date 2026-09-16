@@ -12,7 +12,11 @@ from ui.payments import (
     build_payment_confirmation_keyboard,
     build_payment_keyboard,
 )
-from ui.plans import build_plans_keyboard
+from ui.plans import (
+    build_plans_keyboard,
+    calculate_plan_saving,
+    format_amount,
+)
 from ui.helpers import edit_screen
 
 
@@ -51,37 +55,56 @@ async def show_plans(
 
     plans = response.json()
 
+    monthly_plan = next(
+        (
+            plan
+            for plan in plans
+            if plan["code"] == "standard_1m"
+        ),
+        None,
+    )
+
     lines = [
-        "💳 Тарифы Work&PlayVPN",
+        "💎 Тарифы Work&PlayVPN",
+        "",
+        "Выберите удобный срок подписки.",
+        "В каждый тариф входит до трёх устройств.",
         "",
     ]
 
     for plan in plans:
-        price = str(
+        price = format_amount(
             plan["price_amount"]
-        ).removesuffix(".00")
+        )
 
         devices = plan["device_limit"]
 
         if plan["code"] == "trial_1d":
             lines.append(
-                f"🎁 {plan['name']}\n"
-                f"   1 день • "
-                f"до {devices} устройств • бесплатно"
+                "🎁 Пробный доступ — бесплатно\n"
+                f"   1 день · до {devices} устройств"
             )
         else:
+            saving = calculate_plan_saving(
+                plan,
+                monthly_plan,
+            )
+            saving_text = (
+                f" · выгода {saving} ₽"
+                if saving
+                else ""
+            )
             lines.append(
-                f"• {plan['name']}\n"
-                f"   {price} ₽ • "
-                f"до {devices} устройств"
+                f"• {plan['name']} — {price} ₽"
+                f"{saving_text}"
             )
 
     lines.extend(
         [
             "",
-            "➕ Дополнительное устройство: 249 ₽",
+            "Дополнительное устройство — 249 ₽.",
             "",
-            "Выберите тариф:",
+            "Нажмите на подходящий тариф:",
         ]
     )
 
@@ -213,18 +236,18 @@ async def select_plan(
         )
         return
 
-    price = str(
+    price = format_amount(
         plan["price_amount"]
-    ).removesuffix(".00")
+    )
 
     await edit_screen(
         callback,
-        "💳 Оформление подписки\n\n"
-        f"Тариф: {plan['name']}\n"
-        f"Стоимость: {price} ₽\n"
+        "💳 Подтверждение тарифа\n\n"
+        f"Срок: {plan['name']}\n"
+        f"К оплате: {price} ₽\n"
         f"Устройств: до {plan['device_limit']}\n\n"
-        "Проверьте выбранный тариф и "
-        "продолжите к оплате.",
+        "После оплаты подписка активируется "
+        "автоматически.",
         build_payment_confirmation_keyboard(
             plan_code
         ),
@@ -293,18 +316,16 @@ async def pay_plan(
             )
             return
 
-        amount = str(
+        amount = format_amount(
             payment["amount"]
-        ).removesuffix(".00")
+        )
 
         await edit_screen(
             callback,
-            "💳 Оплата Work&PlayVPN\n\n"
-            f"Сумма: {amount} ₽\n"
-            f"Валюта: {payment['currency']}\n\n"
-            "Откройте защищённую страницу "
-            "оплаты. Там можно будет выбрать "
-            "доступный способ оплаты.\n\n"
+            "🔐 Безопасная оплата\n\n"
+            f"Сумма: {amount} ₽\n\n"
+            "Оплата откроется на защищённой "
+            "странице платёжного сервиса.\n\n"
             "После успешной оплаты подписка "
             "активируется автоматически.",
             build_payment_keyboard(

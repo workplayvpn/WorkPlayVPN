@@ -2,7 +2,11 @@ import asyncio
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
-from aiogram.types import MenuButtonWebApp, WebAppInfo
+from aiogram.types import (
+    BotCommand,
+    MenuButtonWebApp,
+    WebAppInfo,
+)
 
 from config import (
     mini_app_url,
@@ -75,11 +79,31 @@ async def main() -> None:
 
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
-                text="Открыть",
+                text="Work&PlayVPN",
                 web_app=WebAppInfo(
                     url=mini_app_url,
                 ),
             )
+        )
+
+        await bot.set_my_commands(
+            [
+                BotCommand(
+                    command="start",
+                    description="Открыть главное меню",
+                ),
+            ]
+        )
+
+        await bot.set_my_short_description(
+            "Защищённый интернет без сложных настроек."
+        )
+
+        await bot.set_my_description(
+            "Work&PlayVPN помогает быстро подключить "
+            "защищённый доступ к интернету на телефоне, "
+            "планшете или компьютере. Выберите тариф, "
+            "добавьте устройство и следуйте инструкции."
         )
 
         await dispatcher.start_polling(
