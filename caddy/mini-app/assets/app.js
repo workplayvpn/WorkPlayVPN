@@ -12,6 +12,19 @@ const state = {
   telegramEventsBound: false,
 };
 
+const THEMES = {
+  dark: {
+    header: "#081321",
+    background: "#07111e",
+    bottomBar: "#081423",
+  },
+  light: {
+    header: "#f7f9fc",
+    background: "#edf3f9",
+    bottomBar: "#ffffff",
+  },
+};
+
 const elements = {
   loading: document.querySelector("#loading-screen"),
   error: document.querySelector("#error-screen"),
@@ -65,6 +78,25 @@ function haptic(type = "light") {
     telegram?.HapticFeedback?.impactOccurred(type);
   } catch {
     // Haptic feedback is optional.
+  }
+}
+
+function applyTheme() {
+  const theme = telegram?.colorScheme === "light" ? "light" : "dark";
+  const colors = THEMES[theme];
+
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme;
+
+  try {
+    telegram?.setHeaderColor(colors.header);
+    telegram?.setBackgroundColor(colors.background);
+
+    if (telegram?.isVersionAtLeast?.("7.10")) {
+      telegram.setBottomBarColor(colors.bottomBar);
+    }
+  } catch {
+    // Older Telegram clients can still use the CSS theme.
   }
 }
 
@@ -294,6 +326,11 @@ function renderPlans() {
       "Актуальные тарифы появятся после обновления.";
   }
 
+  const monthlyPlan = state.catalog.plans.find(
+    (plan) => plan.code === "standard_1m"
+  );
+  const monthlyBasePrice = Number(monthlyPlan?.price_amount || 0);
+
   for (const plan of state.catalog.plans) {
     const card = document.createElement("article");
     card.className = "plan-card";
@@ -326,7 +363,24 @@ function renderPlans() {
 
     const detail = document.createElement("span");
     detail.className = "plan-detail";
-    detail.textContent = `До ${plan.device_limit} устройств`;
+
+    const months = Math.max(1, Math.round(plan.duration_days / 30));
+    const equivalentPrice = monthlyBasePrice * months;
+    const saving = Math.max(0, equivalentPrice - Number(plan.price_amount));
+    const monthlyPrice = Number(plan.price_amount) / months;
+
+    if (months > 1) {
+      detail.textContent = `${formatMoney(monthlyPrice, plan.currency)}/мес`;
+    } else {
+      detail.textContent = `До ${plan.device_limit} устройств`;
+    }
+
+    if (saving > 0) {
+      const savingBadge = document.createElement("span");
+      savingBadge.className = "plan-saving";
+      savingBadge.textContent = `Выгода ${formatMoney(saving, plan.currency)}`;
+      card.append(savingBadge);
+    }
 
     const button = document.createElement("button");
     button.className = "button button-primary";
@@ -614,16 +668,12 @@ function initializeTelegram() {
   try {
     telegram.ready();
     telegram.expand();
-    telegram.setHeaderColor("#081321");
-    telegram.setBackgroundColor("#07111e");
-
-    if (telegram.isVersionAtLeast?.("7.10")) {
-      telegram.setBottomBarColor("#081423");
-    }
+    applyTheme();
 
     if (!state.telegramEventsBound) {
       telegram.BackButton?.onClick(() => setView("home"));
       telegram.onEvent?.("activated", () => loadData());
+      telegram.onEvent?.("themeChanged", applyTheme);
       state.telegramEventsBound = true;
     }
   } catch {
