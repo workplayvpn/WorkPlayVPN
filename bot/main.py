@@ -19,6 +19,8 @@ from handlers.locations import router as locations_router
 from handlers.menu import router as menu_router
 from handlers.plans import router as plans_router
 from handlers.profile import router as profile_router
+from handlers.subscription import router as subscription_router
+from handlers.documents import router as documents_router
 from handlers.start import router as start_router
 
 
@@ -38,6 +40,14 @@ dispatcher.include_router(
 
 dispatcher.include_router(
     profile_router
+)
+
+dispatcher.include_router(
+    subscription_router
+)
+
+dispatcher.include_router(
+    documents_router
 )
 
 dispatcher.include_router(

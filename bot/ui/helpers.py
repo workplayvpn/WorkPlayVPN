@@ -11,10 +11,16 @@ async def edit_screen(
         return
 
     try:
-        await callback.message.edit_text(
-            text,
-            reply_markup=reply_markup,
-        )
+        if getattr(callback.message, "photo", None):
+            await callback.message.edit_caption(
+                caption=text,
+                reply_markup=reply_markup,
+            )
+        else:
+            await callback.message.edit_text(
+                text,
+                reply_markup=reply_markup,
+            )
     except TelegramBadRequest as exc:
         if "message is not modified" in str(exc):
             return

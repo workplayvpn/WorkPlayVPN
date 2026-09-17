@@ -11,14 +11,27 @@ router = Router(
 
 
 @router.callback_query(
-    F.data == "help"
+    F.data.in_({"help", "report_problem"})
 )
 async def show_help(
     callback: CallbackQuery,
 ) -> None:
     await callback.answer()
 
-    text = (
+    if callback.data == "report_problem":
+        text = (
+            "🛟 Сообщить о проблеме\n\n"
+            "Опишите, что произошло, и укажите:\n\n"
+            "• модель устройства;\n"
+            "• операционную систему;\n"
+            "• тип сети — Wi-Fi или мобильная;\n"
+            "• на каком шаге появилась ошибка.\n\n"
+            "Поддержка: support@workplayvpn.ru\n\n"
+            "Не отправляйте ключ подписки, пароль "
+            "или платёжные данные."
+        )
+    else:
+        text = (
         "🛟 Как подключиться\n\n"
         "1. Откройте приложение Work&PlayVPN.\n"
         "2. Выберите и оплатите тариф.\n"
@@ -29,8 +42,9 @@ async def show_help(
         "для каждого устройства. Не передавайте "
         "её другим людям.\n\n"
         "Если данные не обновились, вернитесь "
-        "на главную и откройте раздел ещё раз."
-    )
+        "на главную и откройте раздел ещё раз.\n\n"
+        "Поддержка: support@workplayvpn.ru"
+        )
 
     await edit_screen(
         callback,

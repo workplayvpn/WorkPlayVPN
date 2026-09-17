@@ -19,6 +19,12 @@ main_menu = InlineKeyboardMarkup(
         ],
         [
             InlineKeyboardButton(
+                text="🔑 Моя подписка",
+                callback_data="subscription",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text="💎 Тарифы",
                 callback_data="plans",
             ),
@@ -38,6 +44,10 @@ main_menu = InlineKeyboardMarkup(
             ),
         ],
         [
+            InlineKeyboardButton(
+                text="📄 Документы",
+                callback_data="documents",
+            ),
             InlineKeyboardButton(
                 text="🛟 Помощь",
                 callback_data="help",
