@@ -1,4 +1,5 @@
 from aiogram.types import (
+    CopyTextButton,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     WebAppInfo,
@@ -59,7 +60,7 @@ def build_subscription_keyboard(
             [
                 InlineKeyboardButton(
                     text="⏳ Продлить",
-                    callback_data="plans",
+                    callback_data="subscription_plans",
                 ),
                 InlineKeyboardButton(
                     text="＋ Устройство",
@@ -69,7 +70,7 @@ def build_subscription_keyboard(
             [
                 InlineKeyboardButton(
                     text="🛟 Сообщить о проблеме",
-                    callback_data="report_problem",
+                    url="https://t.me/workplayvpnteam",
                 )
             ],
             [
@@ -82,14 +83,32 @@ def build_subscription_keyboard(
     )
 
 
-def build_subscription_secret_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+def build_subscription_secret_keyboard(
+    copy_value: str | None = None,
+) -> InlineKeyboardMarkup:
+    rows = []
+
+    if copy_value:
+        rows.append(
             [
                 InlineKeyboardButton(
-                    text="← К подписке",
-                    callback_data="subscription",
+                    text="📋 Скопировать ключ",
+                    copy_text=CopyTextButton(
+                        text=copy_value,
+                    ),
                 )
             ]
+        )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="← К подписке",
+                callback_data="subscription",
+            )
         ]
+    )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows,
     )

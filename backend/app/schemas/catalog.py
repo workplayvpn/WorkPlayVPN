@@ -20,5 +20,6 @@ class LocationRead(BaseModel):
     code: str
     name: str
     is_active: bool
+    available: bool
 
     model_config = ConfigDict(from_attributes=True)

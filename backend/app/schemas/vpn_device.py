@@ -9,6 +9,11 @@ class VpnDeviceCreate(BaseModel):
     device_name: str = Field(min_length=1, max_length=100)
 
 
+class VpnDeviceLocationUpdate(BaseModel):
+    telegram_id: int
+    location_code: str = Field(min_length=1, max_length=50)
+
+
 class VpnDeviceRead(BaseModel):
     id: int
     device_name: str

@@ -6,19 +6,27 @@ from aiogram.types import (
 
 def build_payment_confirmation_keyboard(
     plan_code: str,
+    *,
+    source: str = "main",
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="Продолжить к оплате →",
-                    callback_data=f"pay_plan:{plan_code}",
+                    callback_data=(
+                        f"pay_plan:{plan_code}:{source}"
+                    ),
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="← Изменить тариф",
-                    callback_data="plans",
+                    callback_data=(
+                        "subscription_plans"
+                        if source == "subscription"
+                        else "plans"
+                    ),
                 )
             ],
         ]
@@ -28,6 +36,8 @@ def build_payment_confirmation_keyboard(
 def build_payment_keyboard(
     confirmation_url: str,
     payment_id: int,
+    *,
+    source: str = "main",
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -40,7 +50,11 @@ def build_payment_keyboard(
             [
                 InlineKeyboardButton(
                     text="← К тарифам",
-                    callback_data="plans",
+                    callback_data=(
+                        "subscription_plans"
+                        if source == "subscription"
+                        else "plans"
+                    ),
                 )
             ],
         ]

@@ -39,14 +39,14 @@ main_menu = InlineKeyboardMarkup(
                 callback_data="devices",
             ),
             InlineKeyboardButton(
-                text="🌍 Серверы",
-                callback_data="locations",
+                text="🌍 Сменить регион",
+                callback_data="change_region",
             ),
         ],
         [
             InlineKeyboardButton(
                 text="📄 Документы",
-                callback_data="documents",
+                url="https://workplayvpn.ru/#documents",
             ),
             InlineKeyboardButton(
                 text="🛟 Помощь",

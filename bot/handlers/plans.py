@@ -26,7 +26,7 @@ router = Router(
 
 
 @router.callback_query(
-    F.data == "plans"
+    F.data.in_({"plans", "subscription_plans"})
 )
 async def show_plans(
     callback: CallbackQuery,
@@ -108,10 +108,19 @@ async def show_plans(
         ]
     )
 
+    source = (
+        "subscription"
+        if callback.data == "subscription_plans"
+        else "main"
+    )
+
     await edit_screen(
         callback,
         "\n".join(lines),
-        build_plans_keyboard(plans),
+        build_plans_keyboard(
+            plans,
+            source=source,
+        ),
     )
 
 
@@ -126,10 +135,13 @@ async def select_plan(
     if callback.data is None:
         return
 
-    plan_code = callback.data.split(
-        ":",
-        maxsplit=1,
-    )[1]
+    callback_parts = callback.data.split(":")
+    plan_code = callback_parts[1]
+    source = (
+        callback_parts[2]
+        if len(callback_parts) > 2
+        else "main"
+    )
 
     telegram_id = callback.from_user.id
 
@@ -249,7 +261,8 @@ async def select_plan(
         "После оплаты подписка активируется "
         "автоматически.",
         build_payment_confirmation_keyboard(
-            plan_code
+            plan_code,
+            source=source,
         ),
     )
 
@@ -265,10 +278,13 @@ async def pay_plan(
     if callback.data is None:
         return
 
-    plan_code = callback.data.split(
-        ":",
-        maxsplit=1,
-    )[1]
+    callback_parts = callback.data.split(":")
+    plan_code = callback_parts[1]
+    source = (
+        callback_parts[2]
+        if len(callback_parts) > 2
+        else "main"
+    )
 
     telegram_id = callback.from_user.id
 
@@ -331,6 +347,7 @@ async def pay_plan(
             build_payment_keyboard(
                 confirmation_url,
                 payment["id"],
+                source=source,
             ),
         )
         return

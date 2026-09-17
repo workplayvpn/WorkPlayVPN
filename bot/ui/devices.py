@@ -156,10 +156,14 @@ def build_locations_keyboard(
     rows = []
 
     for location in locations:
+        available = location.get("available", True)
         rows.append(
             [
                 InlineKeyboardButton(
-                    text=location["name"],
+                    text=(
+                        f"{'🟢' if available else '🚧'} "
+                        f"{location['name']}"
+                    ),
                     callback_data=(
                         f"device_location:{location['code']}"
                     ),

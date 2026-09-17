@@ -627,16 +627,6 @@ async def select_device_location(
         maxsplit=1,
     )[1]
 
-    if location_code != "NL":
-        await edit_screen(
-            callback,
-            "🚧 Эта локация пока готовится.\n\n"
-            "Сейчас для подключения "
-            "доступны Нидерланды.",
-            build_devices_keyboard(),
-        )
-        return
-
     payload = {
         "telegram_id": callback.from_user.id,
         "location_code": location_code,
@@ -738,6 +728,15 @@ async def select_device_location(
         await edit_screen(
             callback,
             "🌍 Выбранная локация недоступна.",
+            build_devices_keyboard(),
+        )
+        return
+
+    if response.status_code == 503:
+        await edit_screen(
+            callback,
+            "🚧 Этот регион пока готовится.\n\n"
+            "Выберите регион, отмеченный зелёным индикатором.",
             build_devices_keyboard(),
         )
         return

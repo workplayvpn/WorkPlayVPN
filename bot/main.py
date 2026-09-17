@@ -20,7 +20,6 @@ from handlers.menu import router as menu_router
 from handlers.plans import router as plans_router
 from handlers.profile import router as profile_router
 from handlers.subscription import router as subscription_router
-from handlers.documents import router as documents_router
 from handlers.start import router as start_router
 
 
@@ -44,10 +43,6 @@ dispatcher.include_router(
 
 dispatcher.include_router(
     subscription_router
-)
-
-dispatcher.include_router(
-    documents_router
 )
 
 dispatcher.include_router(
@@ -106,14 +101,17 @@ async def main() -> None:
         )
 
         await bot.set_my_short_description(
-            "Защищённый интернет без сложных настроек."
+            "Защищённое подключение для работы, общения и развлечений. Управление через Telegram."
         )
 
         await bot.set_my_description(
-            "Work&PlayVPN помогает быстро подключить "
-            "защищённый доступ к интернету на телефоне, "
-            "планшете или компьютере. Выберите тариф, "
-            "добавьте устройство и следуйте инструкции."
+            "Work&PlayVPN — сервис защищённого подключения "
+            "для телефона, планшета и компьютера. Выберите "
+            "тариф, подключите до трёх устройств и управляйте "
+            "подпиской прямо в Telegram. Доступны пошаговые "
+            "инструкции, QR-код, смена региона и поддержка. "
+            "Продление выполняется вручную — без неожиданных "
+            "автоматических списаний."
         )
 
         await dispatcher.start_polling(

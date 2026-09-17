@@ -1,7 +1,8 @@
 from aiogram import F, Router
 from aiogram.types import CallbackQuery
 
-from ui.common import build_back_to_main_keyboard
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 from ui.helpers import edit_screen
 
 
@@ -18,20 +19,7 @@ async def show_help(
 ) -> None:
     await callback.answer()
 
-    if callback.data == "report_problem":
-        text = (
-            "🛟 Сообщить о проблеме\n\n"
-            "Опишите, что произошло, и укажите:\n\n"
-            "• модель устройства;\n"
-            "• операционную систему;\n"
-            "• тип сети — Wi-Fi или мобильная;\n"
-            "• на каком шаге появилась ошибка.\n\n"
-            "Поддержка: support@workplayvpn.ru\n\n"
-            "Не отправляйте ключ подписки, пароль "
-            "или платёжные данные."
-        )
-    else:
-        text = (
+    text = (
         "🛟 Как подключиться\n\n"
         "1. Откройте приложение Work&PlayVPN.\n"
         "2. Выберите и оплатите тариф.\n"
@@ -43,11 +31,30 @@ async def show_help(
         "её другим людям.\n\n"
         "Если данные не обновились, вернитесь "
         "на главную и откройте раздел ещё раз.\n\n"
-        "Поддержка: support@workplayvpn.ru"
-        )
+        "Поддержка в Telegram: @workplayvpnteam\n\n"
+        "Не отправляйте ключ подписки, пароль "
+        "или платёжные данные."
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💬 Написать в поддержку",
+                    url="https://t.me/workplayvpnteam",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="← На главную",
+                    callback_data="main_menu",
+                )
+            ],
+        ]
+    )
 
     await edit_screen(
         callback,
         text,
-        build_back_to_main_keyboard(),
+        keyboard,
     )

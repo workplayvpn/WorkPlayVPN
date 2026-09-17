@@ -33,6 +33,8 @@ def calculate_plan_saving(
 
 def build_plans_keyboard(
     plans: list[dict],
+    *,
+    source: str = "main",
 ) -> InlineKeyboardMarkup:
     rows = []
     monthly_plan = next(
@@ -71,7 +73,7 @@ def build_plans_keyboard(
                 InlineKeyboardButton(
                     text=text,
                     callback_data=(
-                        f"select_plan:{plan['code']}"
+                        f"select_plan:{plan['code']}:{source}"
                     ),
                 )
             ]
@@ -80,8 +82,16 @@ def build_plans_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="← На главную",
-                callback_data="main_menu",
+                text=(
+                    "← Назад"
+                    if source == "subscription"
+                    else "← На главную"
+                ),
+                callback_data=(
+                    "subscription"
+                    if source == "subscription"
+                    else "main_menu"
+                ),
             )
         ]
     )

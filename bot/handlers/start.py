@@ -7,46 +7,37 @@ from aiogram.types import FSInputFile, Message
 from api.backend import backend_post
 from ui.home import build_home_text
 from ui.main import main_menu
+from ui.media import (
+    get_welcome_photo,
+    remember_welcome_photo,
+    reset_welcome_photo,
+)
 
 
 router = Router(
     name="start",
 )
 
-_welcome_photo_file_id: str | None = None
-
-
 async def send_home_message(
     message: Message,
     *,
     text: str,
 ) -> None:
-    global _welcome_photo_file_id
-
-    photo = (
-        _welcome_photo_file_id
-        or FSInputFile("assets/welcome.png")
-    )
-
     try:
         sent_message = await message.answer_photo(
-            photo=photo,
+            photo=get_welcome_photo(),
             caption=text,
             reply_markup=main_menu,
         )
     except TelegramBadRequest:
-        if _welcome_photo_file_id is None:
-            raise
-
-        _welcome_photo_file_id = None
+        reset_welcome_photo()
         sent_message = await message.answer_photo(
             photo=FSInputFile("assets/welcome.png"),
             caption=text,
             reply_markup=main_menu,
         )
 
-    if sent_message.photo:
-        _welcome_photo_file_id = sent_message.photo[-1].file_id
+    remember_welcome_photo(sent_message)
 
 
 @router.message(CommandStart())

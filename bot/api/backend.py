@@ -44,3 +44,17 @@ async def backend_delete(
             f"{backend_url}{path}",
             headers=_internal_headers,
         )
+
+
+async def backend_patch(
+    path: str,
+    payload: dict,
+) -> httpx.Response:
+    async with httpx.AsyncClient(
+        timeout=20.0,
+    ) as client:
+        return await client.patch(
+            f"{backend_url}{path}",
+            json=payload,
+            headers=_internal_headers,
+        )

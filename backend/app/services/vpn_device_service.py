@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.plan import Plan
+from app.models.location import Location
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
@@ -261,6 +262,138 @@ class VpnDeviceService:
 
             # Xray user was already removed, so this is an
             # exceptional state that we must not silently hide.
+            raise
+
+        return device
+
+    def change_location(
+        self,
+        database: Session,
+        telegram_id: int,
+        device_id: int,
+        location_code: str,
+    ) -> VpnDevice:
+        user = database.scalar(
+            select(User).where(
+                User.telegram_id == telegram_id,
+                User.is_active.is_(True),
+            )
+        )
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        device = database.scalar(
+            select(VpnDevice).where(
+                VpnDevice.id == device_id,
+                VpnDevice.user_id == user.id,
+                VpnDevice.is_active.is_(True),
+            )
+        )
+
+        if device is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Device not found",
+            )
+
+        current_node = database.get(
+            VpnNode,
+            device.node_id,
+        )
+
+        if current_node is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="VPN node not found",
+            )
+
+        location = database.scalar(
+            select(Location).where(
+                Location.code == location_code.upper(),
+                Location.is_active.is_(True),
+            )
+        )
+
+        if location is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Location not found",
+            )
+
+        if current_node.location_id == location.id:
+            return device
+
+        target_node = database.scalar(
+            select(VpnNode)
+            .where(
+                VpnNode.location_id == location.id,
+                VpnNode.is_active.is_(True),
+            )
+            .order_by(VpnNode.id.asc())
+        )
+
+        if target_node is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="VPN node unavailable",
+            )
+
+        try:
+            xray_node_service.add_user(
+                node=target_node,
+                email=device.xray_email,
+                user_uuid=device.xray_uuid,
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Target VPN node unavailable",
+            ) from exc
+
+        try:
+            xray_node_service.remove_user(
+                node=current_node,
+                email=device.xray_email,
+            )
+        except Exception as exc:
+            try:
+                xray_node_service.remove_user(
+                    node=target_node,
+                    email=device.xray_email,
+                )
+            except Exception:
+                pass
+
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Current VPN node unavailable",
+            ) from exc
+
+        device.node_id = target_node.id
+
+        try:
+            database.commit()
+            database.refresh(device)
+        except Exception:
+            database.rollback()
+
+            try:
+                xray_node_service.remove_user(
+                    node=target_node,
+                    email=device.xray_email,
+                )
+                xray_node_service.add_user(
+                    node=current_node,
+                    email=device.xray_email,
+                    user_uuid=device.xray_uuid,
+                )
+            except Exception:
+                pass
+
             raise
 
         return device

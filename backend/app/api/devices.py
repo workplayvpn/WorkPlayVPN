@@ -4,7 +4,11 @@ from sqlalchemy.orm import Session
 from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.models.vpn_node import VpnNode
-from app.schemas.vpn_device import VpnDeviceCreate, VpnDeviceRead
+from app.schemas.vpn_device import (
+    VpnDeviceCreate,
+    VpnDeviceLocationUpdate,
+    VpnDeviceRead,
+)
 from app.services.vpn_device_service import vpn_device_service
 from app.services.vpn_node_profile_service import (
     vpn_node_profile_service,
@@ -183,4 +187,46 @@ def remove_device(
         is_active=device.is_active,
         created_at=device.created_at,
         vless_url=None,
+    )
+
+
+@router.patch(
+    "/{device_id}/location",
+    response_model=VpnDeviceRead,
+)
+def change_device_location(
+    device_id: int,
+    payload: VpnDeviceLocationUpdate,
+    database: Session = Depends(get_db),
+):
+    device = vpn_device_service.change_location(
+        database=database,
+        telegram_id=payload.telegram_id,
+        device_id=device_id,
+        location_code=payload.location_code,
+    )
+
+    node = database.get(
+        VpnNode,
+        device.node_id,
+    )
+
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="VPN node not found",
+        )
+
+    return VpnDeviceRead(
+        id=device.id,
+        device_name=device.device_name,
+        node_code=node.code,
+        node_name=node.name,
+        is_active=device.is_active,
+        created_at=device.created_at,
+        vless_url=build_device_vless_url(
+            database=database,
+            device=device,
+            node=node,
+        ),
     )

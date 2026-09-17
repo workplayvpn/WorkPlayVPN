@@ -1,28 +1,44 @@
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery
+from aiogram.types import (
+    CallbackQuery,
+    InputFile,
+    InputMediaPhoto,
+    Message,
+)
 
 
 async def edit_screen(
     callback: CallbackQuery,
     text: str,
     reply_markup=None,
-) -> None:
+    *,
+    photo: str | InputFile | None = None,
+) -> Message | None:
     if callback.message is None:
         return
 
     try:
+        if photo is not None:
+            return await callback.message.edit_media(
+                media=InputMediaPhoto(
+                    media=photo,
+                    caption=text,
+                ),
+                reply_markup=reply_markup,
+            )
+
         if getattr(callback.message, "photo", None):
-            await callback.message.edit_caption(
+            return await callback.message.edit_caption(
                 caption=text,
                 reply_markup=reply_markup,
             )
         else:
-            await callback.message.edit_text(
+            return await callback.message.edit_text(
                 text,
                 reply_markup=reply_markup,
             )
     except TelegramBadRequest as exc:
         if "message is not modified" in str(exc):
-            return
+            return callback.message
 
         raise

@@ -12,6 +12,10 @@ from aiogram.types import BufferedInputFile, CallbackQuery
 from api.backend import backend_get, backend_post
 from ui.helpers import edit_screen
 from ui.main import main_menu
+from ui.media import (
+    get_welcome_photo,
+    remember_welcome_photo,
+)
 from ui.subscription import (
     build_subscription_keyboard,
     build_subscription_secret_keyboard,
@@ -152,14 +156,18 @@ async def show_subscription(callback: CallbackQuery) -> None:
         return
 
     active = bool(subscription and subscription.get("status") == "active")
-    await edit_screen(
+    message = await edit_screen(
         callback,
         _build_subscription_text(subscription, devices),
         build_subscription_keyboard(
             active=active,
             connect_url=(token or {}).get("connect_url"),
         ),
+        photo=get_welcome_photo(),
     )
+
+    if message is not None:
+        remember_welcome_photo(message)
 
 
 async def _get_token(telegram_id: int) -> dict | None:
@@ -189,11 +197,14 @@ async def show_subscription_key(callback: CallbackQuery) -> None:
 
     await edit_screen(
         callback,
-        "🔑 Ключ подписки\n\n"
-        f"{token['subscription_url']}\n\n"
-        "Это секретная ссылка. Не публикуйте её и не "
-        "передавайте другим людям.",
-        build_subscription_secret_keyboard(),
+        "🔑 Ключ подписки готов\n\n"
+        "Нажмите кнопку ниже — ссылка сразу скопируется "
+        "в буфер обмена.\n\n"
+        "Не публикуйте ключ и не передавайте его "
+        "другим людям.",
+        build_subscription_secret_keyboard(
+            copy_value=token["subscription_url"],
+        ),
     )
 
 
@@ -218,15 +229,14 @@ async def show_subscription_qr(callback: CallbackQuery) -> None:
     buffer = BytesIO()
     qr_image.save(buffer, format="PNG")
 
-    await callback.message.answer_photo(
-        BufferedInputFile(
+    await edit_screen(
+        callback,
+        "📷 QR-код подписки\n\n"
+        "Отсканируйте его в приложении на доверенном "
+        "устройстве. Не пересылайте изображение другим людям.",
+        build_subscription_secret_keyboard(),
+        photo=BufferedInputFile(
             buffer.getvalue(),
             filename="workplayvpn-subscription.png",
         ),
-        caption=(
-            "📷 QR-код подписки\n\n"
-            "Отсканируйте его в приложении на доверенном "
-            "устройстве. Не пересылайте изображение другим людям."
-        ),
-        reply_markup=build_subscription_secret_keyboard(),
     )

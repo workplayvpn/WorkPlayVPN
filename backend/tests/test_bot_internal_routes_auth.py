@@ -23,6 +23,14 @@ INTERNAL_REQUESTS = (
         "/devices/2147483647?telegram_id=987654321012",
         None,
     ),
+    (
+        "patch",
+        "/devices/2147483647/location",
+        {
+            "telegram_id": 987654321012,
+            "location_code": "NL",
+        },
+    ),
     ("post", "/payments", {}),
     ("post", "/payments/2147483647/cancel", {}),
     ("post", "/device-activations", {}),
