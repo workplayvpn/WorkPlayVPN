@@ -150,41 +150,6 @@ def build_remove_confirm_keyboard(
     )
 
 
-def build_locations_keyboard(
-    locations: list[dict],
-) -> InlineKeyboardMarkup:
-    rows = []
-
-    for location in locations:
-        available = location.get("available", True)
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text=(
-                        f"{'🟢' if available else '🚧'} "
-                        f"{location['name']}"
-                    ),
-                    callback_data=(
-                        f"device_location:{location['code']}"
-                    ),
-                )
-            ]
-        )
-
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text="← К устройствам",
-                callback_data="devices",
-            )
-        ]
-    )
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=rows,
-    )
-
-
 def build_activation_keyboard(
     activation_url: str,
 ) -> InlineKeyboardMarkup:
@@ -204,8 +169,8 @@ def build_activation_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="← Назад",
-                    callback_data="add_device",
+                    text="← К устройствам",
+                    callback_data="devices",
                 )
             ],
         ]
