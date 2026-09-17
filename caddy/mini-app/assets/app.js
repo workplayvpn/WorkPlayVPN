@@ -47,6 +47,7 @@ const elements = {
   plansStartingPrice: document.querySelector("#plans-starting-price"),
   plansDeviceLimit: document.querySelector("#plans-device-limit"),
   addDeviceButton: document.querySelector("#add-device-button"),
+  deviceLimitAlert: document.querySelector("#device-limit-alert"),
   devicesList: document.querySelector("#devices-list"),
   devicesCounter: document.querySelector("#devices-counter"),
   profileAvatar: document.querySelector("#profile-avatar"),
@@ -396,8 +397,16 @@ function renderPlans() {
 
 function renderDevices() {
   elements.devicesList.replaceChildren();
-  elements.devicesCounter.textContent =
-    `${state.devices.length} / ${state.me.devices.total_limit}`;
+  const deviceLimit = state.me.devices.total_limit;
+  const isAtLimit = deviceLimit > 0 && state.devices.length >= deviceLimit;
+
+  elements.devicesCounter.textContent = `${state.devices.length} из ${deviceLimit}`;
+  elements.deviceLimitAlert.classList.toggle("hidden", !isAtLimit);
+  elements.addDeviceButton.disabled = isAtLimit;
+  elements.addDeviceButton.classList.toggle("is-disabled", isAtLimit);
+  elements.addDeviceButton.querySelector("span").textContent = isAtLimit
+    ? "Лимит устройств исчерпан"
+    : "Подключить устройство";
 
   if (state.devices.length === 0) {
     const empty = document.createElement("div");
@@ -407,14 +416,14 @@ function renderDevices() {
     title.textContent = "Нет подключённых устройств";
 
     const text = document.createElement("span");
-    text.textContent = "Нажмите кнопку выше, чтобы создать первое подключение.";
+    text.textContent = "Нажмите кнопку ниже, чтобы создать первое подключение.";
 
     empty.append(title, text);
     elements.devicesList.append(empty);
     return;
   }
 
-  for (const device of state.devices) {
+  state.devices.forEach((device, index) => {
     const card = document.createElement("article");
     card.className = "device-card";
 
@@ -426,19 +435,24 @@ function renderDevices() {
     info.className = "device-info";
 
     const name = document.createElement("strong");
-    name.textContent = device.device_name;
+    name.textContent = `(${index + 1}/${deviceLimit}) ${device.device_name}`;
+
+    const identifier = document.createElement("span");
+    identifier.className = "device-id";
+    identifier.textContent = `ID: WP-${String(device.id).padStart(6, "0")}`;
 
     const node = document.createElement("span");
-    node.textContent = device.node_name;
+    node.className = "device-region";
+    node.textContent = `Регион: ${device.node_name}`;
 
-    info.append(name, node);
+    info.append(name, identifier, node);
 
     const removeButton = document.createElement("button");
-    removeButton.className = "icon-button delete-button";
+    removeButton.className = "delete-button";
     removeButton.type = "button";
     removeButton.setAttribute("aria-label", `Удалить ${device.device_name}`);
     removeButton.innerHTML =
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/></svg>';
+      '<span>Удалить</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6"/></svg>';
     removeButton.addEventListener("click", () => {
       state.deleteDeviceId = device.id;
       elements.confirmMessage.textContent =
@@ -448,7 +462,7 @@ function renderDevices() {
 
     card.append(icon, info, removeButton);
     elements.devicesList.append(card);
-  }
+  });
 }
 
 function renderLocations() {

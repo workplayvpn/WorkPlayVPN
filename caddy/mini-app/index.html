@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-2">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20260917-1" defer></script>
+  <script src="/app/assets/app.js?v=20260917-2" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -132,12 +132,17 @@
           <span id="devices-counter" class="counter">0 / 0</span>
         </div>
 
-        <button id="add-device-button" class="button button-primary button-wide" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          Подключить устройство
-        </button>
+        <aside id="device-limit-alert" class="device-limit-alert hidden" role="status">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+          <p><strong>Свободных мест больше нет</strong><span>Удалите ненужное устройство, чтобы подключить новое.</span></p>
+        </aside>
 
         <div id="devices-list" class="devices-list" aria-live="polite"></div>
+
+        <button id="add-device-button" class="button button-primary button-wide devices-add-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Подключить устройство</span>
+        </button>
 
         <div class="help-card">
           <strong>Как подключить?</strong>

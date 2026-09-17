@@ -667,8 +667,53 @@ h2 {
   font-weight: 750;
 }
 
-#add-device-button {
-  margin-bottom: 20px;
+.device-limit-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px 15px;
+  color: #ffbd6b;
+  background: rgba(104, 43, 12, 0.28);
+  border: 1px solid rgba(255, 137, 45, 0.52);
+  border-radius: var(--radius-small);
+}
+
+.device-limit-alert > svg {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.device-limit-alert p,
+.device-limit-alert strong,
+.device-limit-alert span {
+  display: block;
+  margin: 0;
+}
+
+.device-limit-alert strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.device-limit-alert span {
+  margin-top: 2px;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.devices-add-button {
+  margin-top: 14px;
+}
+
+.devices-add-button.is-disabled {
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: none;
 }
 
 .empty-card,
@@ -697,25 +742,27 @@ h2 {
 
 .device-card {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) 42px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 13px;
-  padding: 15px;
+  gap: 11px;
+  min-height: 88px;
+  padding: 13px;
+  border-color: rgba(145, 148, 209, 0.38);
 }
 
 .device-icon {
   display: grid;
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   color: #73b1ff;
   background: rgba(47, 128, 237, 0.12);
-  border-radius: 14px;
+  border-radius: 11px;
 }
 
 .device-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 19px;
+  height: 19px;
 }
 
 .device-info {
@@ -729,20 +776,53 @@ h2 {
 
 .device-info strong {
   overflow: hidden;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
 }
 
 .device-info span {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.device-info .device-region {
+  margin-top: 3px;
+  color: #78adf1;
+  font-weight: 650;
 }
 
 .delete-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
   color: #ff91a4;
   background: rgba(255, 99, 125, 0.08);
-  border-color: rgba(255, 99, 125, 0.13);
+  border: 1px solid rgba(255, 65, 96, 0.58);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.delete-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (max-width: 370px) {
+  .delete-button span {
+    display: none;
+  }
+
+  .delete-button {
+    width: 36px;
+    padding: 0;
+  }
 }
 
 .help-card,
