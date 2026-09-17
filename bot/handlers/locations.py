@@ -36,6 +36,8 @@ def _find_device(devices: list[dict], device_id: int) -> dict | None:
 async def _show_location_picker(
     callback: CallbackQuery,
     device: dict,
+    *,
+    back_to_devices: bool,
 ) -> None:
     locations = await _get_locations()
     if locations is None:
@@ -57,6 +59,7 @@ async def _show_location_picker(
             device["id"],
             locations,
             current_code=device.get("node_code"),
+            back_to_devices=back_to_devices,
         ),
     )
 
@@ -89,7 +92,11 @@ async def show_region_devices(callback: CallbackQuery) -> None:
 
     if len(devices) == 1:
         try:
-            await _show_location_picker(callback, devices[0])
+            await _show_location_picker(
+                callback,
+                devices[0],
+                back_to_devices=False,
+            )
         except httpx.RequestError:
             await edit_screen(
                 callback,
@@ -124,7 +131,11 @@ async def show_device_regions(callback: CallbackQuery) -> None:
                 main_menu,
             )
             return
-        await _show_location_picker(callback, device)
+        await _show_location_picker(
+            callback,
+            device,
+            back_to_devices=len(devices or []) > 1,
+        )
     except httpx.RequestError:
         await edit_screen(
             callback,

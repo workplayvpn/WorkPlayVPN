@@ -29,6 +29,7 @@ def build_region_locations_keyboard(
     locations: list[dict],
     *,
     current_code: str | None = None,
+    back_to_devices: bool = False,
 ) -> InlineKeyboardMarkup:
     rows = []
 
@@ -62,8 +63,16 @@ def build_region_locations_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="← К выбору устройства",
-                callback_data="change_region",
+                text=(
+                    "← К выбору устройства"
+                    if back_to_devices
+                    else "← На главную"
+                ),
+                callback_data=(
+                    "change_region"
+                    if back_to_devices
+                    else "main_menu"
+                ),
             )
         ]
     )
