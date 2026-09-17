@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     activation_base_url: str = (
         "https://connect.workplayvpn.ru/activate"
     )
+    subscription_client_diagnostics: bool = False
 
 
 settings = Settings()

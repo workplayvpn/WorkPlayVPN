@@ -4,10 +4,14 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
+from app.services.subscription_client_diagnostics import (
+    build_subscription_client_diagnostics,
+)
 from app.services.subscription_builder import (
     subscription_builder,
 )
@@ -68,6 +72,15 @@ def get_subscription_feed(
         },
         flush=True,
     )
+
+    if settings.subscription_client_diagnostics:
+        print(
+            "SUBSCRIPTION_CLIENT_DIAGNOSTICS",
+            build_subscription_client_diagnostics(
+                request.headers
+            ),
+            flush=True,
+        )
 
     user = subscription_token_service.resolve_token(
         database=database,
