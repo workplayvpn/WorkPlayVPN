@@ -43,6 +43,31 @@ router = APIRouter(
 )
 
 
+HAPP_SUBSCRIPTION_HEADERS = {
+    "profile-title": "Work&PlayVPN",
+    "profile-update-interval": "12",
+    "subscription-auto-update-enable": "1",
+    "subscription-auto-update-open-enable": "1",
+    "support-url": "https://t.me/workplayvpnteam",
+}
+
+
+def build_subscription_payload(
+    *,
+    client: str,
+    links: list[str],
+) -> str:
+    if client != "happ":
+        return "\n".join(links)
+
+    metadata = [
+        f"#{name}: {value}"
+        for name, value in HAPP_SUBSCRIPTION_HEADERS.items()
+    ]
+
+    return "\n".join([*metadata, *links])
+
+
 @router.get(
     "/{token}",
 )
@@ -172,13 +197,28 @@ def get_subscription_feed(
         profiles=profiles,
     )
 
-    payload = "\n".join(links)
+    payload = build_subscription_payload(
+        client=client,
+        links=links,
+    )
 
     encoded = base64.b64encode(
         payload.encode("utf-8")
     ).decode("ascii")
 
+    response_headers = {
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+        "X-Content-Type-Options": "nosniff",
+    }
+
+    if client == "happ":
+        response_headers.update(
+            HAPP_SUBSCRIPTION_HEADERS
+        )
+
     return Response(
         content=encoded,
         media_type="text/plain",
+        headers=response_headers,
     )
