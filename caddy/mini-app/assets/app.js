@@ -8,8 +8,10 @@ const state = {
   devices: [],
   payment: null,
   deleteDeviceId: null,
+  selectedLocation: null,
   toastTimer: null,
   telegramEventsBound: false,
+  initialViewApplied: false,
 };
 
 const THEMES = {
@@ -59,6 +61,14 @@ const elements = {
   locationSheet: document.querySelector("#location-sheet"),
   closeLocationSheet: document.querySelector("#close-location-sheet"),
   locationsList: document.querySelector("#locations-list"),
+  deviceSetupSheet: document.querySelector("#device-setup-sheet"),
+  closeDeviceSetup: document.querySelector("#close-device-setup"),
+  detectedDeviceIcon: document.querySelector("#detected-device-icon"),
+  detectedDeviceName: document.querySelector("#detected-device-name"),
+  detectedDevicePlatform: document.querySelector("#detected-device-platform"),
+  selectedLocationName: document.querySelector("#selected-location-name"),
+  changeDeviceLocation: document.querySelector("#change-device-location"),
+  confirmDeviceSetup: document.querySelector("#confirm-device-setup"),
   confirmSheet: document.querySelector("#confirm-sheet"),
   confirmMessage: document.querySelector("#confirm-message"),
   confirmCancel: document.querySelector("#confirm-cancel"),
@@ -121,6 +131,7 @@ function humanError(error) {
     "Active subscription required": "Сначала активируйте подписку.",
     "Subscription expired": "Срок подписки закончился.",
     "Device limit reached": "Достигнут лимит устройств.",
+    "Device name already exists": "Такое устройство уже подключено. Обновите список и повторите.",
     "VPN node not found": "В выбранной стране пока нет доступного сервера.",
     "VPN node unavailable": "Сервер временно недоступен. Попробуйте позже.",
     "Location not found": "Выбранная страна больше недоступна.",
@@ -205,6 +216,64 @@ function createIcon(pathMarkup) {
   wrapper.className = "device-icon";
   wrapper.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${pathMarkup}</svg>`;
   return wrapper;
+}
+
+function detectDevice() {
+  const userAgent = navigator.userAgent || "";
+  const platform = navigator.platform || "";
+
+  if (/iPhone/i.test(userAgent)) {
+    return { name: "iPhone", platform: "iOS", icon: "📱" };
+  }
+
+  if (
+    /iPad/i.test(userAgent)
+    || (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1)
+  ) {
+    return { name: "iPad", platform: "iPadOS", icon: "▣" };
+  }
+
+  if (/Android/i.test(userAgent)) {
+    const modelMatch = userAgent.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build\/|;|\))/i);
+    const model = modelMatch?.[1]?.trim();
+    return {
+      name: model && model.length <= 60 ? model : "Android",
+      platform: "Android",
+      icon: "🤖",
+    };
+  }
+
+  if (/Windows/i.test(userAgent)) {
+    return { name: "Windows PC", platform: "Windows", icon: "▦" };
+  }
+
+  if (/Macintosh|Mac OS X/i.test(userAgent)) {
+    return { name: "Mac", platform: "macOS", icon: "◆" };
+  }
+
+  if (/Linux/i.test(platform)) {
+    return { name: "Linux PC", platform: "Linux", icon: "🐧" };
+  }
+
+  return { name: "Устройство", platform: "Не определена", icon: "📱" };
+}
+
+function deviceDisplayName(device) {
+  const baseName = device.platform === "Не определена"
+    ? device.name
+    : `${device.name} (${device.platform})`;
+
+  const matchingDevices = state.devices.filter((existingDevice) =>
+    existingDevice.device_name.toLowerCase().startsWith(device.name.toLowerCase())
+  );
+
+  if (matchingDevices.length === 0) {
+    return baseName;
+  }
+
+  return device.platform === "Не определена"
+    ? `${device.name} ${matchingDevices.length + 1}`
+    : `${device.name} ${matchingDevices.length + 1} (${device.platform})`;
 }
 
 function setView(name) {
@@ -488,7 +557,7 @@ function renderLocations() {
 
     if (location.available) {
       button.addEventListener("click", () => {
-        createActivation(location, button);
+        showDeviceSetup(location);
       });
     }
 
@@ -516,10 +585,24 @@ function closeSheet(sheet) {
 
   if (
     elements.locationSheet.classList.contains("hidden") &&
+    elements.deviceSetupSheet.classList.contains("hidden") &&
     elements.confirmSheet.classList.contains("hidden")
   ) {
     document.body.style.overflow = "";
   }
+}
+
+function showDeviceSetup(location) {
+  const device = detectDevice();
+  state.selectedLocation = location;
+
+  elements.detectedDeviceIcon.textContent = device.icon;
+  elements.detectedDeviceName.textContent = device.name;
+  elements.detectedDevicePlatform.textContent = device.platform;
+  elements.selectedLocationName.textContent = location.name;
+
+  closeSheet(elements.locationSheet);
+  openSheet(elements.deviceSetupSheet);
 }
 
 function openExternal(url) {
@@ -593,24 +676,37 @@ async function startPayment(plan, button) {
   }
 }
 
-async function createActivation(location, button) {
-  button.disabled = true;
+async function connectDevice() {
+  if (!state.selectedLocation) {
+    showToast("Сначала выберите регион.", "error");
+    return;
+  }
+
+  const device = detectDevice();
+  elements.confirmDeviceSetup.disabled = true;
+  elements.confirmDeviceSetup.textContent = "Подключаем…";
 
   try {
-    const activation = await api("/mini-app/device-activations", {
+    await api("/mini-app/devices", {
       method: "POST",
       body: JSON.stringify({
-        location_code: location.code,
+        location_code: state.selectedLocation.code,
+        device_name: deviceDisplayName(device),
+        platform: device.platform,
       }),
     });
 
-    closeSheet(elements.locationSheet);
-    haptic("medium");
-    openExternal(activation.activation_url);
+    state.selectedLocation = null;
+    closeSheet(elements.deviceSetupSheet);
+    haptic("heavy");
+    await loadData();
+    setView("devices");
+    showToast("Устройство подключено. Теперь откройте инструкцию HAPP.");
   } catch (error) {
     showToast(humanError(error), "error");
   } finally {
-    button.disabled = false;
+    elements.confirmDeviceSetup.disabled = false;
+    elements.confirmDeviceSetup.textContent = "Подключить устройство";
   }
 }
 
@@ -658,6 +754,14 @@ async function loadData() {
     elements.loading.classList.add("hidden");
     elements.error.classList.add("hidden");
     elements.app.classList.remove("hidden");
+
+    if (!state.initialViewApplied) {
+      const requestedView = new URLSearchParams(window.location.search).get("view");
+      const allowedViews = new Set(["home", "plans", "devices", "profile"]);
+      setView(allowedViews.has(requestedView) ? requestedView : "home");
+      state.initialViewApplied = true;
+    }
+
     return true;
   } catch (error) {
     elements.loading.classList.add("hidden");
@@ -733,13 +837,26 @@ elements.addDeviceButton.addEventListener("click", () => {
 elements.closeLocationSheet.addEventListener("click", () => {
   closeSheet(elements.locationSheet);
 });
+elements.closeDeviceSetup.addEventListener("click", () => {
+  state.selectedLocation = null;
+  closeSheet(elements.deviceSetupSheet);
+});
+elements.changeDeviceLocation.addEventListener("click", () => {
+  closeSheet(elements.deviceSetupSheet);
+  openSheet(elements.locationSheet);
+});
+elements.confirmDeviceSetup.addEventListener("click", connectDevice);
 elements.confirmCancel.addEventListener("click", () => {
   state.deleteDeviceId = null;
   closeSheet(elements.confirmSheet);
 });
 elements.confirmDelete.addEventListener("click", removeDevice);
 
-for (const sheet of [elements.locationSheet, elements.confirmSheet]) {
+for (const sheet of [
+  elements.locationSheet,
+  elements.deviceSetupSheet,
+  elements.confirmSheet,
+]) {
   sheet.addEventListener("click", (event) => {
     if (event.target === sheet) {
       closeSheet(sheet);
@@ -753,6 +870,7 @@ document.addEventListener("keydown", (event) => {
   }
 
   closeSheet(elements.locationSheet);
+  closeSheet(elements.deviceSetupSheet);
   closeSheet(elements.confirmSheet);
 });
 

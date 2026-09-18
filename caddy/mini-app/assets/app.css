@@ -968,6 +968,82 @@ h2 {
   content: "";
 }
 
+.detected-device-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.detected-device-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  background: rgba(47, 128, 237, 0.13);
+  border-radius: 15px;
+  font-size: 23px;
+}
+
+.detected-device-card span,
+.detected-device-card strong,
+.detected-device-card small {
+  display: block;
+}
+
+.detected-device-card div > span,
+.detected-device-card small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.detected-device-card strong {
+  margin: 3px 0 2px;
+  font-size: 17px;
+}
+
+.setup-region-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 13px;
+  padding: 15px 16px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+}
+
+.setup-region-row span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.setup-region-row strong {
+  text-align: right;
+  font-size: 14px;
+}
+
+.setup-note {
+  margin: 16px 2px 18px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.setup-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.setup-actions .button {
+  width: 100%;
+}
+
 .bottom-nav {
   position: fixed;
   z-index: 30;

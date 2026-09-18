@@ -109,6 +109,15 @@ def test_device_routes_require_telegram_credentials() -> None:
     ).status_code == 401
 
     assert client.post(
+        "/mini-app/devices",
+        json={
+            "location_code": "NL",
+            "device_name": "iPhone (iOS)",
+            "platform": "iOS",
+        },
+    ).status_code == 401
+
+    assert client.post(
         "/mini-app/device-activations",
         json={
             "location_code": "NL",
@@ -282,3 +291,59 @@ def test_device_lifecycle_uses_signed_user(
 
     assert empty_list_response.status_code == 200
     assert empty_list_response.json() == []
+
+
+def test_device_can_be_created_inside_mini_app(
+    monkeypatch,
+) -> None:
+    added_users: list[tuple[str, str]] = []
+
+    def fake_add_user(*, node, email, user_uuid=None):
+        added_users.append((node.code, email))
+        return user_uuid or DEVICE_UUID
+
+    monkeypatch.setattr(
+        xray_node_service,
+        "add_user",
+        fake_add_user,
+    )
+
+    headers = {
+        "X-Telegram-Init-Data": build_init_data(),
+    }
+
+    assert client.get(
+        "/mini-app/me",
+        headers=headers,
+    ).status_code == 200
+
+    assert client.post(
+        "/mini-app/trial",
+        headers=headers,
+    ).status_code == 201
+
+    response = client.post(
+        "/mini-app/devices",
+        headers=headers,
+        json={
+            "location_code": "NL",
+            "device_name": "iPhone (iOS)",
+            "platform": "iOS",
+        },
+    )
+
+    assert response.status_code == 201
+    device = response.json()
+    assert device["device_name"] == "iPhone (iOS)"
+    assert device["node_code"] == NODE_CODE
+    assert device["node_name"] == "Mini App Test Node"
+    assert device["is_active"] is True
+    assert len(added_users) == 1
+
+    devices_response = client.get(
+        "/mini-app/devices",
+        headers=headers,
+    )
+
+    assert devices_response.status_code == 200
+    assert devices_response.json() == [device]

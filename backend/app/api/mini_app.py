@@ -24,6 +24,7 @@ from app.schemas.mini_app import (
     MiniAppPaymentRead,
     MiniAppActivationCreate,
     MiniAppActivationRead,
+    MiniAppDeviceCreate,
     MiniAppDeviceRead,
     MiniAppCatalogRead,
     MiniAppLocationRead,
@@ -388,6 +389,71 @@ def get_devices(
         )
         for device in devices
     ]
+
+
+@router.post(
+    "/devices",
+    response_model=MiniAppDeviceRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_device(
+    payload: MiniAppDeviceCreate,
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppDeviceRead:
+    device_name = payload.device_name.strip()
+
+    if not device_name:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Device name required",
+        )
+
+    location = database.scalar(
+        select(Location).where(
+            Location.code == payload.location_code.upper(),
+            Location.is_active.is_(True),
+        )
+    )
+
+    if location is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Location not found",
+        )
+
+    node = database.scalar(
+        select(VpnNode)
+        .where(
+            VpnNode.location_id == location.id,
+            VpnNode.is_active.is_(True),
+        )
+        .order_by(VpnNode.id.asc())
+    )
+
+    if node is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="VPN node unavailable",
+        )
+
+    device = vpn_device_service.create_device(
+        database=database,
+        telegram_id=auth.user.id,
+        node_code=node.code,
+        device_name=device_name,
+    )
+
+    return build_mini_app_device(
+        database=database,
+        device=device,
+    )
 
 
 

@@ -577,69 +577,14 @@ async def add_device(
 ) -> None:
     await callback.answer()
 
-    try:
-        locations_response = await backend_get(
-            "/catalog/locations"
-        )
-        devices_response = await backend_get(
-            f"/devices/users/{callback.from_user.id}"
-        )
-    except httpx.RequestError:
-        await edit_screen(
-            callback,
-            "⚠️ Не удалось подготовить подключение.",
-            build_devices_keyboard(),
-        )
-        return
-
-    if locations_response.status_code != 200:
-        await edit_screen(
-            callback,
-            "⚠️ Не удалось подготовить подключение.",
-            build_devices_keyboard(),
-        )
-        return
-
-    available_locations = [
-        location
-        for location in locations_response.json()
-        if location.get("available", True)
-    ]
-
-    if not available_locations:
-        await edit_screen(
-            callback,
-            "🚧 Серверы временно недоступны.\n\n"
-            "Попробуйте подключить устройство позже.",
-            build_devices_keyboard(),
-        )
-        return
-
-    devices = (
-        devices_response.json()
-        if devices_response.status_code == 200
-        else []
-    )
-    preferred_code = None
-
-    if devices:
-        preferred_code = devices[0].get("node_code", "").split(
-            "-",
-            maxsplit=1,
-        )[0].upper()
-
-    selected_location = next(
-        (
-            location
-            for location in available_locations
-            if location["code"].upper() == preferred_code
-        ),
-        available_locations[0],
-    )
-
-    await create_device_activation(
+    await edit_screen(
         callback,
-        selected_location["code"],
+        "📱 Подключение устройств перенесено "
+        "в приложение Work&PlayVPN.\n\n"
+        "Там устройство определяется автоматически, "
+        "а подключение выполняется без перехода "
+        "в сторонний браузер.",
+        build_devices_keyboard(),
     )
 
 
@@ -777,15 +722,9 @@ async def select_device_location(
     """Keep buttons from older Telegram messages functional."""
     await callback.answer()
 
-    if callback.data is None:
-        return
-
-    location_code = callback.data.split(
-        ":",
-        maxsplit=1,
-    )[1]
-
-    await create_device_activation(
+    await edit_screen(
         callback,
-        location_code,
+        "📱 Подключение устройств теперь доступно "
+        "только внутри приложения Work&PlayVPN.",
+        build_devices_keyboard(),
     )

@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260917-2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260918-1">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20260917-2" defer></script>
+  <script src="/app/assets/app.js?v=20260918-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -107,7 +107,7 @@
             </span>
             <span>
               <strong>Подключить устройство</strong>
-              <small>Создать безопасную ссылку активации</small>
+              <small>Настроить прямо в приложении</small>
             </span>
             <span class="action-arrow" aria-hidden="true">›</span>
           </button>
@@ -146,7 +146,7 @@
 
         <div class="help-card">
           <strong>Как подключить?</strong>
-          <p>Выберите страну сервера. Мы создадим одноразовую ссылку и откроем пошаговую инструкцию.</p>
+          <p>Выберите регион и подтвердите подключение. Всё произойдёт прямо внутри Work&amp;PlayVPN.</p>
         </div>
       </section>
 
@@ -226,6 +226,40 @@
         <button id="close-location-sheet" class="icon-button" type="button" aria-label="Закрыть">×</button>
       </div>
       <div id="locations-list" class="locations-list"></div>
+    </div>
+  </div>
+
+  <div id="device-setup-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="device-setup-title">
+    <div class="sheet sheet-small">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <div>
+          <p class="eyebrow">Новое устройство</p>
+          <h2 id="device-setup-title">Подтвердите подключение</h2>
+        </div>
+        <button id="close-device-setup" class="icon-button" type="button" aria-label="Закрыть">×</button>
+      </div>
+
+      <div class="detected-device-card">
+        <span id="detected-device-icon" class="detected-device-icon" aria-hidden="true">📱</span>
+        <div>
+          <span>Определено автоматически</span>
+          <strong id="detected-device-name">Устройство</strong>
+          <small id="detected-device-platform">Операционная система</small>
+        </div>
+      </div>
+
+      <div class="setup-region-row">
+        <span>Регион подключения</span>
+        <strong id="selected-location-name">—</strong>
+      </div>
+
+      <p class="setup-note">После подключения устройство появится в списке. Затем откройте инструкцию и обновите подписку в HAPP.</p>
+
+      <div class="setup-actions">
+        <button id="change-device-location" class="button button-secondary" type="button">Изменить регион</button>
+        <button id="confirm-device-setup" class="button button-primary" type="button">Подключить устройство</button>
+      </div>
     </div>
   </div>
 

@@ -5,7 +5,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
-from config import mini_app_url
+from config import mini_app_devices_url, mini_app_url
 
 
 def build_subscription_keyboard(
@@ -64,7 +64,9 @@ def build_subscription_keyboard(
                 ),
                 InlineKeyboardButton(
                     text="＋ Устройство",
-                    callback_data="add_device",
+                    web_app=WebAppInfo(
+                        url=mini_app_devices_url,
+                    ),
                 ),
             ],
             [

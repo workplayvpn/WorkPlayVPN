@@ -60,6 +60,12 @@ class MiniAppActivationRead(BaseModel):
     activation_url: str
 
 
+class MiniAppDeviceCreate(BaseModel):
+    location_code: str = Field(min_length=1, max_length=50)
+    device_name: str = Field(min_length=1, max_length=100)
+    platform: str | None = Field(default=None, max_length=50)
+
+
 class MiniAppDeviceRead(BaseModel):
     id: int
     device_name: str = Field(min_length=1, max_length=100)

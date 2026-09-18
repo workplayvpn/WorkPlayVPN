@@ -4,14 +4,18 @@ from aiogram.types import (
     WebAppInfo,
 )
 
+from config import mini_app_devices_url
+
 
 def build_devices_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="＋ Подключить устройство",
-                    callback_data="add_device",
+                    text="Открыть устройства в приложении",
+                    web_app=WebAppInfo(
+                        url=mini_app_devices_url,
+                    ),
                 )
             ],
             [
@@ -41,17 +45,19 @@ def build_user_devices_keyboard(
 
     rows.append(
         [
-                InlineKeyboardButton(
-                    text="＋ Подключить устройство",
-                callback_data="add_device",
+            InlineKeyboardButton(
+                text="Открыть устройства в приложении",
+                web_app=WebAppInfo(
+                    url=mini_app_devices_url,
+                ),
             )
         ]
     )
 
     rows.append(
         [
-                InlineKeyboardButton(
-                    text="← На главную",
+            InlineKeyboardButton(
+                text="← На главную",
                 callback_data="main_menu",
             )
         ]

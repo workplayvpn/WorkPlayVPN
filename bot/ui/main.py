@@ -4,7 +4,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
-from config import mini_app_url
+from config import mini_app_devices_url, mini_app_url
 
 
 main_menu = InlineKeyboardMarkup(
@@ -36,7 +36,9 @@ main_menu = InlineKeyboardMarkup(
         [
             InlineKeyboardButton(
                 text="📱 Устройства",
-                callback_data="devices",
+                web_app=WebAppInfo(
+                    url=mini_app_devices_url,
+                ),
             ),
             InlineKeyboardButton(
                 text="🌍 Сменить регион",
