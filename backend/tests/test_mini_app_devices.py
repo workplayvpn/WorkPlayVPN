@@ -13,12 +13,14 @@ from app.db.session import SessionLocal
 from app.main import app
 from app.models.location import Location
 from app.models.user import User
+from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.xray_node import xray_node_service
 
 
 TELEGRAM_ID = 993100003
 NODE_CODE = "mini-app-test-node"
+SECOND_NODE_CODE = "mini-app-test-node-de"
 DEVICE_UUID = "12345678-1234-5678-1234-567812345678"
 CLIENT_INSTANCE_ID = "9d6922e5-080b-4a20-a684-35e11e15df8d"
 
@@ -70,7 +72,10 @@ def clean_records() -> None:
         )
         database.execute(
             delete(VpnNode).where(
-                VpnNode.code == NODE_CODE
+                VpnNode.code.in_({
+                    NODE_CODE,
+                    SECOND_NODE_CODE,
+                })
             )
         )
         database.commit()
@@ -112,7 +117,6 @@ def test_device_routes_require_telegram_credentials() -> None:
     assert client.post(
         "/mini-app/devices",
         json={
-            "location_code": "NL",
             "device_name": "iPhone (iOS)",
             "platform": "iOS",
             "client_instance_id": CLIENT_INSTANCE_ID,
@@ -328,7 +332,6 @@ def test_device_can_be_created_inside_mini_app(
         "/mini-app/devices",
         headers=headers,
         json={
-            "location_code": "NL",
             "device_name": "iPhone (iOS)",
             "platform": "iOS",
             "client_instance_id": CLIENT_INSTANCE_ID,
@@ -336,7 +339,16 @@ def test_device_can_be_created_inside_mini_app(
     )
 
     assert response.status_code == 201
-    device = response.json()
+    created_device = response.json()
+    assert created_device["connect_url"].startswith(
+        settings.connect_base_url
+    )
+
+    device = {
+        key: value
+        for key, value in created_device.items()
+        if key != "connect_url"
+    }
     assert device["device_name"] == "iPhone (iOS)"
     assert device["node_code"] == NODE_CODE
     assert device["node_name"] == "Mini App Test Node"
@@ -347,7 +359,6 @@ def test_device_can_be_created_inside_mini_app(
         "/mini-app/devices",
         headers=headers,
         json={
-            "location_code": "NL",
             "device_name": "iPhone 2 (iOS)",
             "platform": "iOS",
             "client_instance_id": CLIENT_INSTANCE_ID,
@@ -355,7 +366,7 @@ def test_device_can_be_created_inside_mini_app(
     )
 
     assert repeated_response.status_code == 201
-    assert repeated_response.json() == device
+    assert repeated_response.json() == created_device
     assert len(added_users) == 1
 
     devices_response = client.get(
@@ -381,7 +392,6 @@ def test_device_creation_requires_valid_client_instance_id() -> None:
         "/mini-app/devices",
         headers=headers,
         json={
-            "location_code": "NL",
             "device_name": "iPhone (iOS)",
             "platform": "iOS",
             "client_instance_id": "too short!",
@@ -389,3 +399,115 @@ def test_device_creation_requires_valid_client_instance_id() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_region_change_moves_all_mini_app_devices(
+    monkeypatch,
+) -> None:
+    operations: list[tuple[str, str, str | None]] = []
+
+    def fake_add_user(*, node, email, user_uuid=None):
+        operations.append(("add", node.code, user_uuid))
+        return user_uuid or DEVICE_UUID
+
+    def fake_remove_user(*, node, email):
+        operations.append(("remove", node.code, None))
+
+    monkeypatch.setattr(
+        xray_node_service,
+        "add_user",
+        fake_add_user,
+    )
+    monkeypatch.setattr(
+        xray_node_service,
+        "remove_user",
+        fake_remove_user,
+    )
+
+    headers = {
+        "X-Telegram-Init-Data": build_init_data(),
+    }
+
+    assert client.get(
+        "/mini-app/me",
+        headers=headers,
+    ).status_code == 200
+    assert client.post(
+        "/mini-app/trial",
+        headers=headers,
+    ).status_code == 201
+
+    create_response = client.post(
+        "/mini-app/devices",
+        headers=headers,
+        json={
+            "device_name": "iPhone (iOS)",
+            "platform": "iOS",
+            "client_instance_id": CLIENT_INSTANCE_ID,
+        },
+    )
+    assert create_response.status_code == 201
+
+    with SessionLocal() as database:
+        germany = database.scalar(
+            select(Location).where(Location.code == "DE")
+        )
+        assert germany is not None
+
+        database.add(
+            VpnNode(
+                location_id=germany.id,
+                code=SECOND_NODE_CODE,
+                name="Mini App Germany Test Node",
+                host="192.0.2.11",
+                ssh_port=22,
+                ssh_user="test",
+                is_active=True,
+            )
+        )
+        database.commit()
+
+    operations.clear()
+    region_response = client.patch(
+        "/mini-app/region",
+        headers=headers,
+        json={"location_code": "DE"},
+    )
+
+    assert region_response.status_code == 200
+    assert region_response.json() == {
+        "code": "DE",
+        "name": "Германия",
+    }
+    assert operations == [
+        ("add", SECOND_NODE_CODE, DEVICE_UUID),
+        ("remove", NODE_CODE, None),
+    ]
+
+    me_response = client.get(
+        "/mini-app/me",
+        headers=headers,
+    )
+    assert me_response.status_code == 200
+    assert me_response.json()["current_region"] == {
+        "code": "DE",
+        "name": "Германия",
+    }
+
+    with SessionLocal() as database:
+        user = database.scalar(
+            select(User).where(User.telegram_id == TELEGRAM_ID)
+        )
+        assert user is not None
+
+        device = database.scalar(
+            select(VpnDevice).where(VpnDevice.user_id == user.id)
+        )
+        target_node = database.scalar(
+            select(VpnNode).where(VpnNode.code == SECOND_NODE_CODE)
+        )
+
+        assert device is not None
+        assert target_node is not None
+        assert user.preferred_location_id == target_node.location_id
+        assert device.node_id == target_node.id

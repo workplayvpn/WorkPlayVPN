@@ -23,10 +23,20 @@ class MiniAppDeviceSummaryRead(BaseModel):
     total_limit: int
 
 
+class MiniAppRegionRead(BaseModel):
+    code: str = Field(min_length=1, max_length=50)
+    name: str
+
+
+class MiniAppRegionUpdate(BaseModel):
+    location_code: str = Field(min_length=1, max_length=50)
+
+
 class MiniAppMeRead(BaseModel):
     user: MiniAppUserRead
     subscription: MiniAppSubscriptionRead | None
     devices: MiniAppDeviceSummaryRead
+    current_region: MiniAppRegionRead | None
     trial_available: bool
 
 
@@ -61,7 +71,6 @@ class MiniAppActivationRead(BaseModel):
 
 
 class MiniAppDeviceCreate(BaseModel):
-    location_code: str = Field(min_length=1, max_length=50)
     device_name: str = Field(min_length=1, max_length=100)
     platform: str | None = Field(default=None, max_length=50)
     client_instance_id: str = Field(
@@ -78,6 +87,10 @@ class MiniAppDeviceRead(BaseModel):
     node_name: str
     is_active: bool
     created_at: datetime
+
+
+class MiniAppDeviceCreateRead(MiniAppDeviceRead):
+    connect_url: str
 
 
 class MiniAppPaymentCreate(BaseModel):

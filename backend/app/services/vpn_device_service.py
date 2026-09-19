@@ -280,6 +280,136 @@ class VpnDeviceService:
 
         return device
 
+    def change_account_location(
+        self,
+        database: Session,
+        telegram_id: int,
+        location_code: str,
+    ) -> Location:
+        user = database.scalar(
+            select(User)
+            .where(
+                User.telegram_id == telegram_id,
+                User.is_active.is_(True),
+            )
+            .with_for_update()
+        )
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        location = database.scalar(
+            select(Location).where(
+                Location.code == location_code.upper(),
+                Location.is_active.is_(True),
+            )
+        )
+
+        if location is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Location not found",
+            )
+
+        target_node = database.scalar(
+            select(VpnNode)
+            .where(
+                VpnNode.location_id == location.id,
+                VpnNode.is_active.is_(True),
+            )
+            .order_by(VpnNode.id.asc())
+        )
+
+        if target_node is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="VPN node unavailable",
+            )
+
+        devices = list(
+            database.scalars(
+                select(VpnDevice)
+                .where(
+                    VpnDevice.user_id == user.id,
+                    VpnDevice.is_active.is_(True),
+                )
+                .order_by(VpnDevice.id.asc())
+                .with_for_update()
+            ).all()
+        )
+
+        moves: list[tuple[VpnDevice, VpnNode]] = []
+
+        for device in devices:
+            if device.node_id == target_node.id:
+                continue
+
+            current_node = database.get(VpnNode, device.node_id)
+
+            if current_node is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="VPN node not found",
+                )
+
+            moves.append((device, current_node))
+
+        added_to_target: list[tuple[VpnDevice, VpnNode]] = []
+        removed_from_source: list[tuple[VpnDevice, VpnNode]] = []
+
+        try:
+            for device, current_node in moves:
+                xray_node_service.add_user(
+                    node=target_node,
+                    email=device.xray_email,
+                    user_uuid=device.xray_uuid,
+                )
+                added_to_target.append((device, current_node))
+
+            for device, current_node in moves:
+                xray_node_service.remove_user(
+                    node=current_node,
+                    email=device.xray_email,
+                )
+                removed_from_source.append((device, current_node))
+
+            for device, _ in moves:
+                device.node_id = target_node.id
+
+            user.preferred_location_id = location.id
+            database.commit()
+        except Exception as exc:
+            database.rollback()
+
+            for device, current_node in reversed(removed_from_source):
+                try:
+                    xray_node_service.add_user(
+                        node=current_node,
+                        email=device.xray_email,
+                        user_uuid=device.xray_uuid,
+                    )
+                except Exception:
+                    pass
+
+            for device, _ in reversed(added_to_target):
+                try:
+                    xray_node_service.remove_user(
+                        node=target_node,
+                        email=device.xray_email,
+                    )
+                except Exception:
+                    pass
+
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="VPN region change failed",
+            ) from exc
+
+        return location
+
     def change_location(
         self,
         database: Session,
@@ -314,101 +444,13 @@ class VpnDeviceService:
                 detail="Device not found",
             )
 
-        current_node = database.get(
-            VpnNode,
-            device.node_id,
+        self.change_account_location(
+            database=database,
+            telegram_id=telegram_id,
+            location_code=location_code,
         )
 
-        if current_node is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="VPN node not found",
-            )
-
-        location = database.scalar(
-            select(Location).where(
-                Location.code == location_code.upper(),
-                Location.is_active.is_(True),
-            )
-        )
-
-        if location is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Location not found",
-            )
-
-        if current_node.location_id == location.id:
-            return device
-
-        target_node = database.scalar(
-            select(VpnNode)
-            .where(
-                VpnNode.location_id == location.id,
-                VpnNode.is_active.is_(True),
-            )
-            .order_by(VpnNode.id.asc())
-        )
-
-        if target_node is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="VPN node unavailable",
-            )
-
-        try:
-            xray_node_service.add_user(
-                node=target_node,
-                email=device.xray_email,
-                user_uuid=device.xray_uuid,
-            )
-        except Exception as exc:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Target VPN node unavailable",
-            ) from exc
-
-        try:
-            xray_node_service.remove_user(
-                node=current_node,
-                email=device.xray_email,
-            )
-        except Exception as exc:
-            try:
-                xray_node_service.remove_user(
-                    node=target_node,
-                    email=device.xray_email,
-                )
-            except Exception:
-                pass
-
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Current VPN node unavailable",
-            ) from exc
-
-        device.node_id = target_node.id
-
-        try:
-            database.commit()
-            database.refresh(device)
-        except Exception:
-            database.rollback()
-
-            try:
-                xray_node_service.remove_user(
-                    node=target_node,
-                    email=device.xray_email,
-                )
-                xray_node_service.add_user(
-                    node=current_node,
-                    email=device.xray_email,
-                    user_uuid=device.xray_uuid,
-                )
-            except Exception:
-                pass
-
-            raise
+        database.refresh(device)
 
         return device
 

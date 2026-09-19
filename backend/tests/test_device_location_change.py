@@ -15,6 +15,8 @@ from app.services.xray_node import xray_node_service
 TELEGRAM_ID = 993100009
 DEVICE_UUID = "12345678-1234-5678-1234-567812345679"
 DEVICE_EMAIL = "region-change-test@workplayvpn"
+SECOND_DEVICE_UUID = "12345678-1234-5678-1234-567812345680"
+SECOND_DEVICE_EMAIL = "region-change-test-2@workplayvpn"
 NL_NODE_CODE = "region-change-nl"
 DE_NODE_CODE = "region-change-de"
 
@@ -131,6 +133,72 @@ def test_change_device_location_keeps_credentials(monkeypatch) -> None:
         assert device.node_id != nl_node_id
         assert device.xray_uuid == DEVICE_UUID
         assert device.xray_email == DEVICE_EMAIL
+
+
+def test_change_device_location_moves_all_account_devices(
+    monkeypatch,
+) -> None:
+    device_id, _, de_node_id = _create_device_with_two_nodes()
+
+    with SessionLocal() as database:
+        first_device = database.get(VpnDevice, device_id)
+        assert first_device is not None
+
+        second_device = VpnDevice(
+            user_id=first_device.user_id,
+            node_id=first_device.node_id,
+            device_name="Region Test Laptop",
+            xray_uuid=SECOND_DEVICE_UUID,
+            xray_email=SECOND_DEVICE_EMAIL,
+            is_active=True,
+        )
+        database.add(second_device)
+        database.commit()
+        second_device_id = second_device.id
+
+    operations: list[tuple[str, str, str | None]] = []
+
+    def fake_add_user(*, node, email, user_uuid=None):
+        operations.append(("add", node.code, user_uuid))
+        return user_uuid or DEVICE_UUID
+
+    def fake_remove_user(*, node, email):
+        operations.append(("remove", node.code, None))
+
+    monkeypatch.setattr(xray_node_service, "add_user", fake_add_user)
+    monkeypatch.setattr(xray_node_service, "remove_user", fake_remove_user)
+
+    response = client.patch(
+        f"/devices/{device_id}/location",
+        headers=_headers(),
+        json={
+            "telegram_id": TELEGRAM_ID,
+            "location_code": "DE",
+        },
+    )
+
+    assert response.status_code == 200
+    assert operations == [
+        ("add", DE_NODE_CODE, DEVICE_UUID),
+        ("add", DE_NODE_CODE, SECOND_DEVICE_UUID),
+        ("remove", NL_NODE_CODE, None),
+        ("remove", NL_NODE_CODE, None),
+    ]
+
+    with SessionLocal() as database:
+        devices = database.scalars(
+            select(VpnDevice).where(
+                VpnDevice.id.in_({device_id, second_device_id})
+            )
+        ).all()
+        user = database.scalar(
+            select(User).where(User.telegram_id == TELEGRAM_ID)
+        )
+
+        assert len(devices) == 2
+        assert {device.node_id for device in devices} == {de_node_id}
+        assert user is not None
+        assert user.preferred_location_id is not None
 
 
 def test_change_device_location_rejects_unowned_device(monkeypatch) -> None:

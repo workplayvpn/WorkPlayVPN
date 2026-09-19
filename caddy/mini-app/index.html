@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260919-1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260919-3">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20260919-1" defer></script>
+  <script src="/app/assets/app.js?v=20260919-3" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -132,6 +132,16 @@
           <span id="devices-counter" class="counter">0 / 0</span>
         </div>
 
+        <button id="change-region-button" class="region-card" type="button">
+          <span class="region-card-icon" aria-hidden="true">🌍</span>
+          <span class="region-card-copy">
+            <small>Регион подписки</small>
+            <strong id="current-region-name">Определяем…</strong>
+            <span>Изменится на всех устройствах</span>
+          </span>
+          <span class="action-arrow" aria-hidden="true">›</span>
+        </button>
+
         <aside id="device-limit-alert" class="device-limit-alert hidden" role="status">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
           <p><strong>Свободных мест больше нет</strong><span>Удалите ненужное устройство, чтобы подключить новое.</span></p>
@@ -146,7 +156,7 @@
 
         <div class="help-card">
           <strong>Как подключить?</strong>
-          <p>Выберите регион и подтвердите подключение. Всё произойдёт прямо внутри Work&amp;PlayVPN.</p>
+          <p>Подтвердите найденное устройство — мы сразу откроем пошаговую инструкцию для HAPP.</p>
         </div>
       </section>
 
@@ -220,11 +230,12 @@
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-head">
         <div>
-          <p class="eyebrow">Новый доступ</p>
-          <h2 id="location-title">Выберите страну</h2>
+          <p class="eyebrow">Подписка</p>
+          <h2 id="location-title">Сменить регион</h2>
         </div>
         <button id="close-location-sheet" class="icon-button" type="button" aria-label="Закрыть">×</button>
       </div>
+      <p class="setup-note">Новый регион будет применён ко всем подключённым устройствам.</p>
       <div id="locations-list" class="locations-list"></div>
     </div>
   </div>
@@ -249,17 +260,20 @@
         </div>
       </div>
 
-      <div class="setup-region-row">
-        <span>Регион подключения</span>
-        <strong id="selected-location-name">—</strong>
-      </div>
-
-      <p class="setup-note">После подключения устройство появится в списке. Затем откройте инструкцию и обновите подписку в HAPP.</p>
+      <p class="setup-note">После подключения мы сразу откроем пошаговую инструкцию для HAPP.</p>
 
       <div class="setup-actions">
-        <button id="change-device-location" class="button button-secondary" type="button">Изменить регион</button>
         <button id="confirm-device-setup" class="button button-primary" type="button">Подключить устройство</button>
       </div>
+    </div>
+  </div>
+
+  <div id="region-success-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="region-success-title">
+    <div class="sheet sheet-small">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <h2 id="region-success-title">Регион изменён</h2>
+      <p>Откройте HAPP и нажмите обновление рядом с подпиской Work&amp;PlayVPN на каждом устройстве.</p>
+      <button id="region-success-close" class="button button-primary button-wide" type="button">Понятно</button>
     </div>
   </div>
 

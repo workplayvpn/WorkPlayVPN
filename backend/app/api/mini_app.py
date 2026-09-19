@@ -25,10 +25,13 @@ from app.schemas.mini_app import (
     MiniAppActivationCreate,
     MiniAppActivationRead,
     MiniAppDeviceCreate,
+    MiniAppDeviceCreateRead,
     MiniAppDeviceRead,
     MiniAppCatalogRead,
     MiniAppLocationRead,
     MiniAppPlanRead,
+    MiniAppRegionRead,
+    MiniAppRegionUpdate,
     MiniAppDeviceSummaryRead,
     MiniAppMeRead,
     MiniAppSubscriptionRead,
@@ -37,6 +40,9 @@ from app.schemas.mini_app import (
 from app.services.device_activation_service import device_activation_service
 from app.services.payment_service import payment_service
 from app.services.subscription_service import subscription_service
+from app.services.subscription_token_service import (
+    subscription_token_service,
+)
 from app.services.vpn_device_service import vpn_device_service
 from app.services.payment_redirect_service import (
     payment_redirect_service,
@@ -50,6 +56,59 @@ router = APIRouter(
     prefix="/mini-app",
     tags=["mini-app"],
 )
+
+
+def get_user_region(
+    *,
+    database: Session,
+    user: User,
+) -> Location | None:
+    if user.preferred_location_id is not None:
+        preferred_location = database.scalar(
+            select(Location)
+            .join(
+                VpnNode,
+                VpnNode.location_id == Location.id,
+            )
+            .where(
+                Location.id == user.preferred_location_id,
+                Location.is_active.is_(True),
+                VpnNode.is_active.is_(True),
+            )
+            .order_by(VpnNode.id.asc())
+        )
+
+        if preferred_location is not None:
+            return preferred_location
+
+    device_location = database.scalar(
+        select(Location)
+        .join(VpnNode, VpnNode.location_id == Location.id)
+        .join(VpnDevice, VpnDevice.node_id == VpnNode.id)
+        .where(
+            VpnDevice.user_id == user.id,
+            VpnDevice.is_active.is_(True),
+            Location.is_active.is_(True),
+            VpnNode.is_active.is_(True),
+        )
+        .order_by(
+            VpnDevice.created_at.asc(),
+            VpnDevice.id.asc(),
+        )
+    )
+
+    if device_location is not None:
+        return device_location
+
+    return database.scalar(
+        select(Location)
+        .join(VpnNode, VpnNode.location_id == Location.id)
+        .where(
+            Location.is_active.is_(True),
+            VpnNode.is_active.is_(True),
+        )
+        .order_by(VpnNode.id.asc())
+    )
 
 
 def get_visible_subscription(
@@ -195,6 +254,11 @@ def get_me(
         .limit(1)
     )
 
+    current_region = get_user_region(
+        database=database,
+        user=user,
+    )
+
     return MiniAppMeRead(
         user=MiniAppUserRead(
             telegram_id=user.telegram_id,
@@ -207,6 +271,14 @@ def get_me(
             active_count=active_device_count or 0,
             total_limit=total_device_limit,
         ),
+        current_region=(
+            MiniAppRegionRead(
+                code=current_region.code,
+                name=current_region.name,
+            )
+            if current_region is not None
+            else None
+        ),
         trial_available=(
             trial_was_used is None
             and (
@@ -214,6 +286,33 @@ def get_me(
                 or subscription.status != "active"
             )
         ),
+    )
+
+
+@router.patch(
+    "/region",
+    response_model=MiniAppRegionRead,
+)
+def change_region(
+    payload: MiniAppRegionUpdate,
+    auth: Annotated[
+        TelegramWebAppAuthResult,
+        Depends(require_telegram_webapp_auth),
+    ],
+    database: Annotated[
+        Session,
+        Depends(get_db),
+    ],
+) -> MiniAppRegionRead:
+    location = vpn_device_service.change_account_location(
+        database=database,
+        telegram_id=auth.user.id,
+        location_code=payload.location_code,
+    )
+
+    return MiniAppRegionRead(
+        code=location.code,
+        name=location.name,
     )
 
 
@@ -393,7 +492,7 @@ def get_devices(
 
 @router.post(
     "/devices",
-    response_model=MiniAppDeviceRead,
+    response_model=MiniAppDeviceCreateRead,
     status_code=status.HTTP_201_CREATED,
 )
 def create_device(
@@ -406,7 +505,7 @@ def create_device(
         Session,
         Depends(get_db),
     ],
-) -> MiniAppDeviceRead:
+) -> MiniAppDeviceCreateRead:
     device_name = payload.device_name.strip()
 
     if not device_name:
@@ -415,26 +514,35 @@ def create_device(
             detail="Device name required",
         )
 
-    location = database.scalar(
-        select(Location).where(
-            Location.code == payload.location_code.upper(),
-            Location.is_active.is_(True),
+    user = database.scalar(
+        select(User).where(
+            User.telegram_id == auth.user.id,
+            User.is_active.is_(True),
         )
     )
 
-    if location is None:
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Location not found",
+            detail="User not found",
         )
 
-    node = database.scalar(
-        select(VpnNode)
-        .where(
-            VpnNode.location_id == location.id,
-            VpnNode.is_active.is_(True),
+    location = get_user_region(
+        database=database,
+        user=user,
+    )
+
+    node = (
+        database.scalar(
+            select(VpnNode)
+            .where(
+                VpnNode.location_id == location.id,
+                VpnNode.is_active.is_(True),
+            )
+            .order_by(VpnNode.id.asc())
         )
-        .order_by(VpnNode.id.asc())
+        if location is not None
+        else None
     )
 
     if node is None:
@@ -451,9 +559,26 @@ def create_device(
         client_instance_id=payload.client_instance_id,
     )
 
-    return build_mini_app_device(
+    if user.preferred_location_id != location.id:
+        user.preferred_location_id = location.id
+        database.commit()
+
+    _, raw_token = subscription_token_service.get_or_create_token(
+        database=database,
+        telegram_id=auth.user.id,
+    )
+
+    device_read = build_mini_app_device(
         database=database,
         device=device,
+    )
+
+    return MiniAppDeviceCreateRead(
+        **device_read.model_dump(),
+        connect_url=(
+            f"{settings.connect_base_url.rstrip('/')}/"
+            f"{raw_token}"
+        ),
     )
 
 

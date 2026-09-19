@@ -1,6 +1,14 @@
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, func
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
@@ -38,6 +46,12 @@ class User(Base):
         default=0,
         server_default="0",
         nullable=False,
+    )
+    preferred_location_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("locations.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -106,6 +106,7 @@ def test_me_creates_user_from_signed_telegram_data() -> None:
             "active_count": 0,
             "total_limit": 0,
         },
+        "current_region": None,
         "trial_available": True,
     }
 

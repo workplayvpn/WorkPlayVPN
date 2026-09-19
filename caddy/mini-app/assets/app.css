@@ -968,6 +968,53 @@ h2 {
   content: "";
 }
 
+.region-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 17px 18px;
+  color: var(--text);
+  background: linear-gradient(145deg, rgba(20, 44, 75, 0.96), rgba(12, 31, 54, 0.96));
+  border: 1px solid rgba(74, 139, 224, 0.32);
+  border-radius: var(--radius-medium);
+  text-align: left;
+  cursor: pointer;
+}
+
+.region-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.region-card-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  background: rgba(47, 128, 237, 0.14);
+  border-radius: 14px;
+  font-size: 22px;
+}
+
+.region-card-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.region-card-copy small,
+.region-card-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.region-card-copy strong {
+  font-size: 16px;
+}
+
 .detected-device-card {
   display: flex;
   align-items: center;
