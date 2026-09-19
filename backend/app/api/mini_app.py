@@ -448,6 +448,7 @@ def create_device(
         telegram_id=auth.user.id,
         node_code=node.code,
         device_name=device_name,
+        client_instance_id=payload.client_instance_id,
     )
 
     return build_mini_app_device(

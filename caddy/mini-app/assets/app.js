@@ -1,6 +1,9 @@
 "use strict";
 
 const telegram = window.Telegram?.WebApp ?? null;
+const CLIENT_INSTANCE_STORAGE_KEY = "workplayvpn.client-instance.v1";
+
+let cachedClientInstanceId = null;
 
 const state = {
   me: null,
@@ -626,6 +629,52 @@ function makeIdempotencyKey() {
   return `mini-app-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function makeClientInstanceId() {
+  if (window.crypto?.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  const randomPart = Math.random().toString(36).slice(2);
+  return `web-${Date.now()}-${randomPart}`;
+}
+
+function getClientInstanceId() {
+  if (cachedClientInstanceId) {
+    return cachedClientInstanceId;
+  }
+
+  try {
+    const storedId = window.localStorage.getItem(
+      CLIENT_INSTANCE_STORAGE_KEY
+    );
+
+    if (
+      storedId
+      && storedId.length >= 16
+      && storedId.length <= 64
+      && /^[A-Za-z0-9._:-]+$/.test(storedId)
+    ) {
+      cachedClientInstanceId = storedId;
+      return cachedClientInstanceId;
+    }
+  } catch {
+    // Some embedded browsers can deny access to persistent storage.
+  }
+
+  cachedClientInstanceId = makeClientInstanceId();
+
+  try {
+    window.localStorage.setItem(
+      CLIENT_INSTANCE_STORAGE_KEY,
+      cachedClientInstanceId
+    );
+  } catch {
+    // The identifier still remains stable for the current Mini App session.
+  }
+
+  return cachedClientInstanceId;
+}
+
 async function startTrial() {
   elements.trialButton.disabled = true;
 
@@ -693,6 +742,7 @@ async function connectDevice() {
         location_code: state.selectedLocation.code,
         device_name: deviceDisplayName(device),
         platform: device.platform,
+        client_instance_id: getClientInstanceId(),
       }),
     });
 

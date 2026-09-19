@@ -64,6 +64,11 @@ class MiniAppDeviceCreate(BaseModel):
     location_code: str = Field(min_length=1, max_length=50)
     device_name: str = Field(min_length=1, max_length=100)
     platform: str | None = Field(default=None, max_length=50)
+    client_instance_id: str = Field(
+        min_length=16,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    )
 
 
 class MiniAppDeviceRead(BaseModel):

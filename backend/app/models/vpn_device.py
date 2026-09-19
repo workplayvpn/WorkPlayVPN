@@ -30,6 +30,10 @@ class VpnDevice(Base):
         String(100),
         nullable=False,
     )
+    client_instance_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
     xray_uuid: Mapped[str] = mapped_column(
         String(36),
         unique=True,

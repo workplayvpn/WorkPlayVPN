@@ -22,6 +22,7 @@ class VpnDeviceService:
         telegram_id: int,
         node_code: str,
         device_name: str,
+        client_instance_id: str | None = None,
     ) -> VpnDevice:
         user = database.scalar(
             select(User)
@@ -77,6 +78,18 @@ class VpnDeviceService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Subscription plan not found",
             )
+
+        if client_instance_id is not None:
+            existing_client_device = database.scalar(
+                select(VpnDevice).where(
+                    VpnDevice.user_id == user.id,
+                    VpnDevice.client_instance_id == client_instance_id,
+                    VpnDevice.is_active.is_(True),
+                )
+            )
+
+            if existing_client_device is not None:
+                return existing_client_device
 
         device_limit = (
             plan.device_limit
@@ -144,6 +157,7 @@ class VpnDeviceService:
             user_id=user.id,
             node_id=node.id,
             device_name=device_name,
+            client_instance_id=client_instance_id,
             xray_uuid=xray_uuid,
             xray_email=xray_email,
             is_active=True,

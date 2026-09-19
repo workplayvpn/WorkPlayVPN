@@ -20,6 +20,7 @@ from app.services.xray_node import xray_node_service
 TELEGRAM_ID = 993100003
 NODE_CODE = "mini-app-test-node"
 DEVICE_UUID = "12345678-1234-5678-1234-567812345678"
+CLIENT_INSTANCE_ID = "9d6922e5-080b-4a20-a684-35e11e15df8d"
 
 client = TestClient(app)
 
@@ -114,6 +115,7 @@ def test_device_routes_require_telegram_credentials() -> None:
             "location_code": "NL",
             "device_name": "iPhone (iOS)",
             "platform": "iOS",
+            "client_instance_id": CLIENT_INSTANCE_ID,
         },
     ).status_code == 401
 
@@ -329,6 +331,7 @@ def test_device_can_be_created_inside_mini_app(
             "location_code": "NL",
             "device_name": "iPhone (iOS)",
             "platform": "iOS",
+            "client_instance_id": CLIENT_INSTANCE_ID,
         },
     )
 
@@ -340,6 +343,21 @@ def test_device_can_be_created_inside_mini_app(
     assert device["is_active"] is True
     assert len(added_users) == 1
 
+    repeated_response = client.post(
+        "/mini-app/devices",
+        headers=headers,
+        json={
+            "location_code": "NL",
+            "device_name": "iPhone 2 (iOS)",
+            "platform": "iOS",
+            "client_instance_id": CLIENT_INSTANCE_ID,
+        },
+    )
+
+    assert repeated_response.status_code == 201
+    assert repeated_response.json() == device
+    assert len(added_users) == 1
+
     devices_response = client.get(
         "/mini-app/devices",
         headers=headers,
@@ -347,3 +365,27 @@ def test_device_can_be_created_inside_mini_app(
 
     assert devices_response.status_code == 200
     assert devices_response.json() == [device]
+
+
+def test_device_creation_requires_valid_client_instance_id() -> None:
+    headers = {
+        "X-Telegram-Init-Data": build_init_data(),
+    }
+
+    assert client.get(
+        "/mini-app/me",
+        headers=headers,
+    ).status_code == 200
+
+    response = client.post(
+        "/mini-app/devices",
+        headers=headers,
+        json={
+            "location_code": "NL",
+            "device_name": "iPhone (iOS)",
+            "platform": "iOS",
+            "client_instance_id": "too short!",
+        },
+    )
+
+    assert response.status_code == 422
