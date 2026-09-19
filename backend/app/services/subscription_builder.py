@@ -14,6 +14,7 @@ class SubscriptionBuilder:
         device: VpnDevice,
         nodes: list[VpnNode],
         profiles: list[VpnNodeProfile],
+        include_happ_mobile: bool = False,
     ) -> list[str]:
         profile = client_profile_factory.get_profile(
             client
@@ -23,6 +24,7 @@ class SubscriptionBuilder:
             device=device,
             nodes=nodes,
             profiles=profiles,
+            include_happ_mobile=include_happ_mobile,
         )
 
 

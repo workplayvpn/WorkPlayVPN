@@ -13,5 +13,6 @@ class ClientProfile(ABC):
         device: VpnDevice,
         nodes: list[VpnNode],
         profiles: list[VpnNodeProfile],
+        include_happ_mobile: bool = False,
     ) -> list[str]:
         pass

@@ -3,6 +3,7 @@ import base64
 from app.api.subscription_feed import (
     HAPP_SUBSCRIPTION_HEADERS,
     build_subscription_payload,
+    should_include_happ_mobile_profile,
 )
 
 
@@ -49,3 +50,37 @@ def test_non_happ_payload_remains_unchanged() -> None:
 
     assert payload == "\n".join(links)
     assert "#profile-title" not in payload
+
+
+def test_happ_mobile_profile_rollout_is_closed_by_default() -> None:
+    assert not should_include_happ_mobile_profile(
+        client="happ",
+        user_id=1,
+        configured_user_ids="",
+    )
+
+
+def test_happ_mobile_profile_rollout_supports_canary_users() -> None:
+    assert should_include_happ_mobile_profile(
+        client="happ",
+        user_id=33,
+        configured_user_ids="1, 33,49",
+    )
+    assert not should_include_happ_mobile_profile(
+        client="happ",
+        user_id=63,
+        configured_user_ids="1, 33,49",
+    )
+
+
+def test_happ_mobile_profile_rollout_supports_global_flag() -> None:
+    assert should_include_happ_mobile_profile(
+        client="happ",
+        user_id=103,
+        configured_user_ids="*",
+    )
+    assert not should_include_happ_mobile_profile(
+        client="generic",
+        user_id=103,
+        configured_user_ids="*",
+    )

@@ -12,6 +12,8 @@ class VpnProfileLinkBuilder:
         device: VpnDevice,
         node: VpnNode,
         profile: VpnNodeProfile,
+        server_address: str | None = None,
+        display_name: str | None = None,
     ) -> str:
         settings = profile.settings or {}
 
@@ -63,13 +65,15 @@ class VpnProfileLinkBuilder:
         )
 
         name = quote(
-            node.name,
+            display_name or node.name,
             safe="",
         )
 
+        address = server_address or node.host
+
         return (
             f"vless://{device.xray_uuid}"
-            f"@{node.host}:{profile.port}"
+            f"@{address}:{profile.port}"
             f"?{query}"
             f"#{name}"
         )

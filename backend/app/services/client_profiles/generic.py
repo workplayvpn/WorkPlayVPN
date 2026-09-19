@@ -15,6 +15,7 @@ class GenericProfile(ClientProfile):
         device: VpnDevice,
         nodes: list[VpnNode],
         profiles: list[VpnNodeProfile],
+        include_happ_mobile: bool = False,
     ) -> list[str]:
         links: list[str] = []
 

@@ -1,0 +1,220 @@
+from urllib.parse import parse_qs, unquote, urlsplit
+
+from app.models.vpn_device import VpnDevice
+from app.models.vpn_node import VpnNode
+from app.models.vpn_node_profile import VpnNodeProfile
+from app.services.client_profiles.happ import HappProfile
+
+
+DEVICE_UUID = "11111111-2222-4333-8444-555555555555"
+
+
+def build_device() -> VpnDevice:
+    return VpnDevice(
+        id=7,
+        user_id=1,
+        node_id=1,
+        device_name="iPhone",
+        xray_uuid=DEVICE_UUID,
+        xray_email="device-7@workplayvpn",
+        is_active=True,
+    )
+
+
+def build_node() -> VpnNode:
+    return VpnNode(
+        id=1,
+        location_id=1,
+        code="nl-01",
+        name="WorkPlayVPN-NL-01",
+        host="nl1.workplayvpn.ru",
+        ssh_user="workplayvpn",
+        is_active=True,
+    )
+
+
+def build_profile(
+    *,
+    profile_id: int,
+    code: str,
+    network: str,
+    security: str,
+    port: int,
+    settings: dict,
+) -> VpnNodeProfile:
+    return VpnNodeProfile(
+        id=profile_id,
+        node_id=1,
+        code=code,
+        name=code,
+        protocol="vless",
+        network=network,
+        security=security,
+        port=port,
+        flow=None,
+        server_name="edge.workplayvpn.ru",
+        settings=settings,
+        is_active=True,
+    )
+
+
+def test_legacy_happ_profile_output_remains_unchanged() -> None:
+    profile = build_profile(
+        profile_id=1,
+        code="nl-01-vless-xhttp",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "fingerprint": "chrome",
+            "path": "/m/abc",
+            "mode": "auto",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[profile],
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+    assert links[0].endswith("#WorkPlayVPN-NL-01")
+
+
+def test_mobile_profile_is_hidden_without_rollout() -> None:
+    wifi_profile = build_profile(
+        profile_id=1,
+        code="nl-01-happ-wifi",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "happ_access_mode": "wifi",
+            "path": "/wifi",
+        },
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "mobile.workplayvpn.ru",
+            "path": "/mobile",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[wifi_profile, mobile_profile],
+        include_happ_mobile=False,
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+    assert unquote(urlsplit(links[0]).fragment).endswith(
+        "— Wi-Fi"
+    )
+
+
+def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
+    wifi_profile = build_profile(
+        profile_id=1,
+        code="nl-01-happ-wifi",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "happ_access_mode": "wifi",
+            "happ_display_name": "Netherlands — Wi-Fi",
+            "path": "/wifi",
+        },
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "mobile.workplayvpn.ru",
+            "happ_display_name": "Netherlands — Mobile",
+            "fingerprint": "chrome",
+            "path": "/mobile/opaque",
+            "mode": "auto",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[wifi_profile, mobile_profile],
+        include_happ_mobile=True,
+    )
+
+    assert len(links) == 2
+
+    parsed_links = [
+        urlsplit(link)
+        for link in links
+    ]
+
+    assert [link.username for link in parsed_links] == [
+        DEVICE_UUID,
+        DEVICE_UUID,
+    ]
+    assert [link.hostname for link in parsed_links] == [
+        "nl1.workplayvpn.ru",
+        "mobile.workplayvpn.ru",
+    ]
+    assert [unquote(link.fragment) for link in parsed_links] == [
+        "Netherlands — Wi-Fi",
+        "Netherlands — Mobile",
+    ]
+
+    mobile_query = parse_qs(parsed_links[1].query)
+
+    assert mobile_query["type"] == ["xhttp"]
+    assert mobile_query["security"] == ["tls"]
+    assert mobile_query["path"] == ["/mobile/opaque"]
+    assert mobile_query["mode"] == ["auto"]
+
+
+def test_mobile_role_does_not_replace_legacy_wifi_fallback() -> None:
+    legacy_profile = build_profile(
+        profile_id=1,
+        code="nl-01-vless-xhttp",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={"path": "/legacy"},
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "mobile.workplayvpn.ru",
+            "path": "/mobile",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[legacy_profile, mobile_profile],
+        include_happ_mobile=True,
+    )
+
+    assert len(links) == 2
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+    assert "@mobile.workplayvpn.ru:443" in links[1]

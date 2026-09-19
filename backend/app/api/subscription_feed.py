@@ -68,6 +68,27 @@ def build_subscription_payload(
     return "\n".join([*metadata, *links])
 
 
+def should_include_happ_mobile_profile(
+    *,
+    client: str,
+    user_id: int,
+    configured_user_ids: str,
+) -> bool:
+    if client != "happ":
+        return False
+
+    allowed_values = {
+        value.strip()
+        for value in configured_user_ids.split(",")
+        if value.strip()
+    }
+
+    return (
+        "*" in allowed_values
+        or str(user_id) in allowed_values
+    )
+
+
 @router.get(
     "/{token}",
 )
@@ -195,6 +216,15 @@ def get_subscription_feed(
         device=source_device,
         nodes=nodes,
         profiles=profiles,
+        include_happ_mobile=(
+            should_include_happ_mobile_profile(
+                client=client,
+                user_id=user.id,
+                configured_user_ids=(
+                    settings.happ_mobile_profile_user_ids
+                ),
+            )
+        ),
     )
 
     payload = build_subscription_payload(
