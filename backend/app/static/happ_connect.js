@@ -1,6 +1,7 @@
 "use strict";
 
 const telegramApp = window.Telegram?.WebApp;
+let telegramBackHandler = null;
 
 if (telegramApp) {
     telegramApp.ready();
@@ -12,6 +13,41 @@ if (telegramApp) {
     } catch {
         // Старые версии Telegram могут не поддерживать эти методы.
     }
+}
+
+function initializeBackNavigation() {
+    const backButton = telegramApp?.BackButton;
+
+    if (!backButton) {
+        return;
+    }
+
+    telegramBackHandler = () => {
+        try {
+            backButton.hide();
+        } catch {
+            // Older Telegram clients may not support hiding the button.
+        }
+
+        if (window.history.length > 1) {
+            window.history.back();
+            return;
+        }
+
+        telegramApp.close();
+    };
+
+    backButton.onClick(telegramBackHandler);
+    backButton.show();
+}
+
+function removeBackNavigation() {
+    if (!telegramBackHandler) {
+        return;
+    }
+
+    telegramApp?.BackButton?.offClick?.(telegramBackHandler);
+    telegramBackHandler = null;
 }
 
 function detectPlatform() {
@@ -199,6 +235,9 @@ function initializeHappLinks() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    initializeBackNavigation();
     initializePlatformSwitcher();
     initializeHappLinks();
 });
+
+window.addEventListener("pagehide", removeBackNavigation);
