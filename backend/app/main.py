@@ -2,6 +2,9 @@ from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 
 from app.api.activation_page import router as activation_page_router
+from app.api.happ_mobile_readiness import (
+    router as happ_mobile_readiness_router,
+)
 from app.api.happ_connect import router as happ_connect_router
 from app.api.mini_app import router as mini_app_router
 from app.api.catalog import router as catalog_router
@@ -27,6 +30,7 @@ app = FastAPI(
 app.include_router(catalog_router)
 app.include_router(users_router)
 app.include_router(subscriptions_router)
+app.include_router(happ_mobile_readiness_router)
 app.include_router(happ_connect_router)
 app.include_router(mini_app_router)
 app.include_router(devices_router)
