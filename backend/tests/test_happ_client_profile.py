@@ -218,3 +218,190 @@ def test_mobile_role_does_not_replace_legacy_wifi_fallback() -> None:
     assert len(links) == 2
     assert "@nl1.workplayvpn.ru:8443" in links[0]
     assert "@mobile.workplayvpn.ru:443" in links[1]
+
+
+def test_mobile_profile_is_hidden_without_dedicated_server_address() -> None:
+    wifi_profile = build_profile(
+        profile_id=1,
+        code="nl-01-happ-wifi",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "happ_access_mode": "wifi",
+            "path": "/wifi",
+        },
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "path": "/mobile",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[wifi_profile, mobile_profile],
+        include_happ_mobile=True,
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+
+
+def test_mobile_profile_is_hidden_without_tls() -> None:
+    wifi_profile = build_profile(
+        profile_id=1,
+        code="nl-01-happ-wifi",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "happ_access_mode": "wifi",
+            "path": "/wifi",
+        },
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="xhttp",
+        security="none",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "mobile.workplayvpn.ru",
+            "path": "/mobile",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[wifi_profile, mobile_profile],
+        include_happ_mobile=True,
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+
+
+def test_mobile_profile_is_hidden_for_unsupported_transport() -> None:
+    wifi_profile = build_profile(
+        profile_id=1,
+        code="nl-01-happ-wifi",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "happ_access_mode": "wifi",
+            "path": "/wifi",
+        },
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="tcp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "mobile.workplayvpn.ru",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[wifi_profile, mobile_profile],
+        include_happ_mobile=True,
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+
+
+def test_mobile_xhttp_profile_is_hidden_without_path() -> None:
+    wifi_profile = build_profile(
+        profile_id=1,
+        code="nl-01-happ-wifi",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={
+            "happ_access_mode": "wifi",
+            "path": "/wifi",
+        },
+    )
+    mobile_profile = build_profile(
+        profile_id=2,
+        code="nl-01-happ-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "mobile.workplayvpn.ru",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[wifi_profile, mobile_profile],
+        include_happ_mobile=True,
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:8443" in links[0]
+
+
+def test_mobile_profile_is_hidden_for_invalid_server_address() -> None:
+    invalid_addresses = (
+        "https://mobile.workplayvpn.ru",
+        "mobile.workplayvpn.ru/path",
+        "mobile workplayvpn.ru",
+    )
+
+    for server_address in invalid_addresses:
+        mobile_profile = build_profile(
+            profile_id=2,
+            code="nl-01-happ-mobile",
+            network="xhttp",
+            security="tls",
+            port=443,
+            settings={
+                "happ_access_mode": "mobile",
+                "happ_server_address": server_address,
+                "path": "/mobile",
+            },
+        )
+
+        assert not HappProfile._is_mobile_profile_ready(
+            mobile_profile
+        )
+
+
+def test_mobile_profile_is_hidden_for_invalid_port() -> None:
+    for port in (0, 65536):
+        mobile_profile = build_profile(
+            profile_id=2,
+            code="nl-01-happ-mobile",
+            network="xhttp",
+            security="tls",
+            port=port,
+            settings={
+                "happ_access_mode": "mobile",
+                "happ_server_address": "mobile.workplayvpn.ru",
+                "path": "/mobile",
+            },
+        )
+
+        assert not HappProfile._is_mobile_profile_ready(
+            mobile_profile
+        )

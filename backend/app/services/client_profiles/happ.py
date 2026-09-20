@@ -35,6 +35,67 @@ class HappProfile(ClientProfile):
         return normalized
 
     @classmethod
+    def _is_mobile_profile_ready(
+        cls,
+        profile: VpnNodeProfile,
+    ) -> bool:
+        if profile.protocol != "vless":
+            return False
+
+        if cls._access_mode(profile) != "mobile":
+            return False
+
+        if profile.security != "tls":
+            return False
+
+        if profile.network not in {"xhttp", "ws"}:
+            return False
+
+        if (
+            not isinstance(profile.port, int)
+            or not 1 <= profile.port <= 65535
+        ):
+            return False
+
+        settings = profile.settings or {}
+
+        server_address = settings.get(
+            cls.SERVER_ADDRESS_KEY
+        )
+
+        if not isinstance(server_address, str):
+            return False
+
+        server_address = server_address.strip()
+
+        if not server_address:
+            return False
+
+        if "://" in server_address:
+            return False
+
+        if "/" in server_address:
+            return False
+
+        if any(
+            character.isspace()
+            for character in server_address
+        ):
+            return False
+
+        path = settings.get("path")
+
+        if not isinstance(path, str):
+            return False
+
+        path = path.strip()
+
+        if not path.startswith("/"):
+            return False
+
+        return True
+
+    @classmethod
     def _build_link(
         cls,
         *,
@@ -157,8 +218,7 @@ class HappProfile(ClientProfile):
                 (
                     profile
                     for profile in node_profiles
-                    if profile.protocol == "vless"
-                    and self._access_mode(profile) == "mobile"
+                    if self._is_mobile_profile_ready(profile)
                 ),
                 None,
             )
