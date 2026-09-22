@@ -59,7 +59,6 @@ def build_subscription_payload(
     *,
     client: str,
     links: list[str],
-    routing_link: str | None = None,
 ) -> str:
     if client != "happ":
         return "\n".join(links)
@@ -69,13 +68,31 @@ def build_subscription_payload(
         for name, value in HAPP_SUBSCRIPTION_HEADERS.items()
     ]
 
-    routing = (
-        [routing_link]
-        if routing_link is not None
-        else []
+    return "\n".join([*metadata, *links])
+
+
+def build_subscription_response_headers(
+    *,
+    client: str,
+    routing_link: str | None = None,
+) -> dict[str, str]:
+    response_headers = {
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+        "X-Content-Type-Options": "nosniff",
+    }
+
+    if client != "happ":
+        return response_headers
+
+    response_headers.update(
+        HAPP_SUBSCRIPTION_HEADERS
     )
 
-    return "\n".join([*metadata, *routing, *links])
+    if routing_link is not None:
+        response_headers["routing"] = routing_link
+
+    return response_headers
 
 
 def should_enable_happ_feature(
@@ -277,23 +294,16 @@ def get_subscription_feed(
     payload = build_subscription_payload(
         client=client,
         links=links,
-        routing_link=routing_link,
     )
 
     encoded = base64.b64encode(
         payload.encode("utf-8")
     ).decode("ascii")
 
-    response_headers = {
-        "Cache-Control": "no-store",
-        "Pragma": "no-cache",
-        "X-Content-Type-Options": "nosniff",
-    }
-
-    if client == "happ":
-        response_headers.update(
-            HAPP_SUBSCRIPTION_HEADERS
-        )
+    response_headers = build_subscription_response_headers(
+        client=client,
+        routing_link=routing_link,
+    )
 
     return Response(
         content=encoded,

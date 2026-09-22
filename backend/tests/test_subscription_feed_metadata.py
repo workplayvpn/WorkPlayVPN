@@ -3,6 +3,7 @@ import base64
 from app.api.subscription_feed import (
     HAPP_SUBSCRIPTION_HEADERS,
     build_subscription_payload,
+    build_subscription_response_headers,
     should_include_happ_mobile_profile,
     should_include_happ_smart_routing,
 )
@@ -53,32 +54,27 @@ def test_non_happ_payload_remains_unchanged() -> None:
     assert "#profile-title" not in payload
 
 
-def test_happ_subscription_payload_can_include_routing() -> None:
+def test_happ_response_headers_can_include_routing() -> None:
     routing_link = "happ://routing/onadd/example"
-    link = "vless://device@example.com:443"
 
-    payload = build_subscription_payload(
+    headers = build_subscription_response_headers(
         client="happ",
-        links=[link],
         routing_link=routing_link,
     )
 
-    lines = payload.splitlines()
-
-    assert routing_link in lines
-    assert lines.index(routing_link) < lines.index(link)
+    assert headers["routing"] == routing_link
+    assert headers["profile-title"] == "Work&PlayVPN"
 
 
-def test_non_happ_payload_ignores_routing() -> None:
-    link = "vless://device@example.com:443"
-
-    payload = build_subscription_payload(
+def test_non_happ_response_headers_ignore_routing() -> None:
+    headers = build_subscription_response_headers(
         client="generic",
-        links=[link],
         routing_link="happ://routing/onadd/example",
     )
 
-    assert payload == link
+    assert "routing" not in headers
+    assert "profile-title" not in headers
+    assert headers["Cache-Control"] == "no-store"
 
 
 def test_happ_mobile_profile_rollout_is_closed_by_default() -> None:
