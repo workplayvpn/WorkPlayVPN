@@ -9,11 +9,14 @@ from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
-from app.services.subscription_client_diagnostics import (
-    build_subscription_client_diagnostics,
+from app.services.happ_smart_routing import (
+    build_happ_smart_routing_link,
 )
 from app.services.subscription_builder import (
     subscription_builder,
+)
+from app.services.subscription_client_diagnostics import (
+    build_subscription_client_diagnostics,
 )
 from app.services.subscription_token_service import (
     subscription_token_service,
@@ -56,6 +59,7 @@ def build_subscription_payload(
     *,
     client: str,
     links: list[str],
+    routing_link: str | None = None,
 ) -> str:
     if client != "happ":
         return "\n".join(links)
@@ -65,10 +69,16 @@ def build_subscription_payload(
         for name, value in HAPP_SUBSCRIPTION_HEADERS.items()
     ]
 
-    return "\n".join([*metadata, *links])
+    routing = (
+        [routing_link]
+        if routing_link is not None
+        else []
+    )
+
+    return "\n".join([*metadata, *routing, *links])
 
 
-def should_include_happ_mobile_profile(
+def should_enable_happ_feature(
     *,
     client: str,
     user_id: int,
@@ -86,6 +96,32 @@ def should_include_happ_mobile_profile(
     return (
         "*" in allowed_values
         or str(user_id) in allowed_values
+    )
+
+
+def should_include_happ_mobile_profile(
+    *,
+    client: str,
+    user_id: int,
+    configured_user_ids: str,
+) -> bool:
+    return should_enable_happ_feature(
+        client=client,
+        user_id=user_id,
+        configured_user_ids=configured_user_ids,
+    )
+
+
+def should_include_happ_smart_routing(
+    *,
+    client: str,
+    user_id: int,
+    configured_user_ids: str,
+) -> bool:
+    return should_enable_happ_feature(
+        client=client,
+        user_id=user_id,
+        configured_user_ids=configured_user_ids,
     )
 
 
@@ -227,9 +263,21 @@ def get_subscription_feed(
         ),
     )
 
+    routing_link = None
+
+    if should_include_happ_smart_routing(
+        client=client,
+        user_id=user.id,
+        configured_user_ids=(
+            settings.happ_smart_routing_user_ids
+        ),
+    ):
+        routing_link = build_happ_smart_routing_link()
+
     payload = build_subscription_payload(
         client=client,
         links=links,
+        routing_link=routing_link,
     )
 
     encoded = base64.b64encode(

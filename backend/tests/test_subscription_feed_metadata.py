@@ -4,6 +4,7 @@ from app.api.subscription_feed import (
     HAPP_SUBSCRIPTION_HEADERS,
     build_subscription_payload,
     should_include_happ_mobile_profile,
+    should_include_happ_smart_routing,
 )
 
 
@@ -52,6 +53,34 @@ def test_non_happ_payload_remains_unchanged() -> None:
     assert "#profile-title" not in payload
 
 
+def test_happ_subscription_payload_can_include_routing() -> None:
+    routing_link = "happ://routing/onadd/example"
+    link = "vless://device@example.com:443"
+
+    payload = build_subscription_payload(
+        client="happ",
+        links=[link],
+        routing_link=routing_link,
+    )
+
+    lines = payload.splitlines()
+
+    assert routing_link in lines
+    assert lines.index(routing_link) < lines.index(link)
+
+
+def test_non_happ_payload_ignores_routing() -> None:
+    link = "vless://device@example.com:443"
+
+    payload = build_subscription_payload(
+        client="generic",
+        links=[link],
+        routing_link="happ://routing/onadd/example",
+    )
+
+    assert payload == link
+
+
 def test_happ_mobile_profile_rollout_is_closed_by_default() -> None:
     assert not should_include_happ_mobile_profile(
         client="happ",
@@ -80,6 +109,40 @@ def test_happ_mobile_profile_rollout_supports_global_flag() -> None:
         configured_user_ids="*",
     )
     assert not should_include_happ_mobile_profile(
+        client="generic",
+        user_id=103,
+        configured_user_ids="*",
+    )
+
+
+def test_happ_smart_routing_rollout_is_closed_by_default() -> None:
+    assert not should_include_happ_smart_routing(
+        client="happ",
+        user_id=1,
+        configured_user_ids="",
+    )
+
+
+def test_happ_smart_routing_rollout_supports_canary_users() -> None:
+    assert should_include_happ_smart_routing(
+        client="happ",
+        user_id=33,
+        configured_user_ids="1, 33,49",
+    )
+    assert not should_include_happ_smart_routing(
+        client="happ",
+        user_id=63,
+        configured_user_ids="1, 33,49",
+    )
+
+
+def test_happ_smart_routing_rollout_supports_global_flag() -> None:
+    assert should_include_happ_smart_routing(
+        client="happ",
+        user_id=103,
+        configured_user_ids="*",
+    )
+    assert not should_include_happ_smart_routing(
         client="generic",
         user_id=103,
         configured_user_ids="*",

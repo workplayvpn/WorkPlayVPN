@@ -71,6 +71,7 @@ services:
       ACTIVATION_BASE_URL: ${ACTIVATION_BASE_URL}
       SUBSCRIPTION_CLIENT_DIAGNOSTICS: ${SUBSCRIPTION_CLIENT_DIAGNOSTICS:-false}
       HAPP_MOBILE_PROFILE_USER_IDS: ${HAPP_MOBILE_PROFILE_USER_IDS:-}
+      HAPP_SMART_ROUTING_USER_IDS: ${HAPP_SMART_ROUTING_USER_IDS:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
 
     volumes:
@@ -280,6 +281,7 @@ services:
       INTERNAL_API_SECRET: test-internal-api-secret-change-me
       SUBSCRIPTION_BASE_URL: https://sub.test.local/sub
       HAPP_MOBILE_PROFILE_USER_IDS: ""
+      HAPP_SMART_ROUTING_USER_IDS: ""
 
     volumes:
       - ./backend:/app
