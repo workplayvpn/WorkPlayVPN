@@ -96,6 +96,7 @@ class Settings(BaseSettings):
     )
     subscription_client_diagnostics: bool = False
     happ_mobile_profile_user_ids: str = ""
+    happ_smart_routing_user_ids: str = ""
 
 
 settings = Settings()
