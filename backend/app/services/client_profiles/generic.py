@@ -49,7 +49,13 @@ class GenericProfile(ClientProfile):
             )
 
             for profile in node_profiles:
-                if profile.protocol != "vless":
+                # Basic subscriptions have one direct Reality endpoint.
+                # Older untagged XHTTP profiles must not appear here.
+                if (
+                    profile.protocol != "vless"
+                    or profile.network != "tcp"
+                    or profile.security != "reality"
+                ):
                     continue
 
                 links.append(

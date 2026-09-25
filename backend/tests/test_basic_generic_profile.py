@@ -33,3 +33,31 @@ def test_generic_feed_never_contains_mobile_cdn() -> None:
 
     assert len(links) == 1
     assert "security=reality" in links[0]
+
+
+def test_generic_feed_hides_legacy_untagged_xhttp() -> None:
+    direct = build_profile(
+        profile_id=1,
+        code="direct",
+        network="tcp",
+        security="reality",
+        port=443,
+        settings={},
+    )
+    legacy = build_profile(
+        profile_id=2,
+        code="legacy-xhttp",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={"path": "/wp", "mode": "auto"},
+    )
+
+    links = GenericProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[direct, legacy],
+    )
+
+    assert len(links) == 1
+    assert "security=reality" in links[0]
