@@ -14,6 +14,7 @@ class VpnProfileLinkBuilder:
         profile: VpnNodeProfile,
         server_address: str | None = None,
         display_name: str | None = None,
+        credential_uuid: str | None = None,
     ) -> str:
         settings = profile.settings or {}
 
@@ -54,10 +55,23 @@ class VpnProfileLinkBuilder:
         if path:
             params["path"] = path
 
+        host = settings.get("host")
+        if isinstance(host, str) and host:
+            params["host"] = host
+
         mode = settings.get("mode")
 
         if mode:
             params["mode"] = mode
+
+        alpn = settings.get("alpn")
+        if isinstance(alpn, str) and alpn:
+            params["alpn"] = alpn
+        elif isinstance(alpn, list) and alpn and all(
+            isinstance(protocol, str) and protocol
+            for protocol in alpn
+        ):
+            params["alpn"] = ",".join(alpn)
 
         query = urlencode(
             params,
@@ -72,7 +86,7 @@ class VpnProfileLinkBuilder:
         address = server_address or node.host
 
         return (
-            f"vless://{device.xray_uuid}"
+            f"vless://{credential_uuid or device.xray_uuid}"
             f"@{address}:{profile.port}"
             f"?{query}"
             f"#{name}"

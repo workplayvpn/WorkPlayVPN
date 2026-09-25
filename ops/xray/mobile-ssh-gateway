@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+XRAY="/usr/local/bin/xray"
+API="127.0.0.1:10086"
+TAG="vless-yandex-cdn-test"
+STATE_DIR="/var/lib/workplayvpn"
+STATE_FILE="$STATE_DIR/xray-mobile-users.tsv"
+LOCK_FILE="$STATE_DIR/xray-mobile-users.lock"
+
+read -r action arg1 arg2 extra <<< "${SSH_ORIGINAL_COMMAND:-}"
+[[ -z "${extra:-}" ]] || { echo "Denied"; exit 2; }
+
+valid_uuid() {
+    [[ "$1" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]
+}
+
+valid_email() {
+    [[ "$1" =~ ^mobile_[a-f0-9]{32}@workplayvpn$ ]]
+}
+
+ensure_state() {
+    [[ -d "$STATE_DIR" && -f "$STATE_FILE" && -w "$STATE_DIR" && -w "$STATE_FILE" && -f "$LOCK_FILE" && -w "$LOCK_FILE" ]] || {
+        echo "Mobile state storage unavailable"
+        exit 1
+    }
+}
+
+make_add_config() {
+    local uuid="$1" email="$2" file="$3"
+    cat > "$file" <<JSON
+{
+  "inbounds": [{
+    "tag": "$TAG",
+    "port": 9445,
+    "protocol": "vless",
+    "settings": {
+      "clients": [{"id": "$uuid", "email": "$email"}],
+      "decryption": "none"
+    }
+  }],
+  "outbounds": [{"protocol": "freedom"}]
+}
+JSON
+}
+
+case "${action:-}" in
+    add-mobile-user)
+        uuid="${arg1:-}" email="${arg2:-}"
+        valid_uuid "$uuid" && valid_email "$email" || { echo "Invalid credential"; exit 2; }
+        ensure_state
+        exec 9>"$LOCK_FILE"
+        flock -x 9
+
+        old_uuid="$(awk -F '\t' -v email="$email" '$2 == email {print $1}' "$STATE_FILE")"
+        if [[ -n "$old_uuid" ]]; then
+            [[ "$old_uuid" == "$uuid" ]] || { echo "Email already assigned"; exit 2; }
+            # The same credential is already persisted. A restore hook
+            # re-adds it to the running instance after every restart.
+            exit 0
+        fi
+
+        tmp_config="$(mktemp --suffix=.json)"
+        tmp_state="$(mktemp "$STATE_DIR/xray-mobile-users.XXXXXX")"
+        trap 'rm -f "$tmp_config" "$tmp_state"' EXIT
+        make_add_config "$uuid" "$email" "$tmp_config"
+        "$XRAY" run -test -config "$tmp_config" >/dev/null
+        "$XRAY" api adu --server="$API" "$tmp_config" >/dev/null
+
+        if ! { cat "$STATE_FILE" > "$tmp_state" &&
+               printf '%s\t%s\n' "$uuid" "$email" >> "$tmp_state" &&
+               mv -f "$tmp_state" "$STATE_FILE"; }; then
+            "$XRAY" api rmu --server="$API" -tag="$TAG" "$email" >/dev/null 2>&1 || true
+            echo "Failed to persist Mobile credential"
+            exit 1
+        fi
+        ;;
+
+    remove-mobile-user)
+        email="${arg1:-}"
+        [[ -z "${arg2:-}" ]] && valid_email "$email" || { echo "Invalid credential"; exit 2; }
+        ensure_state
+        exec 9>"$LOCK_FILE"
+        flock -x 9
+
+        if ! awk -F '\t' -v email="$email" '$2 == email {found=1} END {exit !found}' "$STATE_FILE"; then
+            exit 0
+        fi
+
+        "$XRAY" api rmu --server="$API" -tag="$TAG" "$email" >/dev/null
+        tmp_state="$(mktemp "$STATE_DIR/xray-mobile-users.XXXXXX")"
+        trap 'rm -f "$tmp_state"' EXIT
+        awk -F '\t' -v email="$email" '$2 != email' "$STATE_FILE" > "$tmp_state"
+        mv -f "$tmp_state" "$STATE_FILE"
+        ;;
+
+    list-mobile-users)
+        [[ -z "${arg1:-}" && -z "${arg2:-}" ]] || { echo "Denied"; exit 2; }
+        "$XRAY" api inbounduser --server="$API" -tag="$TAG"
+        ;;
+
+    *)
+        echo "Denied"
+        exit 2
+        ;;
+esac

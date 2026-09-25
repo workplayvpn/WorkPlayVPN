@@ -117,9 +117,49 @@ def test_mobile_profile_is_hidden_without_rollout() -> None:
 
     assert len(links) == 1
     assert "@nl1.workplayvpn.ru:8443" in links[0]
-    assert unquote(urlsplit(links[0]).fragment).endswith(
-        "— Wi-Fi"
+    assert unquote(urlsplit(links[0]).fragment) == "WorkPlayVPN-NL-01"
+
+
+def test_basic_happ_prefers_direct_reality_and_hides_mobile() -> None:
+    legacy = build_profile(
+        profile_id=1,
+        code="nl-01-vless-xhttp",
+        network="xhttp",
+        security="tls",
+        port=8443,
+        settings={"path": "/legacy"},
     )
+    direct = build_profile(
+        profile_id=2,
+        code="nl-01-reality",
+        network="tcp",
+        security="reality",
+        port=443,
+        settings={"public_key": "test-key"},
+    )
+    mobile = build_profile(
+        profile_id=3,
+        code="nl-01-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "cdn.bot-forma.ru",
+            "path": "/wp-bf/",
+        },
+    )
+
+    links = HappProfile().build_links(
+        device=build_device(),
+        nodes=[build_node()],
+        profiles=[legacy, direct, mobile],
+    )
+
+    assert len(links) == 1
+    assert "@nl1.workplayvpn.ru:443" in links[0]
+    assert parse_qs(urlsplit(links[0]).query)["security"] == ["reality"]
+    assert unquote(urlsplit(links[0]).fragment) == "WorkPlayVPN-NL-01"
 
 
 def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
@@ -148,6 +188,7 @@ def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
             "fingerprint": "chrome",
             "path": "/mobile/opaque",
             "mode": "auto",
+            "alpn": ["h2"],
         },
     )
 
@@ -184,6 +225,37 @@ def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
     assert mobile_query["security"] == ["tls"]
     assert mobile_query["path"] == ["/mobile/opaque"]
     assert mobile_query["mode"] == ["auto"]
+    assert mobile_query["alpn"] == ["h2"]
+
+
+def test_paid_mobile_link_uses_separate_device_uuid() -> None:
+    device = build_device()
+    device.mobile_xray_uuid = "22222222-3333-4444-8555-666666666666"
+    device.mobile_xray_email = "mobile_" + "a" * 32 + "@workplayvpn"
+    direct = build_profile(
+        profile_id=1, code="direct", network="tcp", security="reality",
+        port=443, settings={},
+    )
+    mobile = build_profile(
+        profile_id=2, code="mobile", network="xhttp", security="tls",
+        port=443, settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "cdn.bot-forma.ru",
+            "path": "/wp-bf/",
+            "mode": "packet-up",
+            "alpn": "h2",
+            "host": "cdn.bot-forma.ru",
+        },
+    )
+    links = HappProfile().build_links(
+        device=device, nodes=[build_node()],
+        profiles=[direct, mobile], include_happ_mobile=True,
+    )
+    assert len(links) == 2
+    assert urlsplit(links[0]).username == DEVICE_UUID
+    assert urlsplit(links[1]).username == device.mobile_xray_uuid
+    assert parse_qs(urlsplit(links[1]).query)["alpn"] == ["h2"]
+    assert parse_qs(urlsplit(links[1]).query)["host"] == ["cdn.bot-forma.ru"]
 
 
 def test_mobile_role_does_not_replace_legacy_wifi_fallback() -> None:

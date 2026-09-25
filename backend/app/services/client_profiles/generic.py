@@ -25,6 +25,11 @@ class GenericProfile(ClientProfile):
             if not profile.is_active:
                 continue
 
+            # Mobile endpoints must never leak into a Basic feed through
+            # clients that do not identify themselves as Happ.
+            if (profile.settings or {}).get("happ_access_mode") == "mobile":
+                continue
+
             profiles_by_node.setdefault(
                 profile.node_id,
                 [],

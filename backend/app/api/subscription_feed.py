@@ -1,4 +1,5 @@
 import base64
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy import select
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
+from app.models.plan import Plan
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.happ_smart_routing import (
@@ -48,7 +50,7 @@ router = APIRouter(
 
 HAPP_SUBSCRIPTION_HEADERS = {
     "profile-title": "Work&PlayVPN",
-    "profile-update-interval": "12",
+    "profile-update-interval": "3",
     "subscription-auto-update-enable": "1",
     "subscription-auto-update-open-enable": "1",
     "support-url": "https://t.me/workplayvpnteam",
@@ -204,6 +206,18 @@ def get_subscription_feed(
             media_type="text/plain",
         )
 
+    if (
+        subscription.expires_at is not None
+        and subscription.expires_at <= datetime.now(UTC)
+    ):
+        return Response(content="", status_code=403, media_type="text/plain")
+
+    plan = database.get(Plan, subscription.plan_id)
+    if plan is None:
+        return Response(content="", status_code=403, media_type="text/plain")
+
+    mobile_entitled = plan.access_tier == "mobile"
+
     devices = database.scalars(
         select(VpnDevice)
         .where(
@@ -225,6 +239,16 @@ def get_subscription_feed(
     # берём credential первого активного устройства.
     # Позже вынесем subscription credentials отдельно.
     source_device = devices[0]
+
+    if mobile_entitled and not (
+        source_device.mobile_xray_uuid and source_device.mobile_xray_email
+    ):
+        return Response(
+            content="Mobile credential is not provisioned",
+            status_code=503,
+            media_type="text/plain",
+            headers={"Cache-Control": "no-store"},
+        )
 
     node_ids = {
         device.node_id
@@ -270,6 +294,7 @@ def get_subscription_feed(
         nodes=nodes,
         profiles=profiles,
         include_happ_mobile=(
+            mobile_entitled or
             should_include_happ_mobile_profile(
                 client=client,
                 user_id=user.id,

@@ -10,6 +10,7 @@ class PlanRead(BaseModel):
     duration_days: int
     price_amount: Decimal
     currency: str
+    access_tier: str
     device_limit: int
 
     model_config = ConfigDict(from_attributes=True)

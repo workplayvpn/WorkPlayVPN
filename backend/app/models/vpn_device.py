@@ -46,6 +46,18 @@ class VpnDevice(Base):
         index=True,
         nullable=False,
     )
+    mobile_xray_uuid: Mapped[str | None] = mapped_column(
+        String(36),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
+    mobile_xray_email: Mapped[str | None] = mapped_column(
+        String(255),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

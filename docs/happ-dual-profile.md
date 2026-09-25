@@ -5,8 +5,10 @@ The HAPP subscription feed supports two explicit access modes per VPN node:
 - `wifi` — the normal direct profile;
 - `mobile` — a separately tested mobile edge/CDN profile.
 
-Both links are built from the same `VpnDevice.xray_uuid`, so they consume one
-device slot and follow the same account-level region selection.
+Paid Mobile uses `VpnDevice.xray_uuid` for the direct profile and a separate
+`VpnDevice.mobile_xray_uuid` for the CDN profile. Both belong to one device
+slot. Existing canary accounts without a Mobile credential retain the
+original shared UUID during the pilot only.
 
 ## Profile settings
 
@@ -21,7 +23,7 @@ Access mode and optional HAPP overrides are stored in the existing
 }
 ```
 
-Transport-specific settings such as `path`, `mode`, `fingerprint`,
+Transport-specific settings such as `path`, `mode`, `alpn`, `fingerprint`,
 `public_key`, and `short_id` continue to work as before.
 
 The mobile profile must not be made active until its public endpoint, TLS,
@@ -41,7 +43,8 @@ unchanged.
 
 ## Backward compatibility
 
-If no explicit `wifi` profile exists, HAPP keeps selecting the first active
-legacy VLESS + XHTTP + TLS profile, exactly as before this change. An explicit
-mobile profile is never returned unless the requesting user is allowed by the
-rollout setting.
+HAPP prefers the direct VLESS Reality profile, then falls back to the existing
+Wi-Fi or legacy XHTTP profile. A Basic subscription shows only the direct link,
+without a Wi-Fi suffix. A Mobile subscription shows two links. Mobile sales
+must remain disabled until the CDN service, SSH gateway, and backend credential
+lifecycle are deployed and verified together.

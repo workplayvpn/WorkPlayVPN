@@ -60,6 +60,24 @@ class PaymentService:
                 detail="Trial plan does not require payment",
             )
 
+        active_subscription = subscription_service.get_active_subscription(
+            database=database,
+            user_id=user.id,
+        )
+        if (
+            active_subscription is not None
+            and (
+                active_subscription.expires_at is None
+                or active_subscription.expires_at > datetime.now(UTC)
+            )
+        ):
+            active_plan = database.get(Plan, active_subscription.plan_id)
+            if active_plan is None or active_plan.access_tier != plan.access_tier:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Changing access tier requires a separate upgrade flow",
+                )
+
         if idempotency_key is None:
             idempotency_key = secrets.token_urlsafe(32)
 

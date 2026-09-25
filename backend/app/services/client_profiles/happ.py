@@ -103,6 +103,8 @@ class HappProfile(ClientProfile):
         node: VpnNode,
         profile: VpnNodeProfile,
         access_mode: str | None,
+        label_access_mode: bool = True,
+        credential_uuid: str | None = None,
     ) -> str:
         settings = profile.settings or {}
 
@@ -128,7 +130,9 @@ class HappProfile(ClientProfile):
         else:
             display_name = display_name.strip()
 
-        if display_name is None and access_mode is not None:
+        if not label_access_mode:
+            display_name = node.name
+        elif display_name is None and access_mode is not None:
             suffix = (
                 "Wi-Fi"
                 if access_mode == "wifi"
@@ -142,6 +146,7 @@ class HappProfile(ClientProfile):
             profile=profile,
             server_address=server_address,
             display_name=display_name,
+            credential_uuid=credential_uuid,
         )
 
     def build_links(
@@ -178,12 +183,29 @@ class HappProfile(ClientProfile):
                     profile
                     for profile in node_profiles
                     if profile.protocol == "vless"
-                    and self._access_mode(profile) == "wifi"
+                    and profile.network == "tcp"
+                    and profile.security == "reality"
+                    and self._access_mode(profile) != "mobile"
                 ),
                 None,
             )
 
-            wifi_access_mode: str | None = "wifi"
+            if wifi_profile is None:
+                wifi_profile = next(
+                    (
+                        profile
+                        for profile in node_profiles
+                        if profile.protocol == "vless"
+                        and self._access_mode(profile) == "wifi"
+                    ),
+                    None,
+                )
+
+            wifi_access_mode: str | None = (
+                "wifi" if wifi_profile is not None
+                and self._access_mode(wifi_profile) == "wifi"
+                else None
+            )
 
             if wifi_profile is None:
                 wifi_profile = next(
@@ -208,6 +230,7 @@ class HappProfile(ClientProfile):
                     node=node,
                     profile=wifi_profile,
                     access_mode=wifi_access_mode,
+                    label_access_mode=include_happ_mobile,
                 )
             )
 
@@ -232,6 +255,7 @@ class HappProfile(ClientProfile):
                     node=node,
                     profile=mobile_profile,
                     access_mode="mobile",
+                    credential_uuid=device.mobile_xray_uuid,
                 )
             )
 

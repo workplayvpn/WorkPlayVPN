@@ -4,6 +4,7 @@ import uuid
 
 from app.core.config import settings
 from app.models.vpn_node import VpnNode
+from app.models.vpn_device import VpnDevice
 
 
 class XrayNodeService:
@@ -73,6 +74,60 @@ class XrayNodeService:
             node=node,
             command=f"remove-user {email}",
         )
+
+    def add_mobile_user(
+        self,
+        node: VpnNode,
+        email: str,
+        user_uuid: str,
+    ) -> None:
+        self._run(
+            node=node,
+            command=f"add-mobile-user {user_uuid} {email}",
+        )
+
+    def remove_mobile_user(
+        self,
+        node: VpnNode,
+        email: str,
+    ) -> None:
+        self._run(
+            node=node,
+            command=f"remove-mobile-user {email}",
+        )
+
+    def add_device(self, node: VpnNode, device: VpnDevice) -> None:
+        self.add_user(node=node, email=device.xray_email, user_uuid=device.xray_uuid)
+        if device.mobile_xray_uuid and device.mobile_xray_email:
+            try:
+                self.add_mobile_user(
+                    node=node,
+                    email=device.mobile_xray_email,
+                    user_uuid=device.mobile_xray_uuid,
+                )
+            except Exception:
+                try:
+                    self.remove_user(node=node, email=device.xray_email)
+                except Exception:
+                    pass
+                raise
+
+    def remove_device(self, node: VpnNode, device: VpnDevice) -> None:
+        if device.mobile_xray_email:
+            self.remove_mobile_user(node=node, email=device.mobile_xray_email)
+        try:
+            self.remove_user(node=node, email=device.xray_email)
+        except Exception:
+            if device.mobile_xray_uuid and device.mobile_xray_email:
+                try:
+                    self.add_mobile_user(
+                        node=node,
+                        email=device.mobile_xray_email,
+                        user_uuid=device.mobile_xray_uuid,
+                    )
+                except Exception:
+                    pass
+            raise
 
 
 xray_node_service = XrayNodeService()

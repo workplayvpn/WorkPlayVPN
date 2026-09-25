@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.xray_node import xray_node_service
+from app.services.mobile_profile_service import require_mobile_profile
 
 
 class DeviceActivationService:
@@ -271,6 +272,9 @@ class DeviceActivationService:
                 detail="VPN node unavailable",
             )
 
+        if plan.access_tier == "mobile":
+            require_mobile_profile(database, node.id)
+
         xray_email = (
             f"tg_{user.telegram_id}_"
             f"device_{uuid.uuid4().hex}"
@@ -288,12 +292,35 @@ class DeviceActivationService:
                 detail="VPN node unavailable",
             ) from exc
 
+        mobile_uuid = None
+        mobile_email = None
+        if plan.access_tier == "mobile":
+            mobile_uuid = str(uuid.uuid4())
+            mobile_email = f"mobile_{uuid.uuid4().hex}@workplayvpn"
+            try:
+                xray_node_service.add_mobile_user(
+                    node=node,
+                    email=mobile_email,
+                    user_uuid=mobile_uuid,
+                )
+            except Exception as exc:
+                try:
+                    xray_node_service.remove_user(node=node, email=xray_email)
+                except Exception:
+                    pass
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Mobile VPN node unavailable",
+                ) from exc
+
         device = VpnDevice(
             user_id=user.id,
             node_id=node.id,
             device_name=device_name,
             xray_uuid=xray_uuid,
             xray_email=xray_email,
+            mobile_xray_uuid=mobile_uuid,
+            mobile_xray_email=mobile_email,
             is_active=True,
         )
 
@@ -309,15 +336,12 @@ class DeviceActivationService:
             database.refresh(device)
 
         except Exception:
-            database.rollback()
-
             try:
-                xray_node_service.remove_user(
-                    node=node,
-                    email=xray_email,
-                )
+                xray_node_service.remove_device(node=node, device=device)
             except Exception:
                 pass
+
+            database.rollback()
 
             raise
 

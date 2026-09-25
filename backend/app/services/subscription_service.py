@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import uuid
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.plan import Plan
 from app.models.subscription import Subscription
+from app.models.subscription_token import SubscriptionToken
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
@@ -64,10 +66,7 @@ class SubscriptionService:
                         detail="VPN node not found",
                     )
 
-                xray_node_service.remove_user(
-                    node=node,
-                    email=device.xray_email,
-                )
+                xray_node_service.remove_device(node=node, device=device)
 
                 revoked_devices.append(
                     (
@@ -88,10 +87,8 @@ class SubscriptionService:
                 revoked_devices
             ):
                 try:
-                    xray_node_service.add_user(
-                        node=revoked_node,
-                        email=revoked_device.xray_email,
-                        user_uuid=revoked_device.xray_uuid,
+                    xray_node_service.add_device(
+                        node=revoked_node, device=revoked_device,
                     )
                 except Exception:
                     pass
@@ -237,6 +234,14 @@ class SubscriptionService:
             )
         )
 
+        if (
+            current_subscription is not None
+            and current_subscription.expires_at is not None
+            and current_subscription.expires_at <= now
+        ):
+            self.expire_subscription(database, current_subscription)
+            current_subscription = None
+
         # -------------------------------------------------
         # СЦЕНАРИЙ 1:
         # У пользователя уже есть действующая подписка.
@@ -244,6 +249,13 @@ class SubscriptionService:
         # -------------------------------------------------
 
         if current_subscription is not None:
+            current_plan = database.get(Plan, current_subscription.plan_id)
+            if current_plan is None or current_plan.access_tier != plan.access_tier:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Changing access tier requires a separate upgrade flow",
+                )
+
             if (
                 current_subscription.expires_at is not None
                 and current_subscription.expires_at > now
@@ -290,6 +302,38 @@ class SubscriptionService:
         # с теми же UUID и активируем покупку.
         # -------------------------------------------------
 
+        previous_subscription = database.scalar(
+            select(Subscription)
+            .where(
+                Subscription.user_id == user.id,
+                Subscription.id != subscription.id,
+                Subscription.status.in_(("expired", "active")),
+            )
+            .order_by(Subscription.created_at.desc())
+        )
+
+        previous_plan = (
+            database.get(Plan, previous_subscription.plan_id)
+            if previous_subscription is not None else None
+        )
+
+        existing_devices = database.scalars(
+            select(VpnDevice).where(
+                VpnDevice.user_id == user.id,
+                VpnDevice.is_active.is_(True),
+            )
+        ).all()
+        for device in existing_devices:
+            if plan.access_tier == "mobile":
+                if not device.mobile_xray_uuid:
+                    device.mobile_xray_uuid = str(uuid.uuid4())
+                    device.mobile_xray_email = (
+                        f"mobile_{uuid.uuid4().hex}@workplayvpn"
+                    )
+            else:
+                device.mobile_xray_uuid = None
+                device.mobile_xray_email = None
+
         restored_devices = (
             self.restore_user_access(
                 database=database,
@@ -306,25 +350,34 @@ class SubscriptionService:
             )
         )
 
+        if previous_plan is not None and previous_plan.access_tier != plan.access_tier:
+            token = database.scalar(
+                select(SubscriptionToken)
+                .where(SubscriptionToken.user_id == user.id)
+                .with_for_update()
+            )
+            if token is not None:
+                token.version += 1
+                token.rotated_at = now
+
         try:
             database.commit()
             database.refresh(subscription)
 
         except Exception:
-            database.rollback()
-
             # Если PostgreSQL не смог сохранить ACTIVE,
             # возвращаем Xray в исходное состояние.
             for restored_device, restored_node in reversed(
                 restored_devices
             ):
                 try:
-                    xray_node_service.remove_user(
-                        node=restored_node,
-                        email=restored_device.xray_email,
+                    xray_node_service.remove_device(
+                        node=restored_node, device=restored_device,
                     )
                 except Exception:
                     pass
+
+            database.rollback()
 
             raise
 
@@ -456,11 +509,7 @@ class SubscriptionService:
                         detail="VPN node not found",
                     )
 
-                xray_node_service.add_user(
-                    node=node,
-                    email=device.xray_email,
-                    user_uuid=device.xray_uuid,
-                )
+                xray_node_service.add_device(node=node, device=device)
 
                 restored_devices.append(
                     (
@@ -474,9 +523,8 @@ class SubscriptionService:
                 restored_devices
             ):
                 try:
-                    xray_node_service.remove_user(
-                        node=restored_node,
-                        email=restored_device.xray_email,
+                    xray_node_service.remove_device(
+                        node=restored_node, device=restored_device,
                     )
                 except Exception:
                     pass

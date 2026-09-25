@@ -45,6 +45,12 @@ class Plan(Base):
         String(3),
         nullable=False,
     )
+    access_tier: Mapped[str] = mapped_column(
+        String(16),
+        default="basic",
+        server_default="basic",
+        nullable=False,
+    )
     device_limit: Mapped[int] = mapped_column(
         Integer,
         default=3,

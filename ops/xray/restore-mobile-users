@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+XRAY="/usr/local/bin/xray"
+API="127.0.0.1:10086"
+TAG="vless-yandex-cdn-test"
+STATE_FILE="/var/lib/workplayvpn/xray-mobile-users.tsv"
+LOCK_FILE="/var/lib/workplayvpn/xray-mobile-users.lock"
+
+[[ -f "$STATE_FILE" && -f "$LOCK_FILE" ]] || { echo "Mobile state storage missing" >&2; exit 1; }
+exec 9>"$LOCK_FILE"
+flock -s 9
+
+valid_uuid() {
+    [[ "$1" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]
+}
+
+valid_email() {
+    [[ "$1" =~ ^mobile_[a-f0-9]{32}@workplayvpn$ ]]
+}
+
+tmp_config="$(mktemp --suffix=.json)"
+trap 'rm -f "$tmp_config"' EXIT
+
+while IFS=$'\t' read -r uuid email; do
+    [[ -z "${uuid:-}" && -z "${email:-}" ]] && continue
+    valid_uuid "${uuid:-}" && valid_email "${email:-}" || {
+        echo "Invalid Mobile state row" >&2
+        exit 1
+    }
+
+    cat > "$tmp_config" <<JSON
+{
+  "inbounds": [{
+    "tag": "$TAG",
+    "port": 9445,
+    "protocol": "vless",
+    "settings": {
+      "clients": [{"id": "$uuid", "email": "$email"}],
+      "decryption": "none"
+    }
+  }],
+  "outbounds": [{"protocol": "freedom"}]
+}
+JSON
+
+    "$XRAY" run -test -config "$tmp_config" >/dev/null
+    for attempt in {1..20}; do
+        if "$XRAY" api adu --server="$API" "$tmp_config" >/dev/null; then
+            break
+        fi
+        if [[ "$attempt" == 20 ]]; then
+            echo "Failed to restore Mobile credential" >&2
+            exit 1
+        fi
+        sleep 0.25
+    done
+done < "$STATE_FILE"
