@@ -16,6 +16,7 @@ from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.xray_node import xray_node_service
 from app.services.mobile_profile_service import require_mobile_profile
+from app.services.subscription_service import subscription_service
 
 
 class DeviceActivationService:
@@ -61,8 +62,7 @@ class DeviceActivationService:
             subscription.expires_at is not None
             and subscription.expires_at <= now
         ):
-            subscription.status = "expired"
-            database.commit()
+            subscription_service.expire_subscription(database, subscription)
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -220,8 +220,7 @@ class DeviceActivationService:
             subscription.expires_at is not None
             and subscription.expires_at <= now
         ):
-            subscription.status = "expired"
-            database.commit()
+            subscription_service.expire_subscription(database, subscription)
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
