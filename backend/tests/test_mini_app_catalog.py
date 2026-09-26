@@ -6,7 +6,7 @@ from decimal import Decimal
 from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 import pytest
 
 from app.core.config import settings
@@ -118,6 +118,26 @@ def test_catalog_returns_current_paid_plans() -> None:
     )
 
     assert all(plan["access_tier"] == "basic" for plan in plans)
+
+
+def test_mobile_durations_are_seeded_but_unavailable() -> None:
+    with SessionLocal() as database:
+        plans = database.scalars(
+            select(Plan)
+            .where(Plan.access_tier == "mobile")
+            .order_by(Plan.duration_days)
+        ).all()
+
+        assert [
+            (plan.code, plan.duration_days, str(plan.price_amount), plan.is_active)
+            for plan in plans
+        ] == [
+            ("mobile_7d", 7, "99.00", False),
+            ("mobile_1m", 30, "249.00", False),
+            ("mobile_3m", 90, "699.00", False),
+            ("mobile_6m", 180, "1299.00", False),
+            ("mobile_12m", 365, "2290.00", False),
+        ]
 
 
 def test_catalog_exposes_mobile_only_to_pilot_users(monkeypatch: pytest.MonkeyPatch) -> None:

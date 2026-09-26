@@ -1,7 +1,19 @@
 # Closed Mobile purchase pilot
 
-The migration creates `mobile_1m`, 30 days, 249 RUB, three devices, with
-`is_active=false`. Applying it alone does not change the customer catalog.
+The migrations create five Mobile plans, all with three devices and
+`is_active=false`. Applying them alone does not change the customer catalog.
+
+| Code | Days | Pilot price (RUB) |
+| --- | ---: | ---: |
+| `mobile_7d` | 7 | 99 |
+| `mobile_1m` | 30 | 249 |
+| `mobile_3m` | 90 | 699 |
+| `mobile_6m` | 180 | 1299 |
+| `mobile_12m` | 365 | 2290 |
+
+Longer-duration prices are provisional. Confirm usage and CDN bills before
+activating long-duration plans; changing a price later does not alter prior
+purchases. The first live canary can still use only `mobile_1m`.
 
 The backend Compose variable `MOBILE_PILOT_USER_IDS` is a comma-separated list
 of internal database user IDs; the default is empty. Only those signed users
