@@ -334,9 +334,9 @@ def get_catalog(
         select(Plan)
         .where(
             Plan.is_active.is_(True),
-            Plan.code.like("standard_%"),
+            Plan.code.like("standard_%") | Plan.code.like("mobile_%"),
         )
-        .order_by(Plan.duration_days)
+        .order_by(Plan.access_tier, Plan.duration_days)
     ).all()
 
     locations = database.scalars(
@@ -362,6 +362,7 @@ def get_catalog(
                 price_amount=plan.price_amount,
                 currency=plan.currency,
                 device_limit=plan.device_limit,
+                access_tier=plan.access_tier,
             )
             for plan in plans
         ],

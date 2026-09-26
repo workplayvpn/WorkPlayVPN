@@ -47,6 +47,7 @@ class MiniAppPlanRead(BaseModel):
     price_amount: Decimal
     currency: str
     device_limit: int
+    access_tier: str
 
 
 class MiniAppLocationRead(BaseModel):

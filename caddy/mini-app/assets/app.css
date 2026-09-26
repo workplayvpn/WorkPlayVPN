@@ -576,6 +576,45 @@ h2 {
   width: 100%;
 }
 
+.plans-tier-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 12px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.plans-tier-switch.hidden {
+  display: none;
+}
+
+.plans-tier-switch button {
+  min-height: 44px;
+  padding: 8px;
+  color: var(--text-soft);
+  font: inherit;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.plans-tier-switch button[aria-pressed="true"] {
+  color: var(--text);
+  background: rgba(54, 148, 255, 0.26);
+}
+
+.plans-tier-description {
+  margin: 0 0 17px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .plans-list,
 .devices-list,
 .locations-list {

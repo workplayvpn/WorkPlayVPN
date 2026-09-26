@@ -2,12 +2,16 @@ import hashlib
 import hmac
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
+from sqlalchemy import delete
 
 from app.core.config import settings
+from app.db.session import SessionLocal
 from app.main import app
+from app.models.plan import Plan
 
 
 client = TestClient(app)
@@ -92,6 +96,7 @@ def test_catalog_returns_current_paid_plans() -> None:
             "price_amount",
             "currency",
             "device_limit",
+            "access_tier",
         }
         for plan in plans
     )
@@ -109,3 +114,34 @@ def test_catalog_returns_current_paid_plans() -> None:
         isinstance(location["available"], bool)
         for location in payload["locations"]
     )
+
+    assert all(plan["access_tier"] == "basic" for plan in plans)
+
+
+def test_catalog_exposes_active_mobile_plans_separately() -> None:
+    code = "mobile_catalog_test"
+    with SessionLocal() as db:
+        db.add(Plan(
+            code=code, name="Mobile test", duration_days=30,
+            price_amount=Decimal("299.00"), currency="RUB",
+            access_tier="mobile", device_limit=1, is_active=True,
+        ))
+        db.commit()
+
+    try:
+        response = client.get(
+            "/mini-app/catalog",
+            headers={"X-Telegram-Init-Data": build_init_data()},
+        )
+        assert response.status_code == 200
+        mobile_plans = [
+            plan for plan in response.json()["plans"]
+            if plan["access_tier"] == "mobile"
+        ]
+        assert len(mobile_plans) == 1
+        assert mobile_plans[0]["code"] == code
+        assert mobile_plans[0]["price_amount"] == "299.00"
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(Plan).where(Plan.code == code))
+            db.commit()

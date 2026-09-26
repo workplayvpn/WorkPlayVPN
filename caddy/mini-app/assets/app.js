@@ -8,6 +8,7 @@ let cachedClientInstanceId = null;
 const state = {
   me: null,
   catalog: null,
+  planTier: "basic",
   devices: [],
   payment: null,
   deleteDeviceId: null,
@@ -48,6 +49,8 @@ const elements = {
   resumePaymentButton: document.querySelector("#resume-payment-button"),
   trialButton: document.querySelector("#trial-button"),
   plansList: document.querySelector("#plans-list"),
+  plansTierSwitch: document.querySelector("#plans-tier-switch"),
+  plansTierDescription: document.querySelector("#plans-tier-description"),
   plansStartingPrice: document.querySelector("#plans-starting-price"),
   plansDeviceLimit: document.querySelector("#plans-device-limit"),
   addDeviceButton: document.querySelector("#add-device-button"),
@@ -141,6 +144,7 @@ function humanError(error) {
     "Location not found": "Выбранная страна больше недоступна.",
     "Plan not found": "Тариф больше недоступен.",
     "Paid plans require payment": "Для этого тарифа требуется оплата.",
+    "Changing access tier requires a separate upgrade flow": "Смена версии во время действующей подписки пока недоступна.",
     "User is inactive": "Аккаунт временно отключён.",
     "Invalid Telegram Mini App credentials": "Не удалось подтвердить вход через Telegram.",
     "Telegram Mini App credentials expired": "Сеанс устарел. Закройте и снова откройте приложение.",
@@ -378,6 +382,32 @@ function renderProfile() {
 
 function renderPlans() {
   elements.plansList.replaceChildren();
+  const availableTiers = new Set(
+    state.catalog.plans.map((plan) => plan.access_tier || "basic")
+  );
+  if (!availableTiers.has(state.planTier)) {
+    state.planTier = availableTiers.has("mobile") && !availableTiers.has("basic")
+      ? "mobile" : "basic";
+  }
+  elements.plansTierSwitch.classList.toggle("hidden", !availableTiers.has("mobile"));
+  elements.plansTierSwitch.querySelectorAll("[data-plan-tier]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.planTier === state.planTier));
+  });
+  elements.plansTierDescription.textContent = state.planTier === "mobile"
+    ? "Прямое подключение и резерв через CDN. При смене сети выберите нужный профиль в Happ."
+    : "Прямое подключение. При ограничениях мобильной сети может быть недоступно.";
+  const activeSubscription = state.me?.subscription?.status === "active"
+    ? state.me.subscription : null;
+  const currentTier = activeSubscription?.plan_code?.startsWith("mobile_")
+    ? "mobile" : "basic";
+  const tierChangeBlocked = activeSubscription && currentTier !== state.planTier;
+  if (tierChangeBlocked) {
+    elements.plansTierDescription.textContent +=
+      " Смена версии во время действующей подписки пока недоступна.";
+  }
+  const plans = state.catalog.plans.filter(
+    (plan) => (plan.access_tier || "basic") === state.planTier
+  );
 
   if (state.catalog.plans.length > 0) {
     const cheapestPlan = state.catalog.plans.reduce((cheapest, plan) => (
@@ -385,31 +415,32 @@ function renderPlans() {
         ? plan
         : cheapest
     ));
-    const deviceLimit = Math.max(
-      ...state.catalog.plans.map((plan) => plan.device_limit)
-    );
-
     elements.plansStartingPrice.textContent =
       `От ${formatMoney(cheapestPlan.price_amount, cheapestPlan.currency)} `
       + `за ${cheapestPlan.name.toLowerCase()}`;
+  } else {
+    elements.plansStartingPrice.textContent = "Тарифы временно недоступны";
+  }
+
+  if (plans.length > 0) {
+    const deviceLimit = Math.max(...plans.map((plan) => plan.device_limit));
     elements.plansDeviceLimit.textContent =
       `В каждом тарифе доступно до ${deviceLimit} устройств.`;
   } else {
-    elements.plansStartingPrice.textContent = "Тарифы временно недоступны";
     elements.plansDeviceLimit.textContent =
       "Актуальные тарифы появятся после обновления.";
   }
 
-  const monthlyPlan = state.catalog.plans.find(
-    (plan) => plan.code === "standard_1m"
+  const monthlyPlan = plans.find(
+    (plan) => plan.duration_days === 30
   );
   const monthlyBasePrice = Number(monthlyPlan?.price_amount || 0);
 
-  for (const plan of state.catalog.plans) {
+  for (const plan of plans) {
     const card = document.createElement("article");
     card.className = "plan-card";
 
-    if (plan.code === "standard_3m") {
+    if (plan.duration_days === 90) {
       card.classList.add("featured");
     }
 
@@ -421,7 +452,7 @@ function renderPlans() {
     name.textContent = plan.name;
     top.append(name);
 
-    if (plan.code === "standard_3m") {
+    if (plan.duration_days === 90) {
       const badge = document.createElement("span");
       badge.className = "plan-badge";
       badge.textContent = "Популярный";
@@ -459,7 +490,8 @@ function renderPlans() {
     const button = document.createElement("button");
     button.className = "button button-primary";
     button.type = "button";
-    button.textContent = "Выбрать";
+    button.disabled = Boolean(tierChangeBlocked);
+    button.textContent = tierChangeBlocked ? "Смена версии недоступна" : "Выбрать";
     button.addEventListener("click", () => startPayment(plan, button));
 
     bottom.append(detail, button);
@@ -878,6 +910,13 @@ document.querySelectorAll("[data-view-link]").forEach((button) => {
   button.addEventListener("click", (event) => {
     event.preventDefault();
     setView(button.dataset.viewLink);
+  });
+});
+
+elements.plansTierSwitch.querySelectorAll("[data-plan-tier]").forEach((button) => {
+  button.addEventListener("click", () => {
+    state.planTier = button.dataset.planTier;
+    renderPlans();
   });
 });
 
