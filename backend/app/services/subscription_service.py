@@ -11,6 +11,7 @@ from app.models.subscription_token import SubscriptionToken
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
+from app.services.mobile_profile_service import require_mobile_profile
 from app.services.xray_node import xray_node_service
 
 
@@ -250,7 +251,15 @@ class SubscriptionService:
 
         if current_subscription is not None:
             current_plan = database.get(Plan, current_subscription.plan_id)
-            if current_plan is None or current_plan.access_tier != plan.access_tier:
+            trial_to_mobile = (
+                current_plan is not None
+                and current_plan.code == "trial_1d"
+                and plan.access_tier == "mobile"
+            )
+            if current_plan is None or (
+                current_plan.access_tier != plan.access_tier
+                and not trial_to_mobile
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Changing access tier requires a separate upgrade flow",
@@ -273,24 +282,58 @@ class SubscriptionService:
                 )
             )
 
-            current_subscription.expires_at = (
-                extension_end
-            )
-
-            # Показываем последний купленный тариф.
-            current_subscription.plan_id = plan.id
-
-            subscription.status = "applied"
-            subscription.starts_at = extension_start
-            subscription.expires_at = extension_end
-
+            # Триал уже зарегистрировал Direct на ноде. При покупке Mobile
+            # добавляем только отдельный CDN credential, не трогая Direct.
+            added_mobile: list[tuple[VpnNode, str]] = []
             try:
+                if trial_to_mobile:
+                    devices = database.scalars(
+                        select(VpnDevice).where(
+                            VpnDevice.user_id == user.id,
+                            VpnDevice.is_active.is_(True),
+                        )
+                    ).all()
+                    for device in devices:
+                        node = database.get(VpnNode, device.node_id)
+                        if node is None:
+                            raise HTTPException(
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="VPN node not found",
+                            )
+                        require_mobile_profile(database, node.id)
+                        if bool(device.mobile_xray_uuid) != bool(device.mobile_xray_email):
+                            raise HTTPException(
+                                status_code=status.HTTP_409_CONFLICT,
+                                detail="Incomplete Mobile credential",
+                            )
+                        if not device.mobile_xray_uuid:
+                            device.mobile_xray_uuid = str(uuid.uuid4())
+                            device.mobile_xray_email = (
+                                f"mobile_{uuid.uuid4().hex}@workplayvpn"
+                            )
+                        xray_node_service.add_mobile_user(
+                            node=node,
+                            email=device.mobile_xray_email,
+                            user_uuid=device.mobile_xray_uuid,
+                        )
+                        added_mobile.append((node, device.mobile_xray_email))
+
+                current_subscription.expires_at = extension_end
+                current_subscription.plan_id = plan.id
+                subscription.status = "applied"
+                subscription.starts_at = extension_start
+                subscription.expires_at = extension_end
                 database.commit()
                 database.refresh(
                     current_subscription
                 )
             except Exception:
                 database.rollback()
+                for node, email in reversed(added_mobile):
+                    try:
+                        xray_node_service.remove_mobile_user(node=node, email=email)
+                    except Exception:
+                        pass
                 raise
 
             return current_subscription

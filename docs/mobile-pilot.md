@@ -23,8 +23,11 @@ payment API use the same server-side purchase check.
 
 Pilot gate, after tests and deployment:
 
-1. Select a disposable user without an active Basic subscription. The paid
-   flow intentionally blocks changing tiers on an active subscription.
+1. Select a disposable user with no paid Basic subscription. A user on the
+   free one-day trial can buy Mobile at full price; their unused trial time is
+   kept and the separate Mobile credential is added to each active device.
+   Changing from an active paid Basic subscription still needs a separate
+   prorated upgrade flow.
 2. Set `MOBILE_PILOT_USER_IDS` in the server's private `.env`, recreate the
    backend container so Compose receives the updated environment, and verify
    the value from application settings without printing personal credentials.

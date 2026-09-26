@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
 
@@ -14,6 +14,7 @@ from app.db.session import SessionLocal
 from app.main import app
 from app.models.user import User
 from app.models.plan import Plan
+from app.models.subscription import Subscription
 
 
 TELEGRAM_ID = 993100004
@@ -113,6 +114,43 @@ def test_mobile_payment_is_closed_outside_pilot(monkeypatch) -> None:
         allowed = client.post("/mini-app/payments", headers=headers, json=payload)
         assert allowed.status_code == 201
         assert allowed.json()["amount"] == "249.00"
+    finally:
+        remove_test_user()
+        with SessionLocal() as database:
+            database.execute(delete(Plan).where(Plan.code == code))
+            database.commit()
+
+
+def test_trial_user_can_start_pilot_mobile_payment(monkeypatch) -> None:
+    code = "mobile_trial_upgrade_test"
+    with SessionLocal() as database:
+        database.add(Plan(
+            code=code, name="Mobile trial upgrade test", duration_days=30,
+            price_amount=Decimal("249.00"), currency="RUB",
+            access_tier="mobile", device_limit=3, is_active=True,
+        ))
+        database.commit()
+
+    try:
+        headers = {"X-Telegram-Init-Data": build_init_data()}
+        assert client.get("/mini-app/me", headers=headers).status_code == 200
+        with SessionLocal() as database:
+            user = database.query(User).filter(User.telegram_id == TELEGRAM_ID).one()
+            trial = database.query(Plan).filter(Plan.code == "trial_1d").one()
+            database.add(Subscription(
+                user_id=user.id, plan_id=trial.id, status="active",
+                starts_at=datetime.now(UTC),
+                expires_at=datetime.now(UTC) + timedelta(hours=20),
+            ))
+            database.commit()
+            monkeypatch.setattr(settings, "mobile_pilot_user_ids", str(user.id))
+
+        response = client.post(
+            "/mini-app/payments", headers=headers,
+            json={"plan_code": code, "idempotency_key": "trial-upgrade-payment-test"},
+        )
+        assert response.status_code == 201
+        assert response.json()["amount"] == "249.00"
     finally:
         remove_test_user()
         with SessionLocal() as database:

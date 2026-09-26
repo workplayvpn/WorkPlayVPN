@@ -79,7 +79,15 @@ class PaymentService:
             )
         ):
             active_plan = database.get(Plan, active_subscription.plan_id)
-            if active_plan is None or active_plan.access_tier != plan.access_tier:
+            trial_to_mobile = (
+                active_plan is not None
+                and active_plan.code == "trial_1d"
+                and plan.access_tier == "mobile"
+            )
+            if active_plan is None or (
+                active_plan.access_tier != plan.access_tier
+                and not trial_to_mobile
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Changing access tier requires a separate upgrade flow",
