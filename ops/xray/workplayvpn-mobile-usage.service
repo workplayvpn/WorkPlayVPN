@@ -1,0 +1,10 @@
+[Unit]
+Description=Collect WorkPlayVPN Mobile Xray traffic
+After=xray-yandex-cdn-test.service
+Requires=xray-yandex-cdn-test.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+ExecStart=/usr/bin/python3 /usr/local/lib/workplayvpn/mobile_usage_collector.py
