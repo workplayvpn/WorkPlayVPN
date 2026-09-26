@@ -131,7 +131,13 @@ class HappProfile(ClientProfile):
             display_name = display_name.strip()
 
         if not label_access_mode:
-            display_name = node.name
+            # Basic uses the same country name as the Mobile Wi-Fi profile,
+            # without suggesting that it includes a separate Mobile route.
+            display_name = (
+                display_name.removesuffix(" — Wi-Fi")
+                if display_name is not None
+                else node.name
+            )
         elif display_name is None and access_mode is not None:
             suffix = (
                 "Wi-Fi"

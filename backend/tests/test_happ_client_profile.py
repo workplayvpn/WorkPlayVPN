@@ -163,6 +163,49 @@ def test_basic_happ_prefers_direct_reality_and_hides_mobile() -> None:
     assert unquote(urlsplit(links[0]).fragment) == "WorkPlayVPN-NL-01"
 
 
+def test_basic_happ_uses_the_same_country_label_as_mobile_wifi() -> None:
+    direct = build_profile(
+        profile_id=2,
+        code="nl-01-reality",
+        network="tcp",
+        security="reality",
+        port=443,
+        settings={
+            "happ_display_name": "Нидерланды — Wi-Fi",
+            "public_key": "test-key",
+        },
+    )
+    mobile = build_profile(
+        profile_id=3,
+        code="nl-01-mobile",
+        network="xhttp",
+        security="tls",
+        port=443,
+        settings={
+            "happ_access_mode": "mobile",
+            "happ_server_address": "cdn.bot-forma.ru",
+            "happ_display_name": "Нидерланды — Mobile",
+            "path": "/wp-bf/",
+        },
+    )
+
+    basic_links = HappProfile().build_links(
+        device=build_device(), nodes=[build_node()], profiles=[direct, mobile],
+    )
+    mobile_links = HappProfile().build_links(
+        device=build_device(), nodes=[build_node()], profiles=[direct, mobile],
+        include_happ_mobile=True,
+    )
+
+    assert [unquote(urlsplit(link).fragment) for link in basic_links] == [
+        "Нидерланды",
+    ]
+    assert [unquote(urlsplit(link).fragment) for link in mobile_links] == [
+        "Нидерланды — Wi-Fi", "Нидерланды — Mobile",
+    ]
+    assert urlsplit(basic_links[0]).username == urlsplit(mobile_links[0]).username
+
+
 def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
     wifi_profile = build_profile(
         profile_id=1,
