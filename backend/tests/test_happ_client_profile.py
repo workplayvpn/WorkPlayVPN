@@ -1,3 +1,4 @@
+import json
 from urllib.parse import parse_qs, unquote, urlsplit
 
 from app.models.vpn_device import VpnDevice
@@ -245,6 +246,10 @@ def test_paid_mobile_link_uses_separate_device_uuid() -> None:
             "mode": "packet-up",
             "alpn": "h2",
             "host": "cdn.bot-forma.ru",
+            "xhttp_extra": {
+                "uplinkHTTPMethod": "GET",
+                "uplinkDataPlacement": "body",
+            },
         },
     )
     links = HappProfile().build_links(
@@ -256,6 +261,11 @@ def test_paid_mobile_link_uses_separate_device_uuid() -> None:
     assert urlsplit(links[1]).username == device.mobile_xray_uuid
     assert parse_qs(urlsplit(links[1]).query)["alpn"] == ["h2"]
     assert parse_qs(urlsplit(links[1]).query)["host"] == ["cdn.bot-forma.ru"]
+    assert json.loads(parse_qs(urlsplit(links[1]).query)["extra"][0]) == {
+        "uplinkHTTPMethod": "GET",
+        "uplinkDataPlacement": "body",
+    }
+    assert "extra" not in parse_qs(urlsplit(links[0]).query)
 
 
 def test_mobile_role_does_not_replace_legacy_wifi_fallback() -> None:

@@ -1,3 +1,4 @@
+import json
 from urllib.parse import quote, urlencode
 
 from app.models.vpn_device import VpnDevice
@@ -72,6 +73,14 @@ class VpnProfileLinkBuilder:
             for protocol in alpn
         ):
             params["alpn"] = ",".join(alpn)
+
+        xhttp_extra = settings.get("xhttp_extra")
+        if profile.network == "xhttp" and isinstance(xhttp_extra, dict):
+            params["extra"] = json.dumps(
+                xhttp_extra,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
 
         query = urlencode(
             params,
