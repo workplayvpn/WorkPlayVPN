@@ -343,11 +343,12 @@ def test_device_can_be_created_inside_mini_app(
     assert created_device["connect_url"].startswith(
         settings.connect_base_url
     )
+    assert created_device["mobile_connect_url"] is None
 
     device = {
         key: value
         for key, value in created_device.items()
-        if key != "connect_url"
+        if key not in {"connect_url", "mobile_connect_url"}
     }
     assert device["device_name"] == "iPhone (iOS)"
     assert device["node_code"] == NODE_CODE

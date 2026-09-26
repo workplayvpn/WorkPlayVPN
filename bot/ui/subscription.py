@@ -12,6 +12,7 @@ def build_subscription_keyboard(
     *,
     active: bool,
     connect_url: str | None = None,
+    mobile_connect_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     if not active:
         return InlineKeyboardMarkup(
@@ -57,6 +58,10 @@ def build_subscription_keyboard(
                 ),
             ],
             [instruction_button],
+            *([[InlineKeyboardButton(
+                text="📱 Подключить Mobile",
+                web_app=WebAppInfo(url=mobile_connect_url),
+            )]] if mobile_connect_url and mobile_connect_url != connect_url else []),
             [
                 InlineKeyboardButton(
                     text="⏳ Продлить",
@@ -87,6 +92,7 @@ def build_subscription_keyboard(
 
 def build_subscription_secret_keyboard(
     copy_value: str | None = None,
+    mobile_copy_value: str | None = None,
 ) -> InlineKeyboardMarkup:
     rows = []
 
@@ -94,13 +100,19 @@ def build_subscription_secret_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="📋 Скопировать ключ",
+                    text="📋 Скопировать основную ссылку",
                     copy_text=CopyTextButton(
                         text=copy_value,
                     ),
                 )
             ]
         )
+
+    if mobile_copy_value and mobile_copy_value != copy_value:
+        rows.append([InlineKeyboardButton(
+            text="📋 Скопировать Mobile",
+            copy_text=CopyTextButton(text=mobile_copy_value),
+        )])
 
     rows.append(
         [

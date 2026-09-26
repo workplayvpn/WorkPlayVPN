@@ -424,6 +424,27 @@ h2 {
   white-space: nowrap;
 }
 
+
+.subscription-profiles {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.subscription-tier {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+}
+.subscription-tier strong { flex: 1 1 130px; }
+.subscription-tier span { color: var(--text-soft); font-size: 13px; }
+.subscription-tier .button { width: 100%; min-height: 40px; text-decoration: none; }
+
 .notice-card {
   display: flex;
   align-items: center;

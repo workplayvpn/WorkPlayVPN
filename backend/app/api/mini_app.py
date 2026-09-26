@@ -41,6 +41,7 @@ from app.services.device_activation_service import device_activation_service
 from app.services.mobile_rollout import mobile_pilot_allowed
 from app.services.payment_service import payment_service
 from app.services.subscription_service import subscription_service
+from app.services.entitlements import active_entitlements, shared_device_limit
 from app.services.subscription_token_service import (
     subscription_token_service,
 )
@@ -112,40 +113,17 @@ def get_user_region(
     )
 
 
-def get_visible_subscription(
-    *,
-    database: Session,
-    user: User,
-) -> Subscription | None:
-    subscription = database.scalar(
-        select(Subscription)
-        .where(
+def get_visible_subscription(database: Session, user: User) -> Subscription | None:
+    entitlements = active_entitlements(database, user.id)
+    for tier in ("basic", "mobile"):
+        if tier in entitlements:
+            return entitlements[tier][0]
+    return database.scalar(
+        select(Subscription).where(
             Subscription.user_id == user.id,
-            Subscription.status == "active",
-        )
-        .order_by(Subscription.created_at.desc())
+            Subscription.status == "pending",
+        ).order_by(Subscription.created_at.desc())
     )
-
-    if subscription is not None:
-        subscription = subscription_service.expire_if_needed(
-            database=database,
-            subscription=subscription,
-        )
-
-        if subscription.status == "expired":
-            subscription = None
-
-    if subscription is None:
-        subscription = database.scalar(
-            select(Subscription)
-            .where(
-                Subscription.user_id == user.id,
-                Subscription.status == "pending",
-            )
-            .order_by(Subscription.created_at.desc())
-        )
-
-    return subscription
 
 
 @router.get(
@@ -201,39 +179,41 @@ def get_me(
             detail="User is inactive",
         )
 
-    subscription = get_visible_subscription(
-        database=database,
-        user=user,
-    )
-
+    entitlements = active_entitlements(database, user.id)
+    subscription = get_visible_subscription(database=database, user=user)
+    subscriptions_read = [
+        MiniAppSubscriptionRead(
+            status=item.status, plan_code=plan.code,
+            plan_name=plan.name, starts_at=item.starts_at,
+            expires_at=item.expires_at, access_tier=tier,
+        )
+        for tier, (item, plan) in entitlements.items()
+    ]
     subscription_read: MiniAppSubscriptionRead | None = None
-    total_device_limit = 0
-
-    if subscription is not None:
-        plan = database.get(
-            Plan,
-            subscription.plan_id,
+    if subscriptions_read:
+        subscription_read = next(
+            (entry for entry in subscriptions_read if entry.access_tier == "basic"),
+            subscriptions_read[0],
         )
-
+    elif subscription is not None:
+        plan = database.get(Plan, subscription.plan_id)
         if plan is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Subscription plan not found",
-            )
-
+            raise HTTPException(status_code=500, detail="Subscription plan not found")
         subscription_read = MiniAppSubscriptionRead(
-            status=subscription.status,
-            plan_code=plan.code,
-            plan_name=plan.name,
-            starts_at=subscription.starts_at,
-            expires_at=subscription.expires_at,
+            status=subscription.status, plan_code=plan.code,
+            plan_name=plan.name, starts_at=subscription.starts_at,
+            expires_at=subscription.expires_at, access_tier=plan.access_tier,
         )
-
-        if subscription.status == "active":
-            total_device_limit = (
-                plan.device_limit
-                + user.extra_device_slots
-            )
+    total_device_limit = shared_device_limit(entitlements, user.extra_device_slots)
+    connect_urls: dict[str, str] = {}
+    if entitlements:
+        token_record, basic_token = subscription_token_service.get_or_create_token(
+            database=database, telegram_id=user.telegram_id,
+        )
+        for tier in entitlements:
+            raw = (basic_token if tier == "basic" else
+                   subscription_token_service.scoped_token(token_record, tier))
+            connect_urls[tier] = f"{settings.connect_base_url.rstrip('/')}/{raw}"
 
     active_device_count = database.scalar(
         select(func.count(VpnDevice.id)).where(
@@ -268,6 +248,8 @@ def get_me(
             username=user.username,
         ),
         subscription=subscription_read,
+        subscriptions=subscriptions_read,
+        connect_urls=connect_urls,
         devices=MiniAppDeviceSummaryRead(
             active_count=active_device_count or 0,
             total_limit=total_device_limit,
@@ -282,10 +264,7 @@ def get_me(
         ),
         trial_available=(
             trial_was_used is None
-            and (
-                subscription is None
-                or subscription.status != "active"
-            )
+            and not entitlements
         ),
     )
 
@@ -570,10 +549,15 @@ def create_device(
         user.preferred_location_id = location.id
         database.commit()
 
-    _, raw_token = subscription_token_service.get_or_create_token(
-        database=database,
-        telegram_id=auth.user.id,
+    token_record, basic_token = subscription_token_service.get_or_create_token(
+        database=database, telegram_id=auth.user.id,
     )
+    entitlements = active_entitlements(database, user.id)
+    mobile_token = (
+        subscription_token_service.scoped_token(token_record, "mobile")
+        if "mobile" in entitlements else None
+    )
+    raw_token = basic_token if "basic" in entitlements else mobile_token
 
     device_read = build_mini_app_device(
         database=database,
@@ -582,9 +566,10 @@ def create_device(
 
     return MiniAppDeviceCreateRead(
         **device_read.model_dump(),
-        connect_url=(
-            f"{settings.connect_base_url.rstrip('/')}/"
-            f"{raw_token}"
+        connect_url=f"{settings.connect_base_url.rstrip('/')}/{raw_token}",
+        mobile_connect_url=(
+            f"{settings.connect_base_url.rstrip('/')}/{mobile_token}"
+            if mobile_token else None
         ),
     )
 

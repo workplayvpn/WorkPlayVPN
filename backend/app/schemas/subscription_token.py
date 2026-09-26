@@ -13,3 +13,6 @@ class SubscriptionTokenRead(BaseModel):
     connect_url: str
     created_at: datetime
     rotated_at: datetime | None
+    mobile_access_key: str | None = None
+    mobile_subscription_url: str | None = None
+    mobile_connect_url: str | None = None

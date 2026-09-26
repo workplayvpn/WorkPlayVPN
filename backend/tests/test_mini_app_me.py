@@ -102,6 +102,8 @@ def test_me_creates_user_from_signed_telegram_data() -> None:
             "username": "nikita_mini_app",
         },
         "subscription": None,
+        "subscriptions": [],
+        "connect_urls": {},
         "devices": {
             "active_count": 0,
             "total_limit": 0,

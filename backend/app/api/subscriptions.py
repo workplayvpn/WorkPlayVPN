@@ -11,10 +11,10 @@ from app.schemas.subscription import (
     SubscriptionCreate,
     SubscriptionRead,
     SubscriptionStatusRead,
+    SubscriptionTierRead,
 )
-from app.services.subscription_service import (
-    subscription_service,
-)
+from app.services.subscription_service import subscription_service
+from app.services.entitlements import active_entitlements, shared_device_limit
 
 
 router = APIRouter(
@@ -92,39 +92,13 @@ def get_current_subscription(
             detail="User not found",
         )
 
-    subscription = database.scalar(
+    entitlements = active_entitlements(database, user.id)
+    entry = entitlements.get("basic") or entitlements.get("mobile")
+    subscription = entry[0] if entry else database.scalar(
         select(Subscription)
-        .where(
-            Subscription.user_id == user.id,
-            Subscription.status == "active",
-        )
-        .order_by(
-            Subscription.created_at.desc()
-        )
+        .where(Subscription.user_id == user.id, Subscription.status == "pending")
+        .order_by(Subscription.created_at.desc())
     )
-
-    if subscription is not None:
-        subscription = (
-            subscription_service.expire_if_needed(
-                database=database,
-                subscription=subscription,
-            )
-        )
-
-        if subscription.status == "expired":
-            subscription = None
-
-    if subscription is None:
-        subscription = database.scalar(
-            select(Subscription)
-            .where(
-                Subscription.user_id == user.id,
-                Subscription.status == "pending",
-            )
-            .order_by(
-                Subscription.created_at.desc()
-            )
-        )
 
     if subscription is None:
         raise HTTPException(
@@ -144,8 +118,8 @@ def get_current_subscription(
         )
 
     total_device_limit = (
-        plan.device_limit
-        + user.extra_device_slots
+        shared_device_limit(entitlements, user.extra_device_slots)
+        if entitlements else plan.device_limit + user.extra_device_slots
     )
 
     return SubscriptionStatusRead(
@@ -157,4 +131,12 @@ def get_current_subscription(
         included_devices=plan.device_limit,
         extra_device_slots=user.extra_device_slots,
         total_device_limit=total_device_limit,
+        active_subscriptions=[
+            SubscriptionTierRead(
+                access_tier=tier, plan_code=tier_plan.code,
+                plan_name=tier_plan.name, starts_at=item.starts_at,
+                expires_at=item.expires_at,
+            )
+            for tier, (item, tier_plan) in entitlements.items()
+        ],
     )

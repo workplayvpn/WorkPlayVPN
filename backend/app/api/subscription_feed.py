@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.services.entitlements import active_entitlements
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.models.plan import Plan
@@ -61,12 +62,13 @@ def build_subscription_payload(
     *,
     client: str,
     links: list[str],
+    access_tier: str = "basic",
 ) -> str:
     if client != "happ":
         return "\n".join(links)
 
     metadata = [
-        f"#{name}: {value}"
+        f"#{name}: {('WorkPlayVPN Mobile' if access_tier == 'mobile' else value) if name == 'profile-title' else value}"
         for name, value in HAPP_SUBSCRIPTION_HEADERS.items()
     ]
 
@@ -77,6 +79,7 @@ def build_subscription_response_headers(
     *,
     client: str,
     routing_link: str | None = None,
+    access_tier: str = "basic",
 ) -> dict[str, str]:
     response_headers = {
         "Cache-Control": "no-store",
@@ -87,9 +90,9 @@ def build_subscription_response_headers(
     if client != "happ":
         return response_headers
 
-    response_headers.update(
-        HAPP_SUBSCRIPTION_HEADERS
-    )
+    response_headers.update(HAPP_SUBSCRIPTION_HEADERS)
+    if access_tier == "mobile":
+        response_headers["profile-title"] = "WorkPlayVPN Mobile"
 
     if routing_link is not None:
         response_headers["routing"] = routing_link
@@ -183,40 +186,13 @@ def get_subscription_feed(
             flush=True,
         )
 
-    user = subscription_token_service.resolve_token(
-        database=database,
-        raw_token=token,
+    user, access_tier = subscription_token_service.resolve_token_scope(
+        database=database, raw_token=token,
     )
-
-    subscription = database.scalar(
-        select(Subscription)
-        .where(
-            Subscription.user_id == user.id,
-            Subscription.status == "active",
-        )
-        .order_by(
-            Subscription.created_at.desc()
-        )
-    )
-
-    if subscription is None:
-        return Response(
-            content="",
-            status_code=403,
-            media_type="text/plain",
-        )
-
-    if (
-        subscription.expires_at is not None
-        and subscription.expires_at <= datetime.now(UTC)
-    ):
+    entitlement = active_entitlements(database, user.id).get(access_tier)
+    if entitlement is None:
         return Response(content="", status_code=403, media_type="text/plain")
-
-    plan = database.get(Plan, subscription.plan_id)
-    if plan is None:
-        return Response(content="", status_code=403, media_type="text/plain")
-
-    mobile_entitled = plan.access_tier == "mobile"
+    mobile_entitled = access_tier == "mobile"
 
     devices = database.scalars(
         select(VpnDevice)
@@ -293,16 +269,7 @@ def get_subscription_feed(
         device=source_device,
         nodes=nodes,
         profiles=profiles,
-        include_happ_mobile=(
-            mobile_entitled or
-            should_include_happ_mobile_profile(
-                client=client,
-                user_id=user.id,
-                configured_user_ids=(
-                    settings.happ_mobile_profile_user_ids
-                ),
-            )
-        ),
+        include_happ_mobile=mobile_entitled,
     )
 
     routing_link = None
@@ -319,6 +286,7 @@ def get_subscription_feed(
     payload = build_subscription_payload(
         client=client,
         links=links,
+        access_tier=access_tier,
     )
 
     encoded = base64.b64encode(
@@ -328,6 +296,7 @@ def get_subscription_feed(
     response_headers = build_subscription_response_headers(
         client=client,
         routing_link=routing_link,
+        access_tier=access_tier,
     )
 
     return Response(

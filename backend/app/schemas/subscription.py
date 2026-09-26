@@ -19,6 +19,14 @@ class SubscriptionRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class SubscriptionTierRead(BaseModel):
+    access_tier: str
+    plan_code: str
+    plan_name: str
+    starts_at: datetime | None
+    expires_at: datetime | None
+
+
 class SubscriptionStatusRead(BaseModel):
     status: str
     plan_code: str
@@ -28,3 +36,4 @@ class SubscriptionStatusRead(BaseModel):
     included_devices: int
     extra_device_slots: int
     total_device_limit: int
+    active_subscriptions: list[SubscriptionTierRead] = []

@@ -103,21 +103,17 @@ def _build_subscription_text(
     days_left = _days_left(expires_value)
     total_limit = subscription["total_device_limit"]
 
+    active_tiers = subscription.get("active_subscriptions") or [subscription]
     lines = [
         "🔑 Моя подписка",
         "",
         "🟢 Активна",
-        f"Тариф: {subscription['plan_name']}",
-        (
-            f"Действует до: {expires_at:%d.%m.%Y}"
-            if expires_at
-            else "Действует до: уточняется"
-        ),
-        (
-            f"Осталось: {days_left} дн."
-            if days_left is not None
-            else "Осталось: срок уточняется"
-        ),
+        *[
+            f"{('Mobile' if item.get('access_tier') == 'mobile' else 'WorkPlayVPN')}: "
+            f"{item['plan_name']} — до "
+            f"{datetime.fromisoformat(item['expires_at'].replace('Z', '+00:00')):%d.%m.%Y}"
+            for item in active_tiers if item.get("expires_at")
+        ],
         f"Устройства: {len(devices)} из {total_limit}",
     ]
 
@@ -162,6 +158,7 @@ async def show_subscription(callback: CallbackQuery) -> None:
         build_subscription_keyboard(
             active=active,
             connect_url=(token or {}).get("connect_url"),
+            mobile_connect_url=(token or {}).get("mobile_connect_url"),
         ),
         photo=get_welcome_photo(),
     )
@@ -204,6 +201,7 @@ async def show_subscription_key(callback: CallbackQuery) -> None:
         "другим людям.",
         build_subscription_secret_keyboard(
             copy_value=token["subscription_url"],
+            mobile_copy_value=token.get("mobile_subscription_url"),
         ),
     )
 

@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.services.entitlements import active_entitlements
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.services.subscription_token_service import (
@@ -101,42 +102,14 @@ def connect_happ(
     token: str,
     database: Session = Depends(get_db),
 ):
-    user = subscription_token_service.resolve_token(
-        database=database,
-        raw_token=token,
+    user, access_tier = subscription_token_service.resolve_token_scope(
+        database=database, raw_token=token,
     )
-
-    subscription = database.scalar(
-        select(Subscription)
-        .where(
-            Subscription.user_id == user.id,
-            Subscription.status == "active",
-        )
-        .order_by(
-            Subscription.created_at.desc()
-        )
-    )
-
-    if subscription is None:
+    if access_tier not in active_entitlements(database, user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Active subscription required",
         )
-
-    now = datetime.now(UTC)
-    expires_at = subscription.expires_at
-
-    if expires_at is not None:
-        if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(
-                tzinfo=UTC
-            )
-
-        if expires_at <= now:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Subscription expired",
-            )
 
     launch_url = (
         f"/connect/happ/launch/{token}"

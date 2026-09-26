@@ -123,6 +123,10 @@ def build_device_manage_keyboard(
                     callback_data=f"remove_device:{device_id}",
                 )
             ],
+            *([[InlineKeyboardButton(
+                text="Открыть Mobile →",
+                web_app=WebAppInfo(url=mobile_connect_url),
+            )]] if mobile_connect_url and mobile_connect_url != connect_url else []),
             [
                 InlineKeyboardButton(
                     text="← Назад",
@@ -187,6 +191,7 @@ def build_happ_connect_keyboard(
     *,
     connect_url: str,
     device_id: int,
+    mobile_connect_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[

@@ -16,6 +16,7 @@ class MiniAppSubscriptionRead(BaseModel):
     plan_name: str
     starts_at: datetime | None
     expires_at: datetime | None
+    access_tier: str = "basic"
 
 
 class MiniAppDeviceSummaryRead(BaseModel):
@@ -38,6 +39,8 @@ class MiniAppMeRead(BaseModel):
     devices: MiniAppDeviceSummaryRead
     current_region: MiniAppRegionRead | None
     trial_available: bool
+    subscriptions: list[MiniAppSubscriptionRead] = Field(default_factory=list)
+    connect_urls: dict[str, str] = Field(default_factory=dict)
 
 
 class MiniAppPlanRead(BaseModel):
@@ -92,6 +95,7 @@ class MiniAppDeviceRead(BaseModel):
 
 class MiniAppDeviceCreateRead(MiniAppDeviceRead):
     connect_url: str
+    mobile_connect_url: str | None = None
 
 
 class MiniAppPaymentCreate(BaseModel):

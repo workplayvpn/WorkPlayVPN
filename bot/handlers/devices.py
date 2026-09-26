@@ -443,6 +443,7 @@ async def show_device_link(
         "и добавлению подписки Work&PlayVPN.",
         build_happ_connect_keyboard(
             connect_url=connect_url,
+            mobile_connect_url=token_data.get("mobile_connect_url"),
             device_id=device_id,
         ),
     )

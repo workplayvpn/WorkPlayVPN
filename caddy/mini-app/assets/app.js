@@ -43,6 +43,7 @@ const elements = {
   subscriptionTitle: document.querySelector("#subscription-title"),
   subscriptionDescription: document.querySelector("#subscription-description"),
   subscriptionExpiry: document.querySelector("#subscription-expiry"),
+  subscriptionProfiles: document.querySelector("#subscription-profiles"),
   deviceSummary: document.querySelector("#device-summary"),
   pendingPayment: document.querySelector("#pending-payment"),
   pendingPaymentAmount: document.querySelector("#pending-payment-amount"),
@@ -307,7 +308,25 @@ function setView(name) {
 
 function renderSubscription() {
   const { subscription, devices } = state.me;
-  const isActive = subscription?.status === "active";
+  const activeSubscriptions = state.me.subscriptions ||
+    (subscription?.status === "active" ? [subscription] : []);
+  const isActive = activeSubscriptions.length > 0;
+  elements.subscriptionProfiles.replaceChildren();
+  for (const entry of activeSubscriptions) {
+    const tier = entry.access_tier || (entry.plan_code.startsWith("mobile_") ? "mobile" : "basic");
+    const row = document.createElement("div");
+    row.className = "subscription-tier";
+    const label = document.createElement("strong");
+    label.textContent = tier === "mobile" ? "WorkPlayVPN Mobile" : "WorkPlayVPN";
+    const date = document.createElement("span");
+    date.textContent = `До ${formatDate(entry.expires_at)}`;
+    const link = document.createElement("a");
+    link.className = "button button-secondary";
+    link.href = state.me.connect_urls?.[tier] || "#";
+    link.textContent = tier === "mobile" ? "Подключить Wi-Fi и Mobile" : "Подключить WorkPlayVPN";
+    row.append(label, date, link);
+    elements.subscriptionProfiles.append(row);
+  }
 
   elements.subscriptionCard.classList.toggle("is-active", isActive);
   elements.deviceSummary.textContent =
@@ -315,11 +334,13 @@ function renderSubscription() {
 
   if (isActive) {
     elements.subscriptionLabel.textContent = "Подписка активна";
-    elements.subscriptionTitle.textContent = subscription.plan_name;
-    elements.subscriptionDescription.textContent =
-      "Защищённое подключение доступно на ваших устройствах.";
-    elements.subscriptionExpiry.textContent =
-      formatDate(subscription.expires_at);
+    elements.subscriptionTitle.textContent = activeSubscriptions.length > 1
+      ? "Две подписки активны" : subscription.plan_name;
+    elements.subscriptionDescription.textContent = activeSubscriptions.length > 1
+      ? "Обычный VPN и Mobile действуют каждый до своего срока."
+      : "Защищённое подключение доступно на ваших устройствах.";
+    elements.subscriptionExpiry.textContent = activeSubscriptions.length > 1
+      ? "Отдельно для каждой" : formatDate(subscription.expires_at);
   } else if (subscription?.status === "pending") {
     elements.subscriptionLabel.textContent = "Ожидает оплаты";
     elements.subscriptionTitle.textContent = subscription.plan_name;
@@ -373,9 +394,10 @@ function renderProfile() {
     user.username ? `@${user.username}` : "Имя пользователя не указано";
   elements.profileTelegramId.textContent = String(user.telegram_id);
   elements.profileSubscription.textContent =
-    subscription?.status === "active"
-      ? subscription.plan_name
-      : "Не активна";
+    (state.me.subscriptions || []).length > 0
+      ? state.me.subscriptions.map((entry) => entry.access_tier === "mobile"
+        ? "Mobile" : "WorkPlayVPN").join(" + ")
+      : subscription?.status === "active" ? subscription.plan_name : "Не активна";
   elements.profileDevices.textContent =
     `${state.me.devices.active_count} из ${state.me.devices.total_limit}`;
 }
@@ -396,15 +418,6 @@ function renderPlans() {
   elements.plansTierDescription.textContent = state.planTier === "mobile"
     ? "Прямое подключение и резерв через CDN. При смене сети выберите нужный профиль в Happ."
     : "Прямое подключение. При ограничениях мобильной сети может быть недоступно.";
-  const activeSubscription = state.me?.subscription?.status === "active"
-    ? state.me.subscription : null;
-  const currentTier = activeSubscription?.plan_code?.startsWith("mobile_")
-    ? "mobile" : "basic";
-  const tierChangeBlocked = activeSubscription && currentTier !== state.planTier;
-  if (tierChangeBlocked) {
-    elements.plansTierDescription.textContent +=
-      " Смена версии во время действующей подписки пока недоступна.";
-  }
   const plans = state.catalog.plans.filter(
     (plan) => (plan.access_tier || "basic") === state.planTier
   );
@@ -490,8 +503,7 @@ function renderPlans() {
     const button = document.createElement("button");
     button.className = "button button-primary";
     button.type = "button";
-    button.disabled = Boolean(tierChangeBlocked);
-    button.textContent = tierChangeBlocked ? "Смена версии недоступна" : "Выбрать";
+    button.textContent = "Выбрать";
     button.addEventListener("click", () => startPayment(plan, button));
 
     bottom.append(detail, button);

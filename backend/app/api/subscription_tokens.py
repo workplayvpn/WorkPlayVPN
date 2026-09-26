@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.internal_auth import require_internal_api_secret
 from app.core.config import settings
+from app.services.entitlements import active_entitlements
 from app.db.dependencies import get_db
 from app.schemas.subscription_token import (
     SubscriptionTokenCreate,
@@ -26,7 +27,16 @@ def build_token_response(
     *,
     token,
     raw_token: str,
+    database: Session | None = None,
 ) -> SubscriptionTokenRead:
+    entitlements = active_entitlements(database, token.user_id) if database is not None else {}
+    mobile_token = (
+        subscription_token_service.scoped_token(token, "mobile")
+        if "mobile" in entitlements else None
+    )
+    # Keep the historical fields usable for a Mobile-only customer.
+    if "basic" not in entitlements and mobile_token:
+        raw_token = mobile_token
     subscription_url = (
         f"{settings.subscription_base_url.rstrip('/')}/"
         f"{raw_token}"
@@ -43,6 +53,15 @@ def build_token_response(
         connect_url=connect_url,
         created_at=token.created_at,
         rotated_at=token.rotated_at,
+        mobile_access_key=mobile_token,
+        mobile_subscription_url=(
+            f"{settings.subscription_base_url.rstrip('/')}/{mobile_token}"
+            if mobile_token else None
+        ),
+        mobile_connect_url=(
+            f"{settings.connect_base_url.rstrip('/')}/{mobile_token}"
+            if mobile_token else None
+        ),
     )
 
 
@@ -65,6 +84,7 @@ def create_subscription_token(
     return build_token_response(
         token=token,
         raw_token=raw_token,
+        database=database,
     )
 
 
@@ -86,4 +106,5 @@ def rotate_subscription_token(
     return build_token_response(
         token=token,
         raw_token=raw_token,
+        database=database,
     )

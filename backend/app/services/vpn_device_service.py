@@ -13,6 +13,7 @@ from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.xray_node import xray_node_service
 from app.services.mobile_profile_service import require_mobile_profile
+from app.services.entitlements import active_entitlements, shared_device_limit
 from app.services.subscription_service import subscription_service
 
 
@@ -41,44 +42,13 @@ class VpnDeviceService:
                 detail="User not found",
             )
 
-        subscription = database.scalar(
-            select(Subscription)
-            .where(
-                Subscription.user_id == user.id,
-                Subscription.status == "active",
+        if subscription_service.expire_stale_subscriptions(database, user.id):
+            user = database.scalar(
+                select(User).where(User.id == user.id).with_for_update()
             )
-            .order_by(Subscription.created_at.desc())
-        )
-
-        if subscription is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Active subscription required",
-            )
-
-        now = datetime.now(UTC)
-
-        if (
-            subscription.expires_at is not None
-            and subscription.expires_at <= now
-        ):
-            subscription_service.expire_subscription(database, subscription)
-
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Subscription expired",
-            )
-
-        plan = database.get(
-            Plan,
-            subscription.plan_id,
-        )
-
-        if plan is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Subscription plan not found",
-            )
+        entitlements = active_entitlements(database, user.id)
+        if not entitlements:
+            raise HTTPException(status_code=403, detail="Active subscription required")
 
         if client_instance_id is not None:
             existing_client_device = database.scalar(
@@ -92,10 +62,7 @@ class VpnDeviceService:
             if existing_client_device is not None:
                 return existing_client_device
 
-        device_limit = (
-            plan.device_limit
-            + user.extra_device_slots
-        )
+        device_limit = shared_device_limit(entitlements, user.extra_device_slots)
 
         active_device_count = database.scalar(
             select(func.count(VpnDevice.id)).where(
@@ -123,7 +90,7 @@ class VpnDeviceService:
                 detail="VPN node not found",
             )
 
-        if plan.access_tier == "mobile":
+        if "mobile" in entitlements:
             require_mobile_profile(database, node.id)
 
         existing_device = database.scalar(
@@ -159,7 +126,7 @@ class VpnDeviceService:
 
         mobile_uuid = None
         mobile_email = None
-        if plan.access_tier == "mobile":
+        if "mobile" in entitlements:
             mobile_uuid = str(uuid.uuid4())
             mobile_email = f"mobile_{uuid.uuid4().hex}@workplayvpn"
             try:
