@@ -7,11 +7,13 @@ from urllib.parse import urlencode
 
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
+import pytest
 
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.plan import Plan
+from app.models.user import User
 
 
 client = TestClient(app)
@@ -118,21 +120,31 @@ def test_catalog_returns_current_paid_plans() -> None:
     assert all(plan["access_tier"] == "basic" for plan in plans)
 
 
-def test_catalog_exposes_active_mobile_plans_separately() -> None:
+def test_catalog_exposes_mobile_only_to_pilot_users(monkeypatch: pytest.MonkeyPatch) -> None:
     code = "mobile_catalog_test"
+    monkeypatch.setattr(settings, "mobile_pilot_user_ids", "")
     with SessionLocal() as db:
+        user = User(telegram_id=993100002, first_name="Catalog", is_active=True)
+        db.add(user)
         db.add(Plan(
             code=code, name="Mobile test", duration_days=30,
             price_amount=Decimal("299.00"), currency="RUB",
             access_tier="mobile", device_limit=1, is_active=True,
         ))
         db.commit()
+        pilot_user_id = user.id
 
     try:
+        headers = {"X-Telegram-Init-Data": build_init_data()}
         response = client.get(
             "/mini-app/catalog",
-            headers={"X-Telegram-Init-Data": build_init_data()},
+            headers=headers,
         )
+        assert response.status_code == 200
+        assert all(plan["access_tier"] == "basic" for plan in response.json()["plans"])
+
+        monkeypatch.setattr(settings, "mobile_pilot_user_ids", str(pilot_user_id))
+        response = client.get("/mini-app/catalog", headers=headers)
         assert response.status_code == 200
         mobile_plans = [
             plan for plan in response.json()["plans"]
@@ -144,4 +156,5 @@ def test_catalog_exposes_active_mobile_plans_separately() -> None:
     finally:
         with SessionLocal() as db:
             db.execute(delete(Plan).where(Plan.code == code))
+            db.execute(delete(User).where(User.telegram_id == 993100002))
             db.commit()

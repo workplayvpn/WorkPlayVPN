@@ -13,6 +13,7 @@ from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.services.payment_providers import payment_provider_registry
+from app.services.mobile_rollout import mobile_pilot_allowed
 from app.services.subscription_service import subscription_service
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,12 @@ class PaymentService:
         )
 
         if plan is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Plan not found",
+            )
+
+        if plan.access_tier == "mobile" and not mobile_pilot_allowed(user.id):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Plan not found",

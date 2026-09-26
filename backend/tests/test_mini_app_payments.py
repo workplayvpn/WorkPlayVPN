@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from urllib.parse import urlencode
 
 import pytest
@@ -12,6 +13,7 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.user import User
+from app.models.plan import Plan
 
 
 TELEGRAM_ID = 993100004
@@ -85,6 +87,37 @@ def test_payment_requires_telegram_credentials() -> None:
     )
 
     assert response.status_code == 401
+
+
+def test_mobile_payment_is_closed_outside_pilot(monkeypatch) -> None:
+    code = "mobile_payment_pilot_test"
+    monkeypatch.setattr(settings, "mobile_pilot_user_ids", "")
+    with SessionLocal() as database:
+        database.add(Plan(
+            code=code, name="Mobile pilot", duration_days=30,
+            price_amount=Decimal("249.00"), currency="RUB",
+            access_tier="mobile", device_limit=3, is_active=True,
+        ))
+        database.commit()
+
+    try:
+        headers = {"X-Telegram-Init-Data": build_init_data()}
+        assert client.get("/mini-app/me", headers=headers).status_code == 200
+        payload = {"plan_code": code, "idempotency_key": "mobile-pilot-payment-test"}
+        blocked = client.post("/mini-app/payments", headers=headers, json=payload)
+        assert blocked.status_code == 404
+
+        with SessionLocal() as database:
+            user_id = database.query(User.id).filter(User.telegram_id == TELEGRAM_ID).scalar()
+        monkeypatch.setattr(settings, "mobile_pilot_user_ids", str(user_id))
+        allowed = client.post("/mini-app/payments", headers=headers, json=payload)
+        assert allowed.status_code == 201
+        assert allowed.json()["amount"] == "249.00"
+    finally:
+        remove_test_user()
+        with SessionLocal() as database:
+            database.execute(delete(Plan).where(Plan.code == code))
+            database.commit()
 
 
 def test_payment_is_created_once_for_repeated_request() -> None:

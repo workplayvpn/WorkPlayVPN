@@ -38,6 +38,7 @@ from app.schemas.mini_app import (
     MiniAppUserRead,
 )
 from app.services.device_activation_service import device_activation_service
+from app.services.mobile_rollout import mobile_pilot_allowed
 from app.services.payment_service import payment_service
 from app.services.subscription_service import subscription_service
 from app.services.subscription_token_service import (
@@ -338,6 +339,11 @@ def get_catalog(
         )
         .order_by(Plan.access_tier, Plan.duration_days)
     ).all()
+    user_id = database.scalar(
+        select(User.id).where(User.telegram_id == auth.user.id)
+    )
+    if user_id is None or not mobile_pilot_allowed(user_id):
+        plans = [plan for plan in plans if plan.access_tier != "mobile"]
 
     locations = database.scalars(
         select(Location)

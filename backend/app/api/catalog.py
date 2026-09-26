@@ -24,7 +24,7 @@ def get_plans(
 ):
     return database.scalars(
         select(Plan)
-        .where(Plan.is_active.is_(True))
+        .where(Plan.is_active.is_(True), Plan.access_tier == "basic")
         .order_by(Plan.duration_days)
     ).all()
 
