@@ -83,7 +83,7 @@ def build_auto_route_config(direct_link: str, cdn_link: str) -> list[dict]:
     cdn["streamSettings"]["xhttpSettings"] = xhttp
 
     return [{
-        "remarks": "WorkPlayVPN Mobile Auto — pilot",
+        "remarks": "Work&PlayVPN Mobile Auto — pilot",
         "log": {"loglevel": "warning"},
         "inbounds": [
             {"tag": "local-socks", "listen": "127.0.0.1", "port": 10808,
@@ -112,7 +112,7 @@ def build_routed_auto_config(direct_link: str, cdn_link: str) -> list[dict]:
     config = build_auto_route_config(direct_link, cdn_link)
     entry = config[0]
     policy = HAPP_SMART_ROUTING_PROFILE
-    entry["remarks"] = "WorkPlayVPN Auto + RU routing — pilot"
+    entry["remarks"] = "Work&PlayVPN Auto + RU routing — pilot"
     entry["outbounds"].append({
         "tag": "ru-direct", "protocol": "freedom",
         "streamSettings": {"sockopt": {"domainStrategy": "UseIP"}},

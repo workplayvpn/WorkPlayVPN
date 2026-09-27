@@ -97,8 +97,8 @@ def _build_response(token: str, database: Session, *, routed: bool) -> JSONRespo
             "Cache-Control": "no-store",
             "Pragma": "no-cache",
             "X-Content-Type-Options": "nosniff",
-            "profile-title": ("WorkPlayVPN Auto RU" if routed
-                              else "WorkPlayVPN Mobile Auto (pilot)"),
+            "profile-title": ("Work&PlayVPN Auto RU" if routed
+                              else "Work&PlayVPN Mobile Auto (pilot)"),
             "profile-update-interval": "3",
         },
     )

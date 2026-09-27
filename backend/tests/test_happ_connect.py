@@ -99,7 +99,7 @@ def test_happ_connect_returns_instruction_mini_app() -> None:
             f"happ://add/{expected_subscription_url}"
         )
 
-        assert "WorkPlayVPN" in body
+        assert "Work&amp;PlayVPN" in body
         assert "Инструкция по подключению" not in body
         assert "Подключите HAPP за несколько шагов" in body
         assert "Открыть в HAPP" in body

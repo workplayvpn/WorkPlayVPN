@@ -175,7 +175,7 @@ def _connect_happ_page(token: str, database: Session, *, routed: bool):
     <meta name="color-scheme" content="dark">
     <meta name="theme-color" content="#081524">
 
-    <title>Подключение WorkPlayVPN</title>
+    <title>Подключение Work&amp;PlayVPN</title>
 
     <link
         rel="stylesheet"
@@ -205,7 +205,7 @@ def _connect_happ_page(token: str, database: Session, *, routed: bool):
 
                 <div>
                     <p class="brand-name">
-                        WorkPlayVPN
+                        Work&amp;PlayVPN
                     </p>
 
                     <p class="brand-caption">
@@ -865,13 +865,13 @@ def _connect_happ_page(token: str, database: Session, *, routed: bool):
             <h3>Не получилось подключиться?</h3>
 
             <p>
-                Вернитесь в Telegram-бот WorkPlayVPN
+                Вернитесь в Telegram-бот Work&amp;PlayVPN
                 и откройте раздел поддержки.
             </p>
         </aside>
 
         <footer class="footer">
-            WorkPlayVPN · Безопасное подключение
+            Work&amp;PlayVPN · Безопасное подключение
         </footer>
     </main>
 </body>

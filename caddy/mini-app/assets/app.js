@@ -317,13 +317,13 @@ function renderSubscription() {
     const row = document.createElement("div");
     row.className = "subscription-tier";
     const label = document.createElement("strong");
-    label.textContent = tier === "mobile" ? "WorkPlayVPN Mobile" : "WorkPlayVPN";
+    label.textContent = tier === "mobile" ? "Work&PlayVPN Mobile" : "Work&PlayVPN";
     const date = document.createElement("span");
     date.textContent = `До ${formatDate(entry.expires_at)}`;
     const link = document.createElement("a");
     link.className = "button button-secondary";
     link.href = state.me.connect_urls?.[tier] || "#";
-    link.textContent = tier === "mobile" ? "Подключить Wi-Fi и Mobile" : "Подключить WorkPlayVPN";
+    link.textContent = tier === "mobile" ? "Подключить Wi-Fi и Mobile" : "Подключить Work&PlayVPN";
     row.append(label, date, link);
     if (tier === "mobile" && state.me.connect_urls?.mobile_auto_ru) {
       const autoLink = document.createElement("a");
@@ -406,7 +406,7 @@ function renderProfile() {
   elements.profileSubscription.textContent =
     (state.me.subscriptions || []).length > 0
       ? state.me.subscriptions.map((entry) => entry.access_tier === "mobile"
-        ? "Mobile" : "WorkPlayVPN").join(" + ")
+        ? "Mobile" : "Work&PlayVPN").join(" + ")
       : subscription?.status === "active" ? subscription.plan_name : "Не активна";
   elements.profileDevices.textContent =
     `${state.me.devices.active_count} из ${state.me.devices.total_limit}`;

@@ -241,7 +241,7 @@ def test_scoped_happ_feeds_never_mix_basic_and_mobile(account, monkeypatch):
     mobile_feed = get_subscription_feed(mobile_token, request, db)
     assert seen == [False, True]
     assert basic_feed.headers["profile-title"] == "Work&PlayVPN"
-    assert mobile_feed.headers["profile-title"] == "WorkPlayVPN Mobile"
+    assert mobile_feed.headers["profile-title"] == "Work&PlayVPN Mobile"
 
     subscription_service.expire_subscription(db, db.get(Subscription, basic_id))
     assert get_subscription_feed(basic_token, request, db).status_code == 403

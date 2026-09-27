@@ -84,6 +84,7 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     response = route.get_auto_route("private-token", Database())
     assert response.status_code == 200
     assert response.media_type == "application/json"
+    assert response.headers["profile-title"] == "Work&PlayVPN Mobile Auto (pilot)"
     config = json.loads(response.body)
     assert len(config) == 1
     assert [item["tag"] for item in config[0]["outbounds"]] == [
@@ -92,6 +93,7 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     assert config[0]["routing"]["balancers"][0]["fallbackTag"] == "vpn-cdn"
 
     response = route.get_routed_auto_route("private-token", Database())
+    assert response.headers["profile-title"] == "Work&PlayVPN Auto RU"
     routed = json.loads(response.body)[0]
     assert len(routed["outbounds"]) == 3
     assert routed["outbounds"][:2] == config[0]["outbounds"]

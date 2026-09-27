@@ -28,6 +28,7 @@ def links() -> tuple[str, str]:
 
 def test_local_probe_prefers_direct_and_only_falls_back_to_cdn() -> None:
     config = build_auto_route_config(*links())[0]
+    assert config["remarks"] == "Work&PlayVPN Mobile Auto — pilot"
     routes = config["outbounds"]
     assert [item["tag"] for item in routes] == ["vpn-direct", "vpn-cdn"]
     assert config["observatory"]["subjectSelector"] == ["vpn-direct"]
@@ -62,6 +63,7 @@ def test_routed_canary_keeps_failover_and_bypasses_ru() -> None:
     direct, cdn = links()
     normal = build_auto_route_config(direct, cdn)[0]
     routed = build_routed_auto_config(direct, cdn)[0]
+    assert routed["remarks"] == "Work&PlayVPN Auto + RU routing — pilot"
     assert routed["outbounds"][:2] == normal["outbounds"]
     assert routed["outbounds"][2]["tag"] == "ru-direct"
     assert routed["outbounds"][2]["streamSettings"]["sockopt"]["domainStrategy"] == "UseIP"

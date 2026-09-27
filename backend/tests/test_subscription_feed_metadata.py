@@ -54,6 +54,17 @@ def test_non_happ_payload_remains_unchanged() -> None:
     assert "#profile-title" not in payload
 
 
+def test_mobile_happ_metadata_uses_full_brand() -> None:
+    payload = build_subscription_payload(
+        client="happ", links=["vless://example"], access_tier="mobile",
+    )
+    headers = build_subscription_response_headers(
+        client="happ", access_tier="mobile",
+    )
+    assert "#profile-title: Work&PlayVPN Mobile" in payload.splitlines()
+    assert headers["profile-title"] == "Work&PlayVPN Mobile"
+
+
 def test_happ_response_headers_can_include_routing() -> None:
     routing_link = "happ://routing/onadd/example"
 

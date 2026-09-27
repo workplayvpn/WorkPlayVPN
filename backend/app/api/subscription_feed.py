@@ -69,7 +69,7 @@ def build_subscription_payload(
         return "\n".join(links)
 
     metadata = [
-        f"#{name}: {('WorkPlayVPN Mobile' if access_tier == 'mobile' else value) if name == 'profile-title' else value}"
+        f"#{name}: {('Work&PlayVPN Mobile' if access_tier == 'mobile' else value) if name == 'profile-title' else value}"
         for name, value in HAPP_SUBSCRIPTION_HEADERS.items()
     ]
 
@@ -93,7 +93,7 @@ def build_subscription_response_headers(
 
     response_headers.update(HAPP_SUBSCRIPTION_HEADERS)
     if access_tier == "mobile":
-        response_headers["profile-title"] = "WorkPlayVPN Mobile"
+        response_headers["profile-title"] = "Work&PlayVPN Mobile"
 
     if routing_link is not None:
         response_headers["routing"] = routing_link
