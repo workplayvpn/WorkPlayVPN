@@ -6,6 +6,7 @@ from app.api.happ_mobile_readiness import (
     router as happ_mobile_readiness_router,
 )
 from app.api.happ_connect import router as happ_connect_router
+from app.api.happ_auto_route import router as happ_auto_route_router
 from app.api.mini_app import router as mini_app_router
 from app.api.catalog import router as catalog_router
 from app.api.device_activations import router as device_activations_router
@@ -39,6 +40,7 @@ app.include_router(test_payments_router)
 app.include_router(activation_page_router)
 app.include_router(subscription_tokens_router)
 app.include_router(subscription_feed_router)
+app.include_router(happ_auto_route_router)
 app.include_router(payments_router)
 app.include_router(payment_redirects_router)
 app.include_router(payment_webhooks_router)
