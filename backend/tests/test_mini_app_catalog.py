@@ -120,7 +120,7 @@ def test_catalog_returns_current_paid_plans() -> None:
     assert all(plan["access_tier"] == "basic" for plan in plans)
 
 
-def test_mobile_durations_are_seeded_but_unavailable() -> None:
+def test_mobile_durations_are_available_with_pilot_prices() -> None:
     with SessionLocal() as database:
         plans = database.scalars(
             select(Plan)
@@ -129,15 +129,16 @@ def test_mobile_durations_are_seeded_but_unavailable() -> None:
         ).all()
 
         assert [
-            (plan.code, plan.duration_days, str(plan.price_amount), plan.is_active)
+            (plan.code, plan.duration_days, str(plan.price_amount))
             for plan in plans
         ] == [
-            ("mobile_7d", 7, "99.00", False),
-            ("mobile_1m", 30, "249.00", False),
-            ("mobile_3m", 90, "699.00", False),
-            ("mobile_6m", 180, "1299.00", False),
-            ("mobile_12m", 365, "2290.00", False),
+            ("mobile_7d", 7, "99.00"),
+            ("mobile_1m", 30, "249.00"),
+            ("mobile_3m", 90, "699.00"),
+            ("mobile_6m", 180, "1299.00"),
+            ("mobile_12m", 365, "2290.00"),
         ]
+        assert all(plan.is_active for plan in plans if plan.code != "mobile_1m")
 
 
 def test_catalog_exposes_mobile_only_to_pilot_users(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -170,9 +171,13 @@ def test_catalog_exposes_mobile_only_to_pilot_users(monkeypatch: pytest.MonkeyPa
             plan for plan in response.json()["plans"]
             if plan["access_tier"] == "mobile"
         ]
-        assert len(mobile_plans) == 1
-        assert mobile_plans[0]["code"] == code
-        assert mobile_plans[0]["price_amount"] == "299.00"
+        assert {(plan["code"], plan["price_amount"]) for plan in mobile_plans} >= {
+            (code, "299.00"),
+            ("mobile_7d", "99.00"),
+            ("mobile_3m", "699.00"),
+            ("mobile_6m", "1299.00"),
+            ("mobile_12m", "2290.00"),
+        }
     finally:
         with SessionLocal() as db:
             db.execute(delete(Plan).where(Plan.code == code))
