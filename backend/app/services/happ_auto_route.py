@@ -103,13 +103,3 @@ def build_auto_route_config(direct_link: str, cdn_link: str) -> list[dict]:
             }],
         },
     }]
-
-
-def build_failover_test_config(direct_link: str, cdn_link: str) -> list[dict]:
-    """Pilot only: make client-side Direct unreachable without touching the node."""
-    config = build_auto_route_config(direct_link, cdn_link)
-    config[0]["remarks"] = "WorkPlayVPN CDN fallback test"
-    destination = config[0]["outbounds"][0]["settings"]["vnext"][0]
-    destination["address"] = "127.0.0.1"
-    destination["port"] = 1
-    return config

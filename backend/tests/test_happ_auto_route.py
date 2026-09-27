@@ -2,10 +2,7 @@ from urllib.parse import urlencode
 
 import pytest
 
-from app.services.happ_auto_route import (
-    build_auto_route_config,
-    build_failover_test_config,
-)
+from app.services.happ_auto_route import build_auto_route_config
 
 
 DIRECT = "11111111-2222-4333-8444-555555555555"
@@ -55,15 +52,3 @@ def test_rejects_wrong_endpoint_instead_of_misrouting_traffic() -> None:
         build_auto_route_config(direct.replace("reality", "tls"), cdn)
     with pytest.raises(ValueError):
         build_auto_route_config(direct, cdn.replace("xhttp", "ws"))
-
-
-def test_forced_direct_failure_changes_only_local_destination() -> None:
-    direct, cdn = links()
-    normal = build_auto_route_config(direct, cdn)[0]
-    forced = build_failover_test_config(direct, cdn)[0]
-    assert normal["outbounds"][0]["settings"]["vnext"][0]["address"] == "direct.example"
-    destination = forced["outbounds"][0]["settings"]["vnext"][0]
-    assert (destination["address"], destination["port"]) == ("127.0.0.1", 1)
-    assert forced["outbounds"][1] == normal["outbounds"][1]
-    assert forced["routing"] == normal["routing"]
-    assert forced["observatory"] == normal["observatory"]

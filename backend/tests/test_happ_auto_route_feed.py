@@ -36,9 +36,6 @@ def test_auto_feed_is_closed_for_other_users_and_basic(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         route.get_auto_route("private-token", db)
     assert exc.value.status_code == 404
-    with pytest.raises(HTTPException) as exc:
-        route.get_failover_test_route("private-token", db)
-    assert exc.value.status_code == 404
 
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", "*")
     assert not route.auto_route_allowed(174)
@@ -90,13 +87,6 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
         "vpn-direct", "vpn-cdn",
     ]
     assert config[0]["routing"]["balancers"][0]["fallbackTag"] == "vpn-cdn"
-
-    test_response = route.get_failover_test_route("private-token", Database())
-    forced = json.loads(test_response.body)[0]
-    direct = forced["outbounds"][0]["settings"]["vnext"][0]
-    assert (direct["address"], direct["port"]) == ("127.0.0.1", 1)
-    assert forced["outbounds"][1] == config[0]["outbounds"][1]
-    assert forced["routing"] == config[0]["routing"]
 
 
 def test_auto_feed_rejects_expired_mobile_access(monkeypatch):
