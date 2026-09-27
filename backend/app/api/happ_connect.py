@@ -21,6 +21,7 @@ from app.api.happ_auto_route import auto_route_allowed
 from app.services.entitlements import active_entitlements
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
+from app.models.vpn_device import VpnDevice
 from app.services.subscription_token_service import (
     subscription_token_service,
 )
@@ -115,12 +116,52 @@ def launch_routed_auto_happ(
     )
 
 
-def _require_routed_auto_access(token: str, database: Session) -> None:
+@router.get("/launch/auto/routed/device/{device_id}/{token}", include_in_schema=False)
+def launch_routed_auto_happ_for_device(
+    device_id: int, token: str, database: Session = Depends(get_db),
+) -> RedirectResponse:
+    _require_routed_auto_access(token, database, device_id=device_id)
+    subscription_url = (
+        f"{settings.subscription_base_url.rstrip('/')}/auto/routed/device/"
+        f"{device_id}/{token}"
+    )
+    return RedirectResponse(
+        url=f"happ://add/{subscription_url}",
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+            "Referrer-Policy": "no-referrer",
+        },
+    )
+
+
+def _require_routed_auto_access(
+    token: str, database: Session, *, device_id: int | None = None,
+) -> None:
     user, tier = subscription_token_service.resolve_token_scope(database, token)
     if tier != "mobile" or not auto_route_allowed(user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
     if "mobile" not in active_entitlements(database, user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    if device_id is not None:
+        device = database.scalar(select(VpnDevice.id).where(
+            VpnDevice.id == device_id,
+            VpnDevice.user_id == user.id,
+            VpnDevice.is_active.is_(True),
+            VpnDevice.mobile_xray_uuid.is_not(None),
+            VpnDevice.mobile_xray_email.is_not(None),
+        ))
+        if device is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.get("/auto/routed/device/{device_id}/{token}", response_class=HTMLResponse)
+def connect_routed_auto_happ_for_device(
+    device_id: int, token: str, database: Session = Depends(get_db),
+):
+    _require_routed_auto_access(token, database, device_id=device_id)
+    return _connect_happ_page(token, database, routed=True, device_id=device_id)
 
 
 @router.get("/auto/routed/{token}", response_class=HTMLResponse)
@@ -143,7 +184,9 @@ def connect_happ(
     return _connect_happ_page(token, database, routed=False)
 
 
-def _connect_happ_page(token: str, database: Session, *, routed: bool):
+def _connect_happ_page(
+    token: str, database: Session, *, routed: bool, device_id: int | None = None,
+):
     user, access_tier = subscription_token_service.resolve_token_scope(
         database=database, raw_token=token,
     )
@@ -154,8 +197,10 @@ def _connect_happ_page(token: str, database: Session, *, routed: bool):
         )
 
     launch_url = (
-        f"/connect/happ/launch/auto/routed/{token}"
-        if routed else f"/connect/happ/launch/{token}"
+        f"/connect/happ/launch/auto/routed/device/{device_id}/{token}"
+        if device_id is not None else
+        f"/connect/happ/launch/auto/routed/{token}" if routed else
+        f"/connect/happ/launch/{token}"
     )
 
     safe_launch_url = escape(

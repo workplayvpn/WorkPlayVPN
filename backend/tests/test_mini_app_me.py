@@ -104,6 +104,7 @@ def test_me_creates_user_from_signed_telegram_data() -> None:
         "subscription": None,
         "subscriptions": [],
         "connect_urls": {},
+        "auto_connect_urls": {},
         "devices": {
             "active_count": 0,
             "total_limit": 0,

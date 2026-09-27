@@ -207,6 +207,7 @@ def get_me(
         )
     total_device_limit = shared_device_limit(entitlements, user.extra_device_slots)
     connect_urls: dict[str, str] = {}
+    auto_connect_urls: dict[str, str] = {}
     if entitlements:
         token_record, basic_token = subscription_token_service.get_or_create_token(
             database=database, telegram_id=user.telegram_id,
@@ -216,14 +217,19 @@ def get_me(
                    subscription_token_service.scoped_token(token_record, tier))
             connect_urls[tier] = f"{settings.connect_base_url.rstrip('/')}/{raw}"
             if tier == "mobile" and auto_route_allowed(user.id):
-                first_device = database.scalar(
+                ready_devices = database.scalars(
                     select(VpnDevice).where(
                         VpnDevice.user_id == user.id,
                         VpnDevice.is_active.is_(True),
-                    ).order_by(VpnDevice.id.asc()).limit(1)
-                )
-                if (first_device is not None and first_device.mobile_xray_uuid
-                        and first_device.mobile_xray_email):
+                    ).order_by(VpnDevice.id.asc())
+                ).all()
+                for device in ready_devices:
+                    if device.mobile_xray_uuid and device.mobile_xray_email:
+                        auto_connect_urls[str(device.id)] = (
+                            f"{settings.connect_base_url.rstrip('/')}/auto/routed/device/"
+                            f"{device.id}/{raw}"
+                        )
+                if ready_devices and str(ready_devices[0].id) in auto_connect_urls:
                     connect_urls["mobile_auto_ru"] = (
                         f"{settings.connect_base_url.rstrip('/')}/auto/routed/{raw}"
                     )
@@ -263,6 +269,7 @@ def get_me(
         subscription=subscription_read,
         subscriptions=subscriptions_read,
         connect_urls=connect_urls,
+        auto_connect_urls=auto_connect_urls,
         devices=MiniAppDeviceSummaryRead(
             active_count=active_device_count or 0,
             total_limit=total_device_limit,

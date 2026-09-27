@@ -40,6 +40,13 @@ and a provisioned first active device. The separate connection page opens
 use the new connection page or its launch redirect. The ordinary Mobile link
 and the manual pilot feed stay available.
 
+The Devices view also offers a separate Auto link for each provisioned active
+device: `/sub/auto/routed/device/{device-id}/{mobile-token}`. The server checks
+the pilot ID, Mobile entitlement, and device ownership/activity on every feed
+refresh. Each generated profile uses that device's own Direct and CDN UUIDs.
+The earlier unscoped pilot URL remains assigned to the first active device so
+already imported subscriptions continue to update.
+
 ## Enable and inspect the pilot
 
 1. Deploy only after the local automated suite passes. On the server, add

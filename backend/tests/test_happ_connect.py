@@ -278,12 +278,17 @@ def test_auto_ru_connect_page_and_launch_keep_pilot_gate(monkeypatch) -> None:
         mobile = subscription_token_service.scoped_token(record, "mobile")
         page = f"/connect/happ/auto/routed/{mobile}"
         launch = f"/connect/happ/launch/auto/routed/{mobile}"
+        device_page = f"/connect/happ/auto/routed/device/99/{mobile}"
+        device_launch = f"/connect/happ/launch/auto/routed/device/99/{mobile}"
 
         monkeypatch.setattr(settings, "happ_auto_route_user_ids", "")
         assert client.get(page).status_code == 404
         assert client.get(launch, follow_redirects=False).status_code == 404
+        assert client.get(device_page).status_code == 404
+        assert client.get(device_launch, follow_redirects=False).status_code == 404
         monkeypatch.setattr(settings, "happ_auto_route_user_ids", str(user.id))
         assert client.get(f"/connect/happ/auto/routed/{basic}").status_code == 404
+        assert client.get(device_page.replace(mobile, basic)).status_code == 404
         assert client.get(page).status_code == 200
         assert launch in client.get(page).text
         response = client.get(launch, follow_redirects=False)

@@ -854,6 +854,14 @@ h2 {
   font-weight: 650;
 }
 
+.device-info .device-auto-link {
+  margin-top: 9px;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 12px;
+  text-align: center;
+}
+
 .delete-button {
   display: inline-flex;
   min-height: 36px;

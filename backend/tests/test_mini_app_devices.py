@@ -2,13 +2,14 @@ import hashlib
 import hmac
 import json
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
 from app.core.config import settings
+from app.api import happ_auto_route as auto_route_api
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.location import Location
@@ -161,24 +162,92 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
         device_id = device.id
 
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", "")
-    urls = client.get("/mini-app/me", headers=headers).json()["connect_urls"]
+    profile = client.get("/mini-app/me", headers=headers).json()
+    urls = profile["connect_urls"]
     assert "mobile" in urls and "mobile_auto_ru" not in urls
+    assert profile["auto_connect_urls"] == {}
 
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", str(user_id))
-    urls = client.get("/mini-app/me", headers=headers).json()["connect_urls"]
+    profile = client.get("/mini-app/me", headers=headers).json()
+    urls = profile["connect_urls"]
     assert "mobile_auto_ru" not in urls
+    assert profile["auto_connect_urls"] == {}
 
     with SessionLocal() as database:
         device = database.get(VpnDevice, device_id)
         device.mobile_xray_uuid = "33333333-4444-4555-8666-777777777777"
         device.mobile_xray_email = "mobile_auto-test@workplayvpn"
+        second = VpnDevice(
+            user_id=user_id, node_id=device.node_id, device_name="Second",
+            xray_uuid="44444444-5555-4666-8777-888888888888",
+            xray_email="auto-test-2@workplayvpn", is_active=True,
+            mobile_xray_uuid="55555555-6666-4777-8888-999999999999",
+            mobile_xray_email="mobile_auto-test-2@workplayvpn",
+        )
+        database.add(second)
         database.commit()
+        second_id = second.id
 
-    urls = client.get("/mini-app/me", headers=headers).json()["connect_urls"]
+    profile = client.get("/mini-app/me", headers=headers).json()
+    urls = profile["connect_urls"]
     assert urls["mobile_auto_ru"].startswith(
         f"{settings.connect_base_url.rstrip('/')}/auto/routed/"
     )
     assert ".mobile." in urls["mobile_auto_ru"]
+    auto_urls = profile["auto_connect_urls"]
+    assert set(auto_urls) == {str(device_id), str(second_id)}
+    assert f"/device/{device_id}/" in auto_urls[str(device_id)]
+    assert f"/device/{second_id}/" in auto_urls[str(second_id)]
+    assert auto_urls[str(device_id)] != auto_urls[str(second_id)]
+
+    def build_links(*, device, **kwargs):
+        return [
+            f"vless://{device.xray_uuid}@direct.example:443?" + urlencode({
+                "type": "tcp", "security": "reality", "sni": "cover.example",
+                "pbk": "public-key", "fp": "chrome",
+            }),
+            f"vless://{device.mobile_xray_uuid}@cdn.example:443?" + urlencode({
+                "type": "xhttp", "security": "tls", "sni": "cdn.example",
+                "path": "/relay/",
+            }),
+        ]
+
+    monkeypatch.setattr(
+        auto_route_api.vpn_node_profile_service,
+        "get_active_profiles_for_nodes", lambda **kwargs: ["ready"],
+    )
+    monkeypatch.setattr(auto_route_api.subscription_builder, "build", build_links)
+    for item_id, direct_uuid, mobile_uuid in (
+        (device_id, DEVICE_UUID, "33333333-4444-4555-8666-777777777777"),
+        (second_id, "44444444-5555-4666-8777-888888888888",
+         "55555555-6666-4777-8888-999999999999"),
+    ):
+        page = urlsplit(auto_urls[str(item_id)]).path
+        assert client.get(page).status_code == 200
+        response = client.get(page.replace("/connect/happ/", "/sub/"))
+        assert response.status_code == 200
+        assert response.headers["profile-title"] == (
+            f"Work&PlayVPN Auto RU - WP-{item_id:06d}"
+        )
+        config = response.json()[0]
+        assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["id"] == direct_uuid
+        assert config["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == mobile_uuid
+        assert config["remarks"] == f"Work&PlayVPN Auto RU · WP-{item_id:06d}"
+
+    unknown_page = urlsplit(auto_urls[str(device_id)]).path.replace(
+        f"/device/{device_id}/", "/device/999999/",
+    )
+    assert client.get(unknown_page).status_code == 404
+    assert client.get(unknown_page.replace("/connect/happ/", "/sub/")).status_code == 404
+
+    with SessionLocal() as database:
+        database.get(VpnDevice, second_id).is_active = False
+        database.commit()
+    profile = client.get("/mini-app/me", headers=headers).json()
+    assert set(profile["auto_connect_urls"]) == {str(device_id)}
+    removed_page = urlsplit(auto_urls[str(second_id)]).path
+    assert client.get(removed_page).status_code == 404
+    assert client.get(removed_page.replace("/connect/happ/", "/sub/")).status_code == 404
 
 
 def test_activation_rejects_location_without_active_node() -> None:

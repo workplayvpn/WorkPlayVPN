@@ -575,6 +575,14 @@ function renderDevices() {
     node.textContent = `Регион: ${device.node_name}`;
 
     info.append(name, identifier, node);
+    const autoUrl = state.me.auto_connect_urls?.[device.id];
+    if (autoUrl) {
+      const autoLink = document.createElement("a");
+      autoLink.className = "button button-secondary device-auto-link";
+      autoLink.href = autoUrl;
+      autoLink.textContent = "Подключить Auto на этом устройстве";
+      info.append(autoLink);
+    }
 
     const removeButton = document.createElement("button");
     removeButton.className = "delete-button";

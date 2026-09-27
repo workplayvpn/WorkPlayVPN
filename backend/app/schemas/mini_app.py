@@ -41,6 +41,7 @@ class MiniAppMeRead(BaseModel):
     trial_available: bool
     subscriptions: list[MiniAppSubscriptionRead] = Field(default_factory=list)
     connect_urls: dict[str, str] = Field(default_factory=dict)
+    auto_connect_urls: dict[str, str] = Field(default_factory=dict)
 
 
 class MiniAppPlanRead(BaseModel):
