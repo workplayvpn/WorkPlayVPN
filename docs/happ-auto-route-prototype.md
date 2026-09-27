@@ -46,6 +46,24 @@ replace the working Mobile feed or roll this out beyond the pilot yet.
 To close the endpoint, clear `HAPP_AUTO_ROUTE_USER_IDS` and recreate the
 backend. Existing Basic and Mobile URLs are unaffected.
 
+## Isolated CDN fallback check
+
+The temporary `/sub/auto/failover/{mobile-token}` endpoint is available only
+to the same pilot user. It changes the Direct destination *inside the issued
+client JSON* to `127.0.0.1:1` and labels the profile `WorkPlayVPN CDN fallback
+test`. It does not change the real Direct node, its credentials, or any other
+user's subscription. The CDN outbound and the balancer remain unchanged.
+
+Import this as a separate subscription by inserting `/failover` after
+`/sub/auto` in the existing pilot URL. Keep the working `Mobile Auto` profile.
+After the probe has had time to mark Direct unhealthy, open a small web page.
+If it loads, the only reachable outbound in this JSON is the CDN. If it does
+not load, return to the working profile and inspect the pilot config before
+doing any further tests. This proves fallback under forced failure, not
+real-world performance or recovery on a restricted mobile network. Do not
+stream video or perform large downloads during this CDN test. Remove this
+temporary test subscription after the check.
+
 Do not print, commit, or paste generated JSON: it contains both device UUIDs,
 the CDN address, and its private path.
 
