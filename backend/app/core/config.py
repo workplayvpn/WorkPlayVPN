@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     happ_mobile_profile_user_ids: str = ""
     happ_smart_routing_user_ids: str = ""
     mobile_pilot_user_ids: str = ""
+    happ_mobile_network_hint_user_ids: str = ""
 
 
 settings = Settings()

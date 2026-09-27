@@ -15,6 +15,7 @@ from app.models.vpn_node import VpnNode
 from app.services.happ_smart_routing import (
     build_happ_smart_routing_link,
 )
+from app.services.happ_network_candidates import network_candidates
 from app.services.subscription_builder import (
     subscription_builder,
 )
@@ -271,6 +272,17 @@ def get_subscription_feed(
         profiles=profiles,
         include_happ_mobile=mobile_entitled,
     )
+
+    if mobile_entitled and should_enable_happ_feature(
+        client=client,
+        user_id=user.id,
+        configured_user_ids=settings.happ_mobile_network_hint_user_ids,
+    ):
+        links = network_candidates(
+            links,
+            direct_uuid=source_device.xray_uuid,
+            mobile_uuid=source_device.mobile_xray_uuid,
+        )
 
     routing_link = None
 
