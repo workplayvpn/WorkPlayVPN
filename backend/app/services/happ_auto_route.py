@@ -5,7 +5,6 @@ iOS JSON import and reconnect behaviour need a device test first.
 """
 
 import json
-from copy import deepcopy
 from urllib.parse import parse_qs, urlsplit
 from uuid import UUID
 
@@ -104,17 +103,3 @@ def build_auto_route_config(direct_link: str, cdn_link: str) -> list[dict]:
             }],
         },
     }]
-
-
-def build_network_display_configs(direct_link: str, cdn_link: str) -> list[dict]:
-    """Two UI labels with the same Direct-first policy in each JSON config.
-
-    Happ may filter entries named 'only WiFi' / 'only Mobile' in Premium
-    subscriptions. Filtering is visual; both configs work on either network.
-    """
-    original = build_auto_route_config(direct_link, cdn_link)[0]
-    wifi = deepcopy(original)
-    mobile = deepcopy(original)
-    wifi["remarks"] = "🇳🇱 Нидерланды — Wi-Fi only WiFi"
-    mobile["remarks"] = "🇳🇱 Нидерланды — Mobile only Mobile"
-    return [wifi, mobile]

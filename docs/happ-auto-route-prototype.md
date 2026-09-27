@@ -8,15 +8,6 @@ endpoint is unavailable to everyone. It accepts only an exact comma-separated
 list of internal user IDs; `*` is deliberately unsupported. The caller must
 also hold a valid Mobile-scoped token and an active Mobile subscription.
 
-A separate appearance experiment, `/sub/auto/network/{mobile-token}`, issues
-two JSON entries named `🇳🇱 Нидерланды — Wi-Fi only WiFi` and
-`🇳🇱 Нидерланды — Mobile only Mobile`. Both contain exactly the same Direct-first
-fallback policy and work on either network. Happ documents automatic *list*
-filtering for `only WiFi` and `only Mobile` names in Premium subscriptions.
-Test this with the actual iOS build: the visible list changing does not prove
-that the already running tunnel was reselected. Keep `/sub/auto/{mobile-token}`
-as the working one-entry pilot during this appearance test.
-
 The generated Xray balancer observes only `vpn-direct`. It selects Direct when
 the local probe marks it healthy and `vpn-cdn` as the fallback for new
 connections. The probe is issued on the client device over Direct; the backend

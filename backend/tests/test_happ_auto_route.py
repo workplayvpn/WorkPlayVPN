@@ -2,10 +2,7 @@ from urllib.parse import urlencode
 
 import pytest
 
-from app.services.happ_auto_route import (
-    build_auto_route_config,
-    build_network_display_configs,
-)
+from app.services.happ_auto_route import build_auto_route_config
 
 
 DIRECT = "11111111-2222-4333-8444-555555555555"
@@ -55,19 +52,3 @@ def test_rejects_wrong_endpoint_instead_of_misrouting_traffic() -> None:
         build_auto_route_config(direct.replace("reality", "tls"), cdn)
     with pytest.raises(ValueError):
         build_auto_route_config(direct, cdn.replace("xhttp", "ws"))
-
-
-def test_network_display_labels_do_not_change_route_policy() -> None:
-    direct, cdn = links()
-    entries = build_network_display_configs(direct, cdn)
-    assert len(entries) == 2
-    assert "Wi-Fi only WiFi" in entries[0]["remarks"]
-    assert "Mobile only Mobile" in entries[1]["remarks"]
-    assert entries[0]["remarks"].startswith("🇳🇱")
-    assert entries[1]["remarks"].startswith("🇳🇱")
-    for entry in entries:
-        assert entry["observatory"]["subjectSelector"] == ["vpn-direct"]
-        assert entry["routing"]["balancers"][0]["fallbackTag"] == "vpn-cdn"
-    assert entries[0]["outbounds"] == entries[1]["outbounds"]
-    entries[0]["outbounds"][0]["tag"] = "mutated"
-    assert entries[1]["outbounds"][0]["tag"] == "vpn-direct"
