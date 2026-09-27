@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import pytest
@@ -12,6 +12,8 @@ from app.core.config import settings
 from app.db.session import SessionLocal
 from app.main import app
 from app.models.location import Location
+from app.models.plan import Plan
+from app.models.subscription import Subscription
 from app.models.user import User
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
@@ -133,6 +135,50 @@ def test_device_routes_require_telegram_credentials() -> None:
     assert client.delete(
         "/mini-app/devices/1"
     ).status_code == 401
+
+
+def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) -> None:
+    headers = {"X-Telegram-Init-Data": build_init_data()}
+    assert client.get("/mini-app/me", headers=headers).status_code == 200
+    with SessionLocal() as database:
+        user = database.scalar(select(User).where(User.telegram_id == TELEGRAM_ID))
+        node = database.scalar(select(VpnNode).where(VpnNode.code == NODE_CODE))
+        plan = database.scalar(select(Plan).where(Plan.code == "mobile_1m"))
+        assert user and node and plan
+        now = datetime.now(UTC)
+        database.add(Subscription(
+            user_id=user.id, plan_id=plan.id, status="active",
+            starts_at=now, expires_at=now + timedelta(days=30),
+        ))
+        device = VpnDevice(
+            user_id=user.id, node_id=node.id, device_name="Pilot",
+            xray_uuid=DEVICE_UUID, xray_email="auto-test@workplayvpn",
+            is_active=True,
+        )
+        database.add(device)
+        database.commit()
+        user_id = user.id
+        device_id = device.id
+
+    monkeypatch.setattr(settings, "happ_auto_route_user_ids", "")
+    urls = client.get("/mini-app/me", headers=headers).json()["connect_urls"]
+    assert "mobile" in urls and "mobile_auto_ru" not in urls
+
+    monkeypatch.setattr(settings, "happ_auto_route_user_ids", str(user_id))
+    urls = client.get("/mini-app/me", headers=headers).json()["connect_urls"]
+    assert "mobile_auto_ru" not in urls
+
+    with SessionLocal() as database:
+        device = database.get(VpnDevice, device_id)
+        device.mobile_xray_uuid = "33333333-4444-4555-8666-777777777777"
+        device.mobile_xray_email = "mobile_auto-test@workplayvpn"
+        database.commit()
+
+    urls = client.get("/mini-app/me", headers=headers).json()["connect_urls"]
+    assert urls["mobile_auto_ru"].startswith(
+        f"{settings.connect_base_url.rstrip('/')}/auto/routed/"
+    )
+    assert ".mobile." in urls["mobile_auto_ru"]
 
 
 def test_activation_rejects_location_without_active_node() -> None:

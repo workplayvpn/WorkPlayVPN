@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.api.happ_auto_route import auto_route_allowed
 from app.services.entitlements import active_entitlements
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
@@ -94,6 +95,43 @@ def launch_happ(
     )
 
 
+@router.get("/launch/auto/routed/{token}", include_in_schema=False)
+def launch_routed_auto_happ(
+    token: str,
+    database: Session = Depends(get_db),
+) -> RedirectResponse:
+    _require_routed_auto_access(token, database)
+    subscription_url = (
+        f"{settings.subscription_base_url.rstrip('/')}/auto/routed/{token}"
+    )
+    return RedirectResponse(
+        url=f"happ://add/{subscription_url}",
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={
+            "Cache-Control": "no-store",
+            "Pragma": "no-cache",
+            "Referrer-Policy": "no-referrer",
+        },
+    )
+
+
+def _require_routed_auto_access(token: str, database: Session) -> None:
+    user, tier = subscription_token_service.resolve_token_scope(database, token)
+    if tier != "mobile" or not auto_route_allowed(user.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if "mobile" not in active_entitlements(database, user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+
+@router.get("/auto/routed/{token}", response_class=HTMLResponse)
+def connect_routed_auto_happ(
+    token: str,
+    database: Session = Depends(get_db),
+):
+    _require_routed_auto_access(token, database)
+    return _connect_happ_page(token, database, routed=True)
+
+
 @router.get(
     "/{token}",
     response_class=HTMLResponse,
@@ -102,6 +140,10 @@ def connect_happ(
     token: str,
     database: Session = Depends(get_db),
 ):
+    return _connect_happ_page(token, database, routed=False)
+
+
+def _connect_happ_page(token: str, database: Session, *, routed: bool):
     user, access_tier = subscription_token_service.resolve_token_scope(
         database=database, raw_token=token,
     )
@@ -112,7 +154,8 @@ def connect_happ(
         )
 
     launch_url = (
-        f"/connect/happ/launch/{token}"
+        f"/connect/happ/launch/auto/routed/{token}"
+        if routed else f"/connect/happ/launch/{token}"
     )
 
     safe_launch_url = escape(

@@ -33,6 +33,13 @@ verify domestic sites use the local address and foreign sites use the VPN on
 both Wi-Fi and LTE. If import, DNS, or domestic bypass fails, return to the
 working pilot. Do not open the new URL to other users before device testing.
 
+Mini App offers the routed Auto pilot alongside the ordinary Mobile link only
+to an ID listed in `HAPP_AUTO_ROUTE_USER_IDS` with an active Mobile subscription
+and a provisioned first active device. The separate connection page opens
+`/sub/auto/routed/{mobile-token}` in Happ. Other users and Basic tokens cannot
+use the new connection page or its launch redirect. The ordinary Mobile link
+and the manual pilot feed stay available.
+
 ## Enable and inspect the pilot
 
 1. Deploy only after the local automated suite passes. On the server, add

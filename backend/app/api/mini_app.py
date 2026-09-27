@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.api.device_activations import build_activation_url
+from app.api.happ_auto_route import auto_route_allowed
 from app.api.telegram_webapp_auth import (
     require_telegram_webapp_auth,
 )
@@ -214,6 +215,18 @@ def get_me(
             raw = (basic_token if tier == "basic" else
                    subscription_token_service.scoped_token(token_record, tier))
             connect_urls[tier] = f"{settings.connect_base_url.rstrip('/')}/{raw}"
+            if tier == "mobile" and auto_route_allowed(user.id):
+                first_device = database.scalar(
+                    select(VpnDevice).where(
+                        VpnDevice.user_id == user.id,
+                        VpnDevice.is_active.is_(True),
+                    ).order_by(VpnDevice.id.asc()).limit(1)
+                )
+                if (first_device is not None and first_device.mobile_xray_uuid
+                        and first_device.mobile_xray_email):
+                    connect_urls["mobile_auto_ru"] = (
+                        f"{settings.connect_base_url.rstrip('/')}/auto/routed/{raw}"
+                    )
 
     active_device_count = database.scalar(
         select(func.count(VpnDevice.id)).where(

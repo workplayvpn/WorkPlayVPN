@@ -256,3 +256,41 @@ def test_happ_connect_requires_active_subscription() -> None:
     finally:
         database.rollback()
         database.close()
+
+
+def test_auto_ru_connect_page_and_launch_keep_pilot_gate(monkeypatch) -> None:
+    database = SessionLocal()
+    try:
+        user = User(telegram_id=996000001, first_name="Pilot", is_active=True)
+        database.add(user)
+        database.flush()
+        plan = database.scalar(select(Plan).where(Plan.code == "mobile_1m"))
+        assert plan is not None
+        now = datetime.now(UTC)
+        database.add(Subscription(
+            user_id=user.id, plan_id=plan.id, status="active",
+            starts_at=now, expires_at=now + timedelta(days=30),
+        ))
+        database.commit()
+        record, basic = subscription_token_service.get_or_create_token(
+            database=database, telegram_id=user.telegram_id,
+        )
+        mobile = subscription_token_service.scoped_token(record, "mobile")
+        page = f"/connect/happ/auto/routed/{mobile}"
+        launch = f"/connect/happ/launch/auto/routed/{mobile}"
+
+        monkeypatch.setattr(settings, "happ_auto_route_user_ids", "")
+        assert client.get(page).status_code == 404
+        assert client.get(launch, follow_redirects=False).status_code == 404
+        monkeypatch.setattr(settings, "happ_auto_route_user_ids", str(user.id))
+        assert client.get(f"/connect/happ/auto/routed/{basic}").status_code == 404
+        assert client.get(page).status_code == 200
+        assert launch in client.get(page).text
+        response = client.get(launch, follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == (
+            f"happ://add/{settings.subscription_base_url.rstrip('/')}/auto/routed/{mobile}"
+        )
+        assert response.headers["cache-control"] == "no-store"
+    finally:
+        database.close()
