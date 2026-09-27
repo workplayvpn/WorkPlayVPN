@@ -2,7 +2,11 @@ from urllib.parse import urlencode
 
 import pytest
 
-from app.services.happ_auto_route import build_auto_route_config
+from app.services.happ_auto_route import (
+    build_auto_route_config,
+    build_routed_auto_config,
+)
+from app.services.happ_smart_routing import HAPP_SMART_ROUTING_PROFILE
 
 
 DIRECT = "11111111-2222-4333-8444-555555555555"
@@ -52,3 +56,20 @@ def test_rejects_wrong_endpoint_instead_of_misrouting_traffic() -> None:
         build_auto_route_config(direct.replace("reality", "tls"), cdn)
     with pytest.raises(ValueError):
         build_auto_route_config(direct, cdn.replace("xhttp", "ws"))
+
+
+def test_routed_canary_keeps_failover_and_bypasses_ru() -> None:
+    direct, cdn = links()
+    normal = build_auto_route_config(direct, cdn)[0]
+    routed = build_routed_auto_config(direct, cdn)[0]
+    assert routed["outbounds"][:2] == normal["outbounds"]
+    assert routed["outbounds"][2]["tag"] == "ru-direct"
+    assert routed["routing"]["rules"][:2] == [
+        {"type": "field", "domain": HAPP_SMART_ROUTING_PROFILE["DirectSites"],
+         "outboundTag": "ru-direct"},
+        {"type": "field", "ip": HAPP_SMART_ROUTING_PROFILE["DirectIp"],
+         "outboundTag": "ru-direct"},
+    ]
+    assert routed["routing"]["rules"][2] == normal["routing"]["rules"][0]
+    assert routed["routing"]["balancers"] == normal["routing"]["balancers"]
+    assert routed["dns"]["servers"][0]["address"] == "77.88.8.8"

@@ -12,7 +12,10 @@ from app.db.dependencies import get_db
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.entitlements import active_entitlements
-from app.services.happ_auto_route import build_auto_route_config
+from app.services.happ_auto_route import (
+    build_auto_route_config,
+    build_routed_auto_config,
+)
 from app.services.subscription_builder import subscription_builder
 from app.services.subscription_token_service import subscription_token_service
 from app.services.vpn_node_profile_service import vpn_node_profile_service
@@ -34,6 +37,18 @@ def get_auto_route(
     token: str,
     database: Annotated[Session, Depends(get_db)],
 ) -> JSONResponse:
+    return _build_response(token, database, routed=False)
+
+
+@router.get("/routed/{token}")
+def get_routed_auto_route(
+    token: str,
+    database: Annotated[Session, Depends(get_db)],
+) -> JSONResponse:
+    return _build_response(token, database, routed=True)
+
+
+def _build_response(token: str, database: Session, *, routed: bool) -> JSONResponse:
     user, tier = subscription_token_service.resolve_token_scope(database, token)
     if tier != "mobile" or not auto_route_allowed(user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -68,7 +83,8 @@ def get_auto_route(
     if len(links) != 2:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
     try:
-        config = build_auto_route_config(*links)
+        builder = build_routed_auto_config if routed else build_auto_route_config
+        config = builder(*links)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -81,7 +97,8 @@ def get_auto_route(
             "Cache-Control": "no-store",
             "Pragma": "no-cache",
             "X-Content-Type-Options": "nosniff",
-            "profile-title": "WorkPlayVPN Mobile Auto (pilot)",
+            "profile-title": ("WorkPlayVPN Auto RU" if routed
+                              else "WorkPlayVPN Mobile Auto (pilot)"),
             "profile-update-interval": "3",
         },
     )

@@ -8,6 +8,8 @@ import json
 from urllib.parse import parse_qs, urlsplit
 from uuid import UUID
 
+from app.services.happ_smart_routing import HAPP_SMART_ROUTING_PROFILE
+
 
 def _parse(link: str, *, transport: str, security: str) -> tuple:
     parts = urlsplit(link)
@@ -103,3 +105,31 @@ def build_auto_route_config(direct_link: str, cdn_link: str) -> list[dict]:
             }],
         },
     }]
+
+
+def build_routed_auto_config(direct_link: str, cdn_link: str) -> list[dict]:
+    """Separate canary: reproduce the current RU bypass in the JSON core."""
+    config = build_auto_route_config(direct_link, cdn_link)
+    entry = config[0]
+    policy = HAPP_SMART_ROUTING_PROFILE
+    entry["remarks"] = "WorkPlayVPN Auto + RU routing — pilot"
+    entry["outbounds"].append({
+        "tag": "ru-direct", "protocol": "freedom",
+        "settings": {"domainStrategy": "UseIP"},
+    })
+    entry["dns"] = {
+        "hosts": policy["DnsHosts"],
+        "servers": [
+            {"address": policy["DomesticDNSIP"],
+             "domains": policy["DirectSites"], "skipFallback": True},
+            policy["RemoteDNSDomain"],
+        ],
+    }
+    entry["routing"]["domainStrategy"] = policy["DomainStrategy"]
+    entry["routing"]["rules"][:0] = [
+        {"type": "field", "domain": policy["DirectSites"],
+         "outboundTag": "ru-direct"},
+        {"type": "field", "ip": policy["DirectIp"],
+         "outboundTag": "ru-direct"},
+    ]
+    return config
