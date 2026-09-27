@@ -64,6 +64,8 @@ def test_routed_canary_keeps_failover_and_bypasses_ru() -> None:
     routed = build_routed_auto_config(direct, cdn)[0]
     assert routed["outbounds"][:2] == normal["outbounds"]
     assert routed["outbounds"][2]["tag"] == "ru-direct"
+    assert routed["outbounds"][2]["streamSettings"]["sockopt"]["domainStrategy"] == "UseIP"
+    assert "settings" not in routed["outbounds"][2]
     assert routed["routing"]["rules"][:2] == [
         {"type": "field", "domain": HAPP_SMART_ROUTING_PROFILE["DirectSites"],
          "outboundTag": "ru-direct"},

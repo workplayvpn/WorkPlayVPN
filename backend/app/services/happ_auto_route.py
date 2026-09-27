@@ -115,7 +115,7 @@ def build_routed_auto_config(direct_link: str, cdn_link: str) -> list[dict]:
     entry["remarks"] = "WorkPlayVPN Auto + RU routing — pilot"
     entry["outbounds"].append({
         "tag": "ru-direct", "protocol": "freedom",
-        "settings": {"domainStrategy": "UseIP"},
+        "streamSettings": {"sockopt": {"domainStrategy": "UseIP"}},
     })
     entry["dns"] = {
         "hosts": policy["DnsHosts"],
