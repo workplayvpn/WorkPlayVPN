@@ -7,18 +7,23 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260928-3">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260928-4">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20260928-3" defer></script>
+  <script src="/app/assets/app.js?v=20260928-4" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
   <div class="ambient ambient-two" aria-hidden="true"></div>
 
-  <div id="loading-screen" class="state-screen">
-    <div class="loader-mark" aria-hidden="true">W</div>
-    <p>Загружаем Work&amp;PlayVPN</p>
-    <span class="loader"></span>
+  <div id="loading-screen" class="state-screen splash-screen" role="status" aria-live="polite">
+    <div class="splash-glow" aria-hidden="true"></div>
+    <div class="splash-content">
+      <div class="loader-mark" aria-hidden="true">W</div>
+      <h1>Work&amp;PlayVPN</h1>
+      <p>Безопасное подключение</p>
+      <div class="splash-progress" aria-hidden="true"><span></span></div>
+      <span class="splash-caption">Загружаем личный кабинет…</span>
+    </div>
   </div>
 
   <div id="error-screen" class="state-screen hidden">

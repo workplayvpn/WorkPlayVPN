@@ -890,6 +890,9 @@ async function loadData() {
     renderAll();
     elements.loading.classList.add("hidden");
     elements.error.classList.add("hidden");
+    if (!state.initialViewApplied) {
+      elements.app.classList.add("app-intro");
+    }
     elements.app.classList.remove("hidden");
 
     if (!state.initialViewApplied) {
