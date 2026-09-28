@@ -54,3 +54,24 @@ billing, which may include additional HTTP transport bytes.
 The database at `/var/lib/workplayvpn/mobile-usage.sqlite` is private to
 root. Include it in server backups. For displayed traffic in Happ, create a
 backend sync endpoint and enforce ownership before exposing any user totals.
+
+## Private device reconciliation (administrator only)
+
+After the backend is rebuilt with `app.cli.mobile_usage_report`, obtain the
+`--daily` text on the NL node. Paste its header and rows as standard input to
+this command on the FRA server (from the project root):
+
+```sh
+docker compose exec -T backend python -m app.cli.mobile_usage_report <<'REPORT'
+UTC_DATE MOBILE_KEY_ID UPLINK_BYTES DOWNLINK_BYTES
+REPORT
+```
+
+Replace the example input with the actual report. The command reads the
+current `vpn_devices` table and prints UTC day, `WP-` device ID, internal user
+ID, and counted bytes. It performs no database writes, and there is no public
+endpoint. Run it only in an administrator's terminal; its output identifies
+customers. `UNMATCHED` can mean a removed or rotated credential. Never guess
+the device for an unmatched row. The daily counts reflect node counters, not
+the CDN provider's billed bytes. This is an operator report, not a user-facing
+quota or cost limit.
