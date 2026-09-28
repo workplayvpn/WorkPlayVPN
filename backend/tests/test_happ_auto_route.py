@@ -63,7 +63,7 @@ def test_routed_canary_keeps_failover_and_bypasses_ru() -> None:
     direct, cdn = links()
     normal = build_auto_route_config(direct, cdn)[0]
     routed = build_routed_auto_config(direct, cdn)[0]
-    assert routed["remarks"] == "Work&PlayVPN Auto + RU routing — pilot"
+    assert routed["remarks"] == "🇳🇱 Нидерланды"
     assert routed["outbounds"][:2] == normal["outbounds"]
     assert routed["outbounds"][2]["tag"] == "ru-direct"
     assert routed["outbounds"][2]["streamSettings"]["sockopt"]["domainStrategy"] == "UseIP"

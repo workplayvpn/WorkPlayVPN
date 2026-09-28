@@ -1,7 +1,6 @@
-"""Build an isolated Xray JSON canary with Direct preferred over CDN.
+"""Build one Xray JSON entry with Direct preferred over CDN.
 
-This module is deliberately not wired into the existing Mobile feed. Happ's
-iOS JSON import and reconnect behaviour need a device test first.
+The existing Mobile URL uses this entry only for explicitly enabled pilot IDs.
 """
 
 import json
@@ -112,7 +111,7 @@ def build_routed_auto_config(direct_link: str, cdn_link: str) -> list[dict]:
     config = build_auto_route_config(direct_link, cdn_link)
     entry = config[0]
     policy = HAPP_SMART_ROUTING_PROFILE
-    entry["remarks"] = "Work&PlayVPN Auto + RU routing — pilot"
+    entry["remarks"] = "🇳🇱 Нидерланды"
     entry["outbounds"].append({
         "tag": "ru-direct", "protocol": "freedom",
         "streamSettings": {"sockopt": {"domainStrategy": "UseIP"}},

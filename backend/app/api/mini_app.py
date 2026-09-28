@@ -229,10 +229,8 @@ def get_me(
                             f"{settings.connect_base_url.rstrip('/')}/auto/routed/device/"
                             f"{device.id}/{raw}"
                         )
-                if ready_devices and str(ready_devices[0].id) in auto_connect_urls:
-                    connect_urls["mobile_auto_ru"] = (
-                        f"{settings.connect_base_url.rstrip('/')}/auto/routed/{raw}"
-                    )
+                if auto_connect_urls:
+                    connect_urls["mobile"] = next(iter(auto_connect_urls.values()))
 
     active_device_count = database.scalar(
         select(func.count(VpnDevice.id)).where(
@@ -577,7 +575,18 @@ def create_device(
         subscription_token_service.scoped_token(token_record, "mobile")
         if "mobile" in entitlements else None
     )
-    raw_token = basic_token if "basic" in entitlements else mobile_token
+    mobile_url = (
+        f"{settings.connect_base_url.rstrip('/')}/auto/routed/device/"
+        f"{device.id}/{mobile_token}"
+        if mobile_token and auto_route_allowed(user.id)
+        and device.mobile_xray_uuid and device.mobile_xray_email
+        else f"{settings.connect_base_url.rstrip('/')}/{mobile_token}"
+        if mobile_token else None
+    )
+    connect_url = (
+        f"{settings.connect_base_url.rstrip('/')}/{basic_token}"
+        if "basic" in entitlements else mobile_url
+    )
 
     device_read = build_mini_app_device(
         database=database,
@@ -586,11 +595,8 @@ def create_device(
 
     return MiniAppDeviceCreateRead(
         **device_read.model_dump(),
-        connect_url=f"{settings.connect_base_url.rstrip('/')}/{raw_token}",
-        mobile_connect_url=(
-            f"{settings.connect_base_url.rstrip('/')}/{mobile_token}"
-            if mobile_token else None
-        ),
+        connect_url=connect_url,
+        mobile_connect_url=mobile_url,
     )
 
 

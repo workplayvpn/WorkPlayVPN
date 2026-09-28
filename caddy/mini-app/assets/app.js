@@ -317,24 +317,14 @@ function renderSubscription() {
     const row = document.createElement("div");
     row.className = "subscription-tier";
     const label = document.createElement("strong");
-    label.textContent = tier === "mobile" ? "Work&PlayVPN Mobile" : "Work&PlayVPN";
+    label.textContent = tier === "mobile" ? "Work&PlayVPN Mobile" : "Work&PlayVPN Basic";
     const date = document.createElement("span");
     date.textContent = `До ${formatDate(entry.expires_at)}`;
     const link = document.createElement("a");
     link.className = "button button-secondary";
     link.href = state.me.connect_urls?.[tier] || "#";
-    link.textContent = tier === "mobile" ? "Подключить Wi-Fi и Mobile" : "Подключить Work&PlayVPN";
+    link.textContent = tier === "mobile" ? "Подключить Work&PlayVPN Mobile" : "Подключить Work&PlayVPN Basic";
     row.append(label, date, link);
-    if (tier === "mobile" && state.me.connect_urls?.mobile_auto_ru) {
-      const autoLink = document.createElement("a");
-      autoLink.className = "button button-secondary";
-      autoLink.href = state.me.connect_urls.mobile_auto_ru;
-      autoLink.textContent = "Автоматический выбор VPN и Mobile · пилот";
-      row.append(autoLink);
-      const note = document.createElement("span");
-      note.textContent = "Пока доступно для первого активного устройства.";
-      row.append(note);
-    }
     elements.subscriptionProfiles.append(row);
   }
 
@@ -426,8 +416,8 @@ function renderPlans() {
     button.setAttribute("aria-pressed", String(button.dataset.planTier === state.planTier));
   });
   elements.plansTierDescription.textContent = state.planTier === "mobile"
-    ? (state.me?.connect_urls?.mobile_auto_ru
-      ? "Пилот: сначала прямой VPN, при его недоступности — CDN."
+    ? (Object.keys(state.me?.auto_connect_urls || {}).length
+      ? "Подключение для Wi-Fi и мобильной сети. Маршрут выбирается автоматически."
       : "Прямое подключение и резерв через CDN. При смене сети выберите нужный профиль в Happ.")
     : "Прямое подключение. При ограничениях мобильной сети может быть недоступно.";
   const plans = state.catalog.plans.filter(
@@ -580,7 +570,7 @@ function renderDevices() {
       const autoLink = document.createElement("a");
       autoLink.className = "button button-secondary device-auto-link";
       autoLink.href = autoUrl;
-      autoLink.textContent = "Подключить Auto на этом устройстве";
+      autoLink.textContent = "Подключить Mobile на этом устройстве";
       info.append(autoLink);
     }
 

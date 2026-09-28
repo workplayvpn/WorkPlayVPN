@@ -190,15 +190,17 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
 
     profile = client.get("/mini-app/me", headers=headers).json()
     urls = profile["connect_urls"]
-    assert urls["mobile_auto_ru"].startswith(
-        f"{settings.connect_base_url.rstrip('/')}/auto/routed/"
+    assert "mobile_auto_ru" not in urls
+    assert urls["mobile"].startswith(
+        f"{settings.connect_base_url.rstrip('/')}/auto/routed/device/"
     )
-    assert ".mobile." in urls["mobile_auto_ru"]
+    assert ".mobile." in urls["mobile"]
     auto_urls = profile["auto_connect_urls"]
     assert set(auto_urls) == {str(device_id), str(second_id)}
     assert f"/device/{device_id}/" in auto_urls[str(device_id)]
     assert f"/device/{second_id}/" in auto_urls[str(second_id)]
     assert auto_urls[str(device_id)] != auto_urls[str(second_id)]
+    assert urls["mobile"] == auto_urls[str(device_id)]
 
     def build_links(*, device, **kwargs):
         return [
@@ -226,13 +228,11 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
         assert client.get(page).status_code == 200
         response = client.get(page.replace("/connect/happ/", "/sub/"))
         assert response.status_code == 200
-        assert response.headers["profile-title"] == (
-            f"Work&PlayVPN Auto RU - WP-{item_id:06d}"
-        )
+        assert response.headers["profile-title"] == "Work&PlayVPN Mobile"
         config = response.json()[0]
         assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["id"] == direct_uuid
         assert config["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == mobile_uuid
-        assert config["remarks"] == f"Work&PlayVPN Auto RU · WP-{item_id:06d}"
+        assert config["remarks"] == f"🇳🇱 Нидерланды · WP-{item_id:06d}"
 
     unknown_page = urlsplit(auto_urls[str(device_id)]).path.replace(
         f"/device/{device_id}/", "/device/999999/",

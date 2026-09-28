@@ -16,6 +16,9 @@ from app.services.happ_smart_routing import (
     build_happ_smart_routing_link,
 )
 from app.services.happ_network_candidates import network_candidates
+from app.services.happ_subscription_info import subscription_expiry_info
+from app.services.happ_subscription_info import subscription_presentation
+from app.api.happ_auto_route import auto_route_allowed, get_routed_mobile_subscription
 from app.services.subscription_builder import (
     subscription_builder,
 )
@@ -51,7 +54,7 @@ router = APIRouter(
 
 
 HAPP_SUBSCRIPTION_HEADERS = {
-    "profile-title": "Work&PlayVPN",
+    "profile-title": "Work&PlayVPN Basic",
     "profile-update-interval": "3",
     "subscription-auto-update-enable": "1",
     "subscription-auto-update-open-enable": "1",
@@ -64,14 +67,22 @@ def build_subscription_payload(
     client: str,
     links: list[str],
     access_tier: str = "basic",
+    expires_at: datetime | None = None,
+    routed_mobile: bool = False,
 ) -> str:
     if client != "happ":
         return "\n".join(links)
 
     metadata = [
-        f"#{name}: {('Work&PlayVPN Mobile' if access_tier == 'mobile' else value) if name == 'profile-title' else value}"
-        for name, value in HAPP_SUBSCRIPTION_HEADERS.items()
+        f"#{name}: {value}"
+        for name, value in {
+            **HAPP_SUBSCRIPTION_HEADERS,
+            **subscription_presentation(access_tier=access_tier, routed_mobile=routed_mobile),
+        }.items()
     ]
+    expiry_info = subscription_expiry_info(expires_at)
+    if expiry_info is not None:
+        metadata.append(f"#subscription-userinfo: {expiry_info}")
 
     return "\n".join([*metadata, *links])
 
@@ -81,6 +92,8 @@ def build_subscription_response_headers(
     client: str,
     routing_link: str | None = None,
     access_tier: str = "basic",
+    expires_at: datetime | None = None,
+    routed_mobile: bool = False,
 ) -> dict[str, str]:
     response_headers = {
         "Cache-Control": "no-store",
@@ -92,9 +105,12 @@ def build_subscription_response_headers(
         return response_headers
 
     response_headers.update(HAPP_SUBSCRIPTION_HEADERS)
-    if access_tier == "mobile":
-        response_headers["profile-title"] = "Work&PlayVPN Mobile"
-
+    response_headers.update(subscription_presentation(
+        access_tier=access_tier, routed_mobile=routed_mobile,
+    ))
+    expiry_info = subscription_expiry_info(expires_at)
+    if expiry_info is not None:
+        response_headers["subscription-userinfo"] = expiry_info
     if routing_link is not None:
         response_headers["routing"] = routing_link
 
@@ -193,6 +209,10 @@ def get_subscription_feed(
     entitlement = active_entitlements(database, user.id).get(access_tier)
     if entitlement is None:
         return Response(content="", status_code=403, media_type="text/plain")
+    if client == "happ" and access_tier == "mobile" and auto_route_allowed(user.id):
+        # The canary's existing Mobile URL updates to the single routed JSON entry.
+        # Legacy Mobile URLs for other users retain their current format.
+        return get_routed_mobile_subscription(token, database)
     mobile_entitled = access_tier == "mobile"
 
     devices = database.scalars(
@@ -299,6 +319,7 @@ def get_subscription_feed(
         client=client,
         links=links,
         access_tier=access_tier,
+        expires_at=entitlement[0].expires_at,
     )
 
     encoded = base64.b64encode(
@@ -309,6 +330,7 @@ def get_subscription_feed(
         client=client,
         routing_link=routing_link,
         access_tier=access_tier,
+        expires_at=entitlement[0].expires_at,
     )
 
     return Response(

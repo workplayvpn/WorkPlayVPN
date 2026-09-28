@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from urllib.parse import urlencode
 
@@ -58,7 +59,11 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
         route.subscription_token_service, "resolve_token_scope",
         lambda database, token: (SimpleNamespace(id=174), "mobile"),
     )
-    monkeypatch.setattr(route, "active_entitlements", lambda db, user_id: {"mobile": True})
+    expiry = datetime(2026, 10, 27, 13, 15, tzinfo=UTC)
+    monkeypatch.setattr(
+        route, "active_entitlements",
+        lambda db, user_id: {"mobile": (SimpleNamespace(expires_at=expiry), object())},
+    )
     device = SimpleNamespace(node_id=1, mobile_xray_uuid=CDN, mobile_xray_email="mobile@x")
     node = SimpleNamespace(id=1)
 
@@ -85,6 +90,7 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     assert response.status_code == 200
     assert response.media_type == "application/json"
     assert response.headers["profile-title"] == "Work&PlayVPN Mobile Auto (pilot)"
+    assert response.headers["subscription-userinfo"] == f"expire={int(expiry.timestamp())}"
     config = json.loads(response.body)
     assert len(config) == 1
     assert [item["tag"] for item in config[0]["outbounds"]] == [
@@ -94,11 +100,17 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
 
     response = route.get_routed_auto_route("private-token", Database())
     assert response.headers["profile-title"] == "Work&PlayVPN Auto RU"
+    assert response.headers["subscription-userinfo"] == f"expire={int(expiry.timestamp())}"
     routed = json.loads(response.body)[0]
+    assert routed["remarks"] == "🇳🇱 Нидерланды"
     assert len(routed["outbounds"]) == 3
     assert routed["outbounds"][:2] == config[0]["outbounds"]
     assert routed["routing"]["rules"][0]["outboundTag"] == "ru-direct"
     assert routed["routing"]["rules"][-1] == config[0]["routing"]["rules"][0]
+
+    branded = route.get_routed_mobile_subscription("private-token", Database())
+    assert branded.headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert branded.headers["announce"].startswith("base64:")
 
 
 def test_auto_feed_rejects_expired_mobile_access(monkeypatch):

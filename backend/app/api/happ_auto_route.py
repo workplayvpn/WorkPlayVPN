@@ -12,6 +12,10 @@ from app.db.dependencies import get_db
 from app.models.vpn_device import VpnDevice
 from app.models.vpn_node import VpnNode
 from app.services.entitlements import active_entitlements
+from app.services.happ_subscription_info import (
+    subscription_expiry_info,
+    subscription_presentation,
+)
 from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
@@ -48,6 +52,11 @@ def get_routed_auto_route(
     return _build_response(token, database, routed=True)
 
 
+def get_routed_mobile_subscription(token: str, database: Session) -> JSONResponse:
+    """Serve the existing Mobile URL as one routed profile for canary users."""
+    return _build_response(token, database, routed=True, branded=True)
+
+
 @router.get("/routed/device/{device_id}/{token}")
 def get_routed_auto_route_for_device(
     device_id: int,
@@ -59,11 +68,13 @@ def get_routed_auto_route_for_device(
 
 def _build_response(
     token: str, database: Session, *, routed: bool, device_id: int | None = None,
+    branded: bool = False,
 ) -> JSONResponse:
     user, tier = subscription_token_service.resolve_token_scope(database, token)
     if tier != "mobile" or not auto_route_allowed(user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
-    if "mobile" not in active_entitlements(database, user.id):
+    mobile_entitlement = active_entitlements(database, user.id).get("mobile")
+    if mobile_entitlement is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
     query = select(VpnDevice).where(
@@ -98,8 +109,11 @@ def _build_response(
     try:
         builder = build_routed_auto_config if routed else build_auto_route_config
         config = builder(*links)
-        if device_id is not None:
-            config[0]["remarks"] = f"Work&PlayVPN Auto RU · WP-{device_id:06d}"
+        if routed:
+            config[0]["remarks"] = (
+                f"🇳🇱 Нидерланды · WP-{device_id:06d}" if device_id is not None
+                else "🇳🇱 Нидерланды"
+            )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -107,17 +121,26 @@ def _build_response(
         ) from exc
 
     profile_title = (
-        f"Work&PlayVPN Auto RU - WP-{device_id:06d}" if device_id is not None
+        "Work&PlayVPN Mobile" if branded or device_id is not None
         else "Work&PlayVPN Auto RU" if routed
         else "Work&PlayVPN Mobile Auto (pilot)"
     )
+    headers = {
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+        "X-Content-Type-Options": "nosniff",
+        "profile-title": profile_title,
+        "profile-update-interval": "3",
+    }
+    if branded or device_id is not None:
+        headers.update(subscription_presentation(
+            access_tier="mobile", routed_mobile=True,
+        ))
+    expiry_info = subscription_expiry_info(mobile_entitlement[0].expires_at)
+    if expiry_info is not None:
+        headers["subscription-userinfo"] = expiry_info
+
     return JSONResponse(
         content=config,
-        headers={
-            "Cache-Control": "no-store",
-            "Pragma": "no-cache",
-            "X-Content-Type-Options": "nosniff",
-            "profile-title": profile_title,
-            "profile-update-interval": "3",
-        },
+        headers=headers,
     )

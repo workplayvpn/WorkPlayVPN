@@ -1,11 +1,15 @@
 from datetime import UTC, datetime, timedelta
 from itertools import count
+from types import SimpleNamespace
+from urllib.parse import urlencode
+import json
 
 import pytest
 from sqlalchemy import delete, select
 from starlette.requests import Request
 
 from app.api.subscription_feed import get_subscription_feed
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.location import Location
 from app.models.plan import Plan
@@ -22,6 +26,7 @@ from app.services.subscription_builder import subscription_builder
 from app.services.subscription_service import subscription_service
 from app.services.payment_service import payment_service
 from app.services.subscription_token_service import subscription_token_service
+from app.services.vpn_node_profile_service import vpn_node_profile_service
 from app.services.xray_node import xray_node_service
 
 
@@ -240,9 +245,76 @@ def test_scoped_happ_feeds_never_mix_basic_and_mobile(account, monkeypatch):
     basic_feed = get_subscription_feed(basic_token, request, db)
     mobile_feed = get_subscription_feed(mobile_token, request, db)
     assert seen == [False, True]
-    assert basic_feed.headers["profile-title"] == "Work&PlayVPN"
+    assert basic_feed.headers["profile-title"] == "Work&PlayVPN Basic"
     assert mobile_feed.headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert basic_feed.headers["subscription-userinfo"] == (
+        f"expire={int(db.get(Subscription, basic_id).expires_at.timestamp())}"
+    )
+    assert mobile_feed.headers["subscription-userinfo"] == (
+        f"expire={int(db.get(Subscription, mobile_id).expires_at.timestamp())}"
+    )
 
     subscription_service.expire_subscription(db, db.get(Subscription, basic_id))
     assert get_subscription_feed(basic_token, request, db).status_code == 403
     assert get_subscription_feed(mobile_token, request, db).status_code == 200
+
+
+def test_pilot_mobile_feed_refreshes_to_one_routed_happ_configuration(account, monkeypatch):
+    db, user_id, _, mobile_id, device_id, _ = account
+    subscription_service.activate_subscription(db, db.get(Subscription, mobile_id))
+    token_record, basic_token = subscription_token_service.get_or_create_token(
+        db, db.get(User, user_id).telegram_id,
+    )
+    mobile_token = subscription_token_service.scoped_token(token_record, "mobile")
+    monkeypatch.setattr(settings, "happ_auto_route_user_ids", "")
+    monkeypatch.setattr(
+        vpn_node_profile_service, "get_active_profiles_for_nodes",
+        lambda **kwargs: [SimpleNamespace(
+            code="test-reality", protocol="vless", network="tcp",
+            security="reality", port=443,
+        )],
+    )
+
+    def links(*, device, include_happ_mobile, **kwargs):
+        direct = f"vless://{device.xray_uuid}@direct.example:443?" + urlencode({
+            "type": "tcp", "security": "reality", "sni": "cover.example",
+            "pbk": "public-key", "fp": "chrome",
+        })
+        if not include_happ_mobile:
+            return [direct]
+        cdn = f"vless://{device.mobile_xray_uuid}@cdn.example:443?" + urlencode({
+            "type": "xhttp", "security": "tls", "sni": "cdn.example",
+            "path": "/relay/",
+        })
+        return [direct, cdn]
+
+    monkeypatch.setattr(subscription_builder, "build", links)
+    request = Request({
+        "type": "http", "method": "GET", "path": "/sub/",
+        "headers": [(b"user-agent", b"happ/1.0")],
+    })
+    legacy = get_subscription_feed(mobile_token, request, db)
+    assert legacy.status_code == 200
+    assert legacy.headers["content-type"].startswith("text/plain")
+
+    monkeypatch.setattr(settings, "happ_auto_route_user_ids", str(user_id))
+    mobile = get_subscription_feed(mobile_token, request, db)
+    assert mobile.status_code == 200
+    assert mobile.headers["content-type"].startswith("application/json")
+    assert mobile.headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert mobile.headers["subscription-userinfo"] == (
+        f"expire={int(db.get(Subscription, mobile_id).expires_at.timestamp())}"
+    )
+    config = json.loads(mobile.body)
+    assert len(config) == 1
+    assert config[0]["remarks"] == "🇳🇱 Нидерланды"
+    assert [item["tag"] for item in config[0]["outbounds"]] == [
+        "vpn-direct", "vpn-cdn", "ru-direct",
+    ]
+    assert config[0]["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == (
+        db.get(VpnDevice, device_id).mobile_xray_uuid
+    )
+    basic = get_subscription_feed(basic_token, request, db)
+    assert basic.status_code == 200
+    assert basic.headers["content-type"].startswith("text/plain")
+    assert basic.headers["profile-title"] == "Work&PlayVPN Basic"

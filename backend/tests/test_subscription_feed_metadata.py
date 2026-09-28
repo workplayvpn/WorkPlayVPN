@@ -1,4 +1,7 @@
 import base64
+from datetime import UTC, datetime, timedelta, timezone
+
+import pytest
 
 from app.api.subscription_feed import (
     HAPP_SUBSCRIPTION_HEADERS,
@@ -7,6 +10,56 @@ from app.api.subscription_feed import (
     should_include_happ_mobile_profile,
     should_include_happ_smart_routing,
 )
+from app.services.happ_subscription_info import (
+    subscription_expiry_info, subscription_presentation,
+)
+
+
+def test_basic_and_mobile_have_distinct_happ_descriptions() -> None:
+    basic = subscription_presentation(access_tier="basic")
+    mobile = subscription_presentation(access_tier="mobile", routed_mobile=True)
+    assert basic["profile-title"] == "Work&PlayVPN Basic"
+    assert mobile["profile-title"] == "Work&PlayVPN Mobile"
+    assert all(len(item["profile-title"]) <= 25 for item in (basic, mobile))
+    def description(item):
+        return base64.b64decode(item["announce"].removeprefix("base64:")).decode("utf-8")
+    assert "Нидерландах" in description(basic)
+    assert "автоматически" in description(mobile)
+    assert description(basic) != description(mobile)
+
+
+def test_happ_expiry_only_metadata_tracks_the_actual_instant() -> None:
+    expires_at = datetime(2026, 10, 27, 13, 15, tzinfo=UTC)
+    in_moscow = expires_at.astimezone(timezone(timedelta(hours=3)))
+    expected = f"expire={int(expires_at.timestamp())}"
+    assert subscription_expiry_info(in_moscow) == expected
+
+    payload = build_subscription_payload(
+        client="happ", links=["vless://device"], expires_at=in_moscow,
+    )
+    headers = build_subscription_response_headers(
+        client="happ", expires_at=in_moscow,
+    )
+    assert f"#subscription-userinfo: {expected}" in payload.splitlines()
+    assert headers["subscription-userinfo"] == expected
+    assert "upload=" not in payload and "download=" not in payload
+    assert "total=" not in payload
+
+
+def test_happ_expiry_is_omitted_when_unknown_or_client_is_not_happ() -> None:
+    expires_at = datetime(2026, 10, 27, tzinfo=UTC)
+    assert subscription_expiry_info(None) is None
+    assert "subscription-userinfo" not in build_subscription_response_headers(
+        client="happ",
+    )
+    assert "subscription-userinfo" not in build_subscription_response_headers(
+        client="generic", expires_at=expires_at,
+    )
+    assert "subscription-userinfo" not in build_subscription_payload(
+        client="generic", links=["vless://device"], expires_at=expires_at,
+    )
+    with pytest.raises(ValueError, match="timezone"):
+        subscription_expiry_info(datetime(2026, 10, 27))
 
 
 def test_happ_subscription_payload_contains_metadata() -> None:
@@ -74,7 +127,7 @@ def test_happ_response_headers_can_include_routing() -> None:
     )
 
     assert headers["routing"] == routing_link
-    assert headers["profile-title"] == "Work&PlayVPN"
+    assert headers["profile-title"] == "Work&PlayVPN Basic"
 
 
 def test_non_happ_response_headers_ignore_routing() -> None:

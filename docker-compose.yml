@@ -288,6 +288,7 @@ services:
 
     volumes:
       - ./backend:/app
+      - ./ops/xray:/ops/xray:ro
 
     depends_on:
       test-database:
