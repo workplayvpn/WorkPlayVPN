@@ -87,6 +87,7 @@ class MiniAppDeviceCreate(BaseModel):
 
 class MiniAppDeviceRead(BaseModel):
     id: int
+    public_id: str
     device_name: str = Field(min_length=1, max_length=100)
     node_code: str = Field(min_length=1, max_length=50)
     node_name: str

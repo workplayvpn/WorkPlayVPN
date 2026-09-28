@@ -55,6 +55,7 @@ def test_auto_feed_is_closed_for_other_users_and_basic(monkeypatch):
 
 def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", "174")
+    monkeypatch.setattr(settings, "happ_smart_routing_user_ids", "174")
     monkeypatch.setattr(settings, "happ_provider_id", "provider-1")
     monkeypatch.setattr(settings, "happ_hidden_settings_user_ids", "174")
     monkeypatch.setattr(
@@ -66,7 +67,8 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
         route, "active_entitlements",
         lambda db, user_id: {"mobile": (SimpleNamespace(expires_at=expiry), object())},
     )
-    device = SimpleNamespace(node_id=1, mobile_xray_uuid=CDN, mobile_xray_email="mobile@x")
+    device = SimpleNamespace(node_id=1, public_id="WP-ABCDEF1234567890",
+                             mobile_xray_uuid=CDN, mobile_xray_email="mobile@x")
     node = SimpleNamespace(id=1)
 
     class Result:
@@ -93,6 +95,7 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     assert response.media_type == "application/json"
     assert response.headers["profile-title"] == "Work&PlayVPN Mobile Auto (pilot)"
     assert response.headers["subscription-userinfo"] == f"expire={int(expiry.timestamp())}"
+    assert response.headers["routing"].startswith("happ://routing/onadd/")
     config = json.loads(response.body)
     assert len(config) == 1
     assert [item["tag"] for item in config[0]["outbounds"]] == [

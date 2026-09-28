@@ -197,6 +197,9 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
     assert ".mobile." in urls["mobile"]
     auto_urls = profile["auto_connect_urls"]
     assert set(auto_urls) == {str(device_id), str(second_id)}
+    listed = client.get("/mini-app/devices", headers=headers).json()
+    assert len({item["public_id"] for item in listed}) == 2
+    assert all(item["public_id"].startswith("WP-") for item in listed)
     assert f"/device/{device_id}/" in auto_urls[str(device_id)]
     assert f"/device/{second_id}/" in auto_urls[str(second_id)]
     assert auto_urls[str(device_id)] != auto_urls[str(second_id)]
@@ -232,7 +235,9 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
         config = response.json()[0]
         assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["id"] == direct_uuid
         assert config["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == mobile_uuid
-        assert config["remarks"] == f"🇳🇱 Нидерланды · WP-{item_id:06d}"
+        with SessionLocal() as database:
+            public_id = database.get(VpnDevice, item_id).public_id
+        assert config["remarks"] == f"🇳🇱 Нидерланды · {public_id}"
 
     unknown_page = urlsplit(auto_urls[str(device_id)]).path.replace(
         f"/device/{device_id}/", "/device/999999/",
@@ -386,8 +391,11 @@ def test_device_lifecycle_uses_signed_user(
     assert created_device["node_code"] == NODE_CODE
     assert created_device["node_name"] == "Mini App Test Node"
     assert created_device["is_active"] is True
+    assert created_device["public_id"].startswith("WP-")
+    assert len(created_device["public_id"]) == 19
     assert set(created_device) == {
         "id",
+        "public_id",
         "device_name",
         "node_code",
         "node_name",

@@ -17,6 +17,7 @@ from app.services.happ_subscription_info import (
     subscription_presentation,
     hidden_settings_metadata,
 )
+from app.services.happ_smart_routing import build_happ_smart_routing_link
 from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
@@ -111,7 +112,7 @@ def _build_response(
         builder = build_routed_auto_config if routed else build_auto_route_config
         config = builder(*links)
         if routed and device_id is not None:
-            config[0]["remarks"] += f" · WP-{device_id:06d}"
+            config[0]["remarks"] += f" · {device.public_id}"
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -145,6 +146,10 @@ def _build_response(
     expiry_info = subscription_expiry_info(mobile_entitlement[0].expires_at)
     if expiry_info is not None:
         headers["subscription-userinfo"] = expiry_info
+    if str(user.id) in {
+        part.strip() for part in settings.happ_smart_routing_user_ids.split(",")
+    }:
+        headers["routing"] = build_happ_smart_routing_link()
 
     return JSONResponse(
         content=config,

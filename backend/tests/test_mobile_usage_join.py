@@ -16,10 +16,11 @@ def test_daily_report_matches_only_the_current_mobile_credential():
         f"2026-09-28 {key_b} 0 777\n",
         "2026-09-27 000000000000 10 20\n",
     ]
-    devices = [DeviceKey(21, 174, email_a), DeviceKey(22, 174, email_b)]
+    devices = [DeviceKey(21, 174, email_a, "WP-ABCDEF1234567890"),
+               DeviceKey(22, 174, email_b, "WP-0123456789ABCDEF")]
     assert join_devices(parse_daily_report(report), devices) == [
-        ("2026-09-28", "WP-000021", "174", 123, 456),
-        ("2026-09-28", "WP-000022", "174", 0, 777),
+        ("2026-09-28", "WP-ABCDEF1234567890", "174", 123, 456),
+        ("2026-09-28", "WP-0123456789ABCDEF", "174", 0, 777),
         ("2026-09-27", "UNMATCHED", "-", 10, 20),
     ]
 

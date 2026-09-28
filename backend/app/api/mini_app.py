@@ -458,6 +458,7 @@ def build_mini_app_device(
 
     return MiniAppDeviceRead(
         id=device.id,
+        public_id=device.public_id,
         device_name=device.device_name,
         node_code=node.code,
         node_name=node.name,

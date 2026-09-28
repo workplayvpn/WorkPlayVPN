@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
+import httpx
 
 from fastapi import (
     APIRouter,
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.api.happ_auto_route import auto_route_allowed
 from app.services.entitlements import active_entitlements
+from app.services.happ_crypt_link import encrypted_happ_link
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.models.vpn_device import VpnDevice
@@ -74,16 +76,17 @@ def get_happ_connect_script() -> FileResponse:
 )
 def launch_happ(
     token: str,
+    database: Session = Depends(get_db),
 ) -> RedirectResponse:
+    user, tier = subscription_token_service.resolve_token_scope(database, token)
+    if tier not in active_entitlements(database, user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     subscription_url = (
         f"{settings.subscription_base_url.rstrip('/')}/"
         f"{token}"
     )
 
-    happ_url = (
-        "happ://add/"
-        f"{subscription_url}"
-    )
+    happ_url = _import_link(subscription_url, user.id)
 
     return RedirectResponse(
         url=happ_url,
@@ -101,12 +104,12 @@ def launch_routed_auto_happ(
     token: str,
     database: Session = Depends(get_db),
 ) -> RedirectResponse:
-    _require_routed_auto_access(token, database)
+    user_id = _require_routed_auto_access(token, database)
     subscription_url = (
         f"{settings.subscription_base_url.rstrip('/')}/auto/routed/{token}"
     )
     return RedirectResponse(
-        url=f"happ://add/{subscription_url}",
+        url=_import_link(subscription_url, user_id),
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         headers={
             "Cache-Control": "no-store",
@@ -120,13 +123,13 @@ def launch_routed_auto_happ(
 def launch_routed_auto_happ_for_device(
     device_id: int, token: str, database: Session = Depends(get_db),
 ) -> RedirectResponse:
-    _require_routed_auto_access(token, database, device_id=device_id)
+    user_id = _require_routed_auto_access(token, database, device_id=device_id)
     subscription_url = (
         f"{settings.subscription_base_url.rstrip('/')}/auto/routed/device/"
         f"{device_id}/{token}"
     )
     return RedirectResponse(
-        url=f"happ://add/{subscription_url}",
+        url=_import_link(subscription_url, user_id),
         status_code=status.HTTP_307_TEMPORARY_REDIRECT,
         headers={
             "Cache-Control": "no-store",
@@ -138,7 +141,7 @@ def launch_routed_auto_happ_for_device(
 
 def _require_routed_auto_access(
     token: str, database: Session, *, device_id: int | None = None,
-) -> None:
+) -> int:
     user, tier = subscription_token_service.resolve_token_scope(database, token)
     if tier != "mobile" or not auto_route_allowed(user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -154,6 +157,20 @@ def _require_routed_auto_access(
         ))
         if device is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return user.id
+
+
+def _import_link(subscription_url: str, user_id: int) -> str:
+    allowed = {part.strip() for part in settings.happ_crypt5_user_ids.split(",")}
+    if str(user_id) not in allowed:
+        return f"happ://add/{subscription_url}"
+    try:
+        return encrypted_happ_link(subscription_url)
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Happ encrypted import is temporarily unavailable",
+        ) from exc
 
 
 @router.get("/auto/routed/device/{device_id}/{token}", response_class=HTMLResponse)

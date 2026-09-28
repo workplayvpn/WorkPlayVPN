@@ -102,6 +102,7 @@ class Settings(BaseSettings):
     happ_auto_route_user_ids: str = ""
     happ_provider_id: str = ""
     happ_hidden_settings_user_ids: str = ""
+    happ_crypt5_user_ids: str = ""
 
 
 settings = Settings()

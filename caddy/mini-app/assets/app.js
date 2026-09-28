@@ -74,6 +74,7 @@ const elements = {
   detectedDeviceIcon: document.querySelector("#detected-device-icon"),
   detectedDeviceName: document.querySelector("#detected-device-name"),
   detectedDevicePlatform: document.querySelector("#detected-device-platform"),
+  deviceModelInput: document.querySelector("#device-model-input"),
   confirmDeviceSetup: document.querySelector("#confirm-device-setup"),
   regionSuccessSheet: document.querySelector("#region-success-sheet"),
   regionSuccessClose: document.querySelector("#region-success-close"),
@@ -558,7 +559,7 @@ function renderDevices() {
 
     const identifier = document.createElement("span");
     identifier.className = "device-id";
-    identifier.textContent = `ID: WP-${String(device.id).padStart(6, "0")}`;
+    identifier.textContent = `ID: ${device.public_id}`;
 
     const node = document.createElement("span");
     node.className = "device-region";
@@ -669,6 +670,7 @@ function showDeviceSetup() {
   elements.detectedDeviceIcon.textContent = device.icon;
   elements.detectedDeviceName.textContent = device.name;
   elements.detectedDevicePlatform.textContent = device.platform;
+  elements.deviceModelInput.value = device.name;
 
   openSheet(elements.deviceSetupSheet);
 }
@@ -813,6 +815,13 @@ async function changeAccountRegion(location, button) {
 
 async function connectDevice() {
   const device = detectDevice();
+  const model = elements.deviceModelInput.value.trim().replace(/\s+/g, " ");
+  if (!model || model.length > 65) {
+    showToast("Укажите модель устройства (до 65 символов).", "error");
+    elements.deviceModelInput.focus();
+    return;
+  }
+  device.name = model;
   elements.confirmDeviceSetup.disabled = true;
   elements.confirmDeviceSetup.textContent = "Подключаем…";
 

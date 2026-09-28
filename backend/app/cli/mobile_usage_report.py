@@ -22,6 +22,7 @@ class DeviceKey(NamedTuple):
     id: int
     user_id: int
     mobile_xray_email: str | None
+    public_id: str
 
 
 def parse_daily_report(lines: Iterable[str]) -> list[UsageRow]:
@@ -65,7 +66,7 @@ def join_devices(rows: Iterable[UsageRow], devices: Iterable[DeviceKey]) -> list
     result = []
     for row in rows:
         device = by_key.get(row.key_id) if row.key_id not in ambiguous else None
-        result.append((row.day, f"WP-{device.id:06d}" if device else "UNMATCHED",
+        result.append((row.day, device.public_id if device else "UNMATCHED",
                        str(device.user_id) if device else "-", row.uplink, row.downlink))
     return result
 
@@ -84,7 +85,8 @@ def main() -> int:
 
     with SessionLocal() as database:
         devices = [DeviceKey(*values) for values in database.execute(
-            select(VpnDevice.id, VpnDevice.user_id, VpnDevice.mobile_xray_email)
+            select(VpnDevice.id, VpnDevice.user_id, VpnDevice.mobile_xray_email,
+                   VpnDevice.public_id)
         ).all()]
     print("UTC_DATE DEVICE USER_ID UPLINK_BYTES DOWNLINK_BYTES")
     for row in join_devices(rows, devices):

@@ -1,9 +1,14 @@
 from datetime import datetime
+import secrets
 
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.session import Base
+
+
+def new_device_public_id() -> str:
+    return "WP-" + secrets.token_hex(8).upper()
 
 
 class VpnDevice(Base):
@@ -13,6 +18,10 @@ class VpnDevice(Base):
         BigInteger,
         primary_key=True,
         autoincrement=True,
+    )
+    public_id: Mapped[str] = mapped_column(
+        String(24), unique=True, nullable=False,
+        default=new_device_public_id,
     )
     user_id: Mapped[int] = mapped_column(
         BigInteger,

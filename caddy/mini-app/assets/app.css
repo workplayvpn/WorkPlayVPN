@@ -1168,6 +1168,28 @@ h2 {
   border-radius: var(--radius);
 }
 
+.device-model-label {
+  display: block;
+  margin: 18px 0 8px;
+  font-weight: 650;
+}
+
+.device-model-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  color: inherit;
+  background: rgba(17, 42, 69, .9);
+  border: 1px solid rgba(134, 173, 213, .45);
+  border-radius: 12px;
+}
+
+.device-model-hint {
+  margin: 8px 0 14px;
+  color: #a5b5ca;
+  font-size: .87rem;
+}
+
 .detected-device-icon {
   display: grid;
   width: 48px;
