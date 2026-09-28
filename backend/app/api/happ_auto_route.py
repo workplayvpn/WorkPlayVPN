@@ -15,6 +15,7 @@ from app.services.entitlements import active_entitlements
 from app.services.happ_subscription_info import (
     subscription_expiry_info,
     subscription_presentation,
+    hidden_settings_metadata,
 )
 from app.services.happ_auto_route import (
     build_auto_route_config,
@@ -133,6 +134,14 @@ def _build_response(
         headers.update(subscription_presentation(
             access_tier="mobile", routed_mobile=True,
         ))
+    provider_metadata = hidden_settings_metadata(
+        provider_id=settings.happ_provider_id,
+        user_id=user.id,
+        allowed_ids=settings.happ_hidden_settings_user_ids,
+    )
+    if provider_metadata:
+        headers.update(provider_metadata)
+        config[0]["meta"] = {"serverDescription": "Work&PlayVPN Mobile"}
     expiry_info = subscription_expiry_info(mobile_entitlement[0].expires_at)
     if expiry_info is not None:
         headers["subscription-userinfo"] = expiry_info

@@ -1,7 +1,29 @@
 """Presentation metadata for Happ subscriptions."""
 
 import base64
+import re
+from urllib.parse import urlsplit, urlunsplit
 from datetime import UTC, datetime
+
+
+def hidden_settings_metadata(*, provider_id: str, user_id: int, allowed_ids: str) -> dict[str, str]:
+    """Keep Happ's provider controls limited to explicitly selected users."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", provider_id):
+        return {}
+    if str(user_id) not in {part.strip() for part in allowed_ids.split(",") if part.strip().isdigit()}:
+        return {}
+    return {"providerid": provider_id, "hide-settings": "1"}
+
+
+def happ_server_description(link: str, description: str) -> str:
+    """Replace Happ's protocol subtitle without changing the VLESS endpoint."""
+    parts = urlsplit(link)
+    if parts.scheme != "vless" or not parts.fragment:
+        return link
+    name = parts.fragment.split("?serverDescription=", 1)[0]
+    encoded = base64.b64encode(description.encode("utf-8")).decode("ascii")
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query,
+                       f"{name}?serverDescription={encoded}"))
 
 
 def subscription_presentation(*, access_tier: str, routed_mobile: bool = False) -> dict[str, str]:

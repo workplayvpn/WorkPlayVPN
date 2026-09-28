@@ -55,6 +55,8 @@ def test_auto_feed_is_closed_for_other_users_and_basic(monkeypatch):
 
 def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", "174")
+    monkeypatch.setattr(settings, "happ_provider_id", "provider-1")
+    monkeypatch.setattr(settings, "happ_hidden_settings_user_ids", "174")
     monkeypatch.setattr(
         route.subscription_token_service, "resolve_token_scope",
         lambda database, token: (SimpleNamespace(id=174), "mobile"),
@@ -111,6 +113,9 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     branded = route.get_routed_mobile_subscription("private-token", Database())
     assert branded.headers["profile-title"] == "Work&PlayVPN Mobile"
     assert branded.headers["announce"].startswith("base64:")
+    assert branded.headers["providerid"] == "provider-1"
+    assert branded.headers["hide-settings"] == "1"
+    assert json.loads(branded.body)[0]["meta"]["serverDescription"] == "Work&PlayVPN Mobile"
 
 
 def test_auto_feed_rejects_expired_mobile_access(monkeypatch):

@@ -18,6 +18,7 @@ from app.services.happ_smart_routing import (
 from app.services.happ_network_candidates import network_candidates
 from app.services.happ_subscription_info import subscription_expiry_info
 from app.services.happ_subscription_info import subscription_presentation
+from app.services.happ_subscription_info import hidden_settings_metadata, happ_server_description
 from app.api.happ_auto_route import auto_route_allowed, get_routed_mobile_subscription
 from app.services.subscription_builder import (
     subscription_builder,
@@ -69,6 +70,7 @@ def build_subscription_payload(
     access_tier: str = "basic",
     expires_at: datetime | None = None,
     routed_mobile: bool = False,
+    provider_metadata: dict[str, str] | None = None,
 ) -> str:
     if client != "happ":
         return "\n".join(links)
@@ -78,6 +80,7 @@ def build_subscription_payload(
         for name, value in {
             **HAPP_SUBSCRIPTION_HEADERS,
             **subscription_presentation(access_tier=access_tier, routed_mobile=routed_mobile),
+            **(provider_metadata or {}),
         }.items()
     ]
     expiry_info = subscription_expiry_info(expires_at)
@@ -94,6 +97,7 @@ def build_subscription_response_headers(
     access_tier: str = "basic",
     expires_at: datetime | None = None,
     routed_mobile: bool = False,
+    provider_metadata: dict[str, str] | None = None,
 ) -> dict[str, str]:
     response_headers = {
         "Cache-Control": "no-store",
@@ -108,6 +112,7 @@ def build_subscription_response_headers(
     response_headers.update(subscription_presentation(
         access_tier=access_tier, routed_mobile=routed_mobile,
     ))
+    response_headers.update(provider_metadata or {})
     expiry_info = subscription_expiry_info(expires_at)
     if expiry_info is not None:
         response_headers["subscription-userinfo"] = expiry_info
@@ -293,6 +298,15 @@ def get_subscription_feed(
         include_happ_mobile=mobile_entitled,
     )
 
+    provider_metadata = hidden_settings_metadata(
+        provider_id=settings.happ_provider_id,
+        user_id=user.id,
+        allowed_ids=settings.happ_hidden_settings_user_ids,
+    ) if client == "happ" else {}
+    if provider_metadata:
+        caption = "Work&PlayVPN Mobile" if mobile_entitled else "Work&PlayVPN Basic"
+        links = [happ_server_description(link, caption) for link in links]
+
     if mobile_entitled and should_enable_happ_feature(
         client=client,
         user_id=user.id,
@@ -320,6 +334,7 @@ def get_subscription_feed(
         links=links,
         access_tier=access_tier,
         expires_at=entitlement[0].expires_at,
+        provider_metadata=provider_metadata,
     )
 
     encoded = base64.b64encode(
@@ -331,6 +346,7 @@ def get_subscription_feed(
         routing_link=routing_link,
         access_tier=access_tier,
         expires_at=entitlement[0].expires_at,
+        provider_metadata=provider_metadata,
     )
 
     return Response(

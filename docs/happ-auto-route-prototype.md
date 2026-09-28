@@ -95,3 +95,22 @@ the CDN address, and its private path.
 
 References: Happ JSON passthrough documentation, Xray routing `fallbackTag`
 and `leastPing`, and Xray observatory `subjectSelector`/`probeUrl`.
+
+## Hide configuration settings in Happ
+
+Happ requires a Provider ID for its `hide-settings: 1` option and custom
+server descriptions. Obtain the Provider ID from your own account at
+`happ-proxy.com`. For a closed test, set `HAPP_PROVIDER_ID` to that ID and
+`HAPP_HIDDEN_SETTINGS_USER_IDS=174` in the server's private `.env`. Recreate
+only the backend, then refresh both Basic and Mobile in Happ. For that ID,
+the Happ responses contain `providerid` and `hide-settings: 1`. The Basic
+VLESS server and Mobile JSON entry have separate friendly captions instead
+of protocol details. An empty Provider ID or pilot list leaves the feed
+unchanged. Check the result on an existing subscription and a fresh import.
+
+This hides editing and sharing controls in Happ's interface; the raw
+subscription endpoint still returns connection details to anyone holding its
+token. A separate `happ://crypt5/` import link can hide the subscription URL
+in Happ. Happ's encryption service receives that URL when generating the
+link, so make this a separate integration after verifying the pilot. Neither
+mechanism guarantees that connection data cannot be extracted from a device.

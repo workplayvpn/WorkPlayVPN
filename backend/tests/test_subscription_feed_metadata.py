@@ -12,7 +12,35 @@ from app.api.subscription_feed import (
 )
 from app.services.happ_subscription_info import (
     subscription_expiry_info, subscription_presentation,
+    hidden_settings_metadata, happ_server_description,
 )
+
+
+def test_hidden_happ_settings_require_provider_and_explicit_user() -> None:
+    assert hidden_settings_metadata(provider_id="", user_id=174, allowed_ids="174") == {}
+    assert hidden_settings_metadata(provider_id="provider-1", user_id=175, allowed_ids="174") == {}
+    assert hidden_settings_metadata(provider_id="provider-1", user_id=174, allowed_ids="*") == {}
+    assert hidden_settings_metadata(provider_id="bad\r\nheader", user_id=174, allowed_ids="174") == {}
+    enabled = hidden_settings_metadata(provider_id="provider-1", user_id=174,
+                                       allowed_ids="174")
+    assert enabled == {"providerid": "provider-1", "hide-settings": "1"}
+
+    link = "vless://user@example.com:443?security=reality#%F0%9F%87%B3%F0%9F%87%B1"
+    described = happ_server_description(link, "Work&PlayVPN Basic")
+    assert described.startswith(link)
+    assert "serverDescription=" in described
+    assert happ_server_description(described, "Work&PlayVPN Basic") == described
+    assert happ_server_description("https://example.com", "Basic") == "https://example.com"
+
+    payload = build_subscription_payload(client="happ", links=[described],
+                                         provider_metadata=enabled)
+    headers = build_subscription_response_headers(client="happ", provider_metadata=enabled)
+    assert "#providerid: provider-1" in payload.splitlines()
+    assert "#hide-settings: 1" in payload.splitlines()
+    assert headers["providerid"] == "provider-1"
+    assert headers["hide-settings"] == "1"
+    assert "providerid" not in build_subscription_response_headers(
+        client="generic", provider_metadata=enabled)
 
 
 def test_basic_and_mobile_have_distinct_happ_descriptions() -> None:
