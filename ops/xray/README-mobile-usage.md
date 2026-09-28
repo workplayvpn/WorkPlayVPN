@@ -35,6 +35,22 @@ candidate JSON to terminal: it contains the static pilot client UUID.
    python3 /usr/local/lib/workplayvpn/mobile_usage_collector.py --report
    ```
 
+To view a seven-day UTC breakdown by anonymous Mobile key, install the updated
+collector on the node and run:
+
+```sh
+python3 /usr/local/lib/workplayvpn/mobile_usage_collector.py --daily
+```
+
+`MOBILE_KEY_ID` is a short hash of the opaque Xray email. It groups traffic
+for one credential but is **not** the Mini App device number. Daily history
+starts with the first poll after installing this version; old cumulative
+totals cannot be assigned to past dates. UTC day boundaries are based on the
+time of collection, so bytes between polls near midnight may fall on the
+next day. The collector updates its existing private database in place and
+does not touch Xray configuration or enforce limits. Compare with Yandex CDN
+billing, which may include additional HTTP transport bytes.
+
 The database at `/var/lib/workplayvpn/mobile-usage.sqlite` is private to
 root. Include it in server backups. For displayed traffic in Happ, create a
 backend sync endpoint and enforce ownership before exposing any user totals.

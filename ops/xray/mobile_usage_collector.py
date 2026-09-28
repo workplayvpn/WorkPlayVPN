@@ -5,7 +5,8 @@ enforcement counter or a substitute for the CDN provider's billing figures.
 """
 
 import argparse
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -41,12 +42,16 @@ def parse_counters(payload: dict) -> dict[str, int]:
 
 
 def record_snapshot(connection: sqlite3.Connection, pid: int,
-                    counters: dict[str, int]) -> None:
+                    counters: dict[str, int], *, at: datetime | None = None) -> None:
     connection.execute("""CREATE TABLE IF NOT EXISTS counters (
         name TEXT PRIMARY KEY, pid INTEGER NOT NULL,
         last_value INTEGER NOT NULL, total INTEGER NOT NULL,
         last_seen TEXT NOT NULL)""")
-    now = datetime.now(UTC).isoformat()
+    connection.execute("""CREATE TABLE IF NOT EXISTS daily_counters (
+        day TEXT NOT NULL, name TEXT NOT NULL, total INTEGER NOT NULL,
+        PRIMARY KEY (day, name))""")
+    moment = (at or datetime.now(UTC)).astimezone(UTC)
+    now = moment.isoformat()
     with connection:
         for name, value in counters.items():
             previous = connection.execute(
@@ -64,6 +69,33 @@ def record_snapshot(connection: sqlite3.Connection, pid: int,
                 last_seen=excluded.last_seen""",
                 (name, pid, value, increment, now),
             )
+            if increment:
+                connection.execute("""INSERT INTO daily_counters (day, name, total)
+                    VALUES (?, ?, ?) ON CONFLICT(day, name) DO UPDATE SET
+                    total=daily_counters.total + excluded.total""",
+                    (moment.date().isoformat(), name, increment),
+                )
+
+
+def daily_report(connection: sqlite3.Connection, *, days: int = 7,
+                 as_of: date | None = None) -> list[tuple]:
+    """Return UTC day, pseudonymous client ID and counted upload/download bytes."""
+    if days < 1:
+        raise ValueError("days must be positive")
+    today = as_of or datetime.now(UTC).date()
+    rows = connection.execute("""SELECT day, name, total FROM daily_counters
+        WHERE day BETWEEN ? AND ?
+        ORDER BY day DESC, name""",
+        ((today - timedelta(days=days - 1)).isoformat(), today.isoformat()))
+    grouped = {}
+    for day, name, value in rows:
+        # Never print an Xray email or credential in a CLI report.
+        opaque_id = hashlib.sha256(name.split(">>>", 3)[1].encode()).hexdigest()[:12]
+        key = (day, opaque_id)
+        entry = grouped.setdefault(key, [0, 0])
+        entry[0 if name.endswith(">>>uplink") else 1] += value
+    return [(day, opaque_id, *values)
+            for (day, opaque_id), values in sorted(grouped.items(), reverse=True)]
 
 
 def query_xray() -> tuple[int, dict[str, int]]:
@@ -85,6 +117,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE)
     parser.add_argument("--report", action="store_true")
+    parser.add_argument("--daily", action="store_true",
+                        help="Show the last seven UTC days, split by anonymous Mobile key")
     args = parser.parse_args()
     if not args.database.parent.is_dir():
         parser.error("Database parent directory missing")
@@ -106,6 +140,10 @@ def main() -> None:
             print(f"MOBILE_UPLINK_BYTES={uplink}")
             print(f"MOBILE_DOWNLINK_BYTES={downlink}")
             print(f"MOBILE_COUNTERS={len(counters)}")
+        if args.daily:
+            print("UTC_DATE MOBILE_KEY_ID UPLINK_BYTES DOWNLINK_BYTES")
+            for day, opaque_id, uplink, downlink in daily_report(connection):
+                print(day, opaque_id, uplink, downlink)
     finally:
         connection.close()
 

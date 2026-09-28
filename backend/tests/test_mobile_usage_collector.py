@@ -1,5 +1,6 @@
 import importlib.util
 import sqlite3
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 
@@ -46,3 +47,32 @@ def test_candidate_preserves_existing_api_and_transport():
     assert candidate["inbounds"] == config["inbounds"]
     assert candidate["policy"]["levels"]["0"]["connectionIdle"] == 300
     assert candidate["policy"]["levels"]["0"]["statsUserDownlink"] is True
+
+
+def test_daily_report_counts_deltas_across_midnight_and_restart(tmp_path):
+    database = sqlite3.connect(tmp_path / "usage.sqlite")
+    first = {
+        "user>>>mobile_a@workplayvpn>>>traffic>>>downlink": 100,
+        "user>>>mobile_a@workplayvpn>>>traffic>>>uplink": 10,
+        "user>>>mobile_b@workplayvpn>>>traffic>>>downlink": 20,
+    }
+    collector.record_snapshot(database, 1, first,
+                              at=datetime(2026, 9, 27, 23, 59, tzinfo=UTC))
+    collector.record_snapshot(database, 1, first,
+                              at=datetime(2026, 9, 28, 0, 1, tzinfo=UTC))
+    collector.record_snapshot(database, 1, {**first,
+        "user>>>mobile_a@workplayvpn>>>traffic>>>downlink": 150},
+        at=datetime(2026, 9, 28, 0, 2, tzinfo=UTC))
+    collector.record_snapshot(database, 2, {
+        "user>>>mobile_a@workplayvpn>>>traffic>>>downlink": 5,
+    }, at=datetime(2026, 9, 28, 0, 3, tzinfo=UTC))
+    rows = collector.daily_report(database, as_of=date(2026, 9, 28))
+    assert sorted((day, up, down) for day, _, up, down in rows) == [
+        ("2026-09-27", 0, 20),
+        ("2026-09-27", 10, 100),
+        ("2026-09-28", 0, 55),
+    ]
+    assert all("mobile_" not in str(row) for row in rows)
+    assert sum(row[2] + row[3] for row in rows) == sum(
+        total for _, total in database.execute("SELECT name, total FROM counters"))
+    assert len(collector.daily_report(database, days=1, as_of=date(2026, 9, 28))) == 1
