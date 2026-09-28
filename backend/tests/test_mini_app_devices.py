@@ -235,9 +235,7 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
         config = response.json()[0]
         assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["id"] == direct_uuid
         assert config["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == mobile_uuid
-        with SessionLocal() as database:
-            public_id = database.get(VpnDevice, item_id).public_id
-        assert config["remarks"] == f"🇳🇱 Нидерланды · {public_id}"
+        assert config["remarks"] == "🇳🇱 Нидерланды"
 
     unknown_page = urlsplit(auto_urls[str(device_id)]).path.replace(
         f"/device/{device_id}/", "/device/999999/",

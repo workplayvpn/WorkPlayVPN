@@ -111,8 +111,6 @@ def _build_response(
     try:
         builder = build_routed_auto_config if routed else build_auto_route_config
         config = builder(*links)
-        if routed and device_id is not None:
-            config[0]["remarks"] += f" · {device.public_id}"
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
