@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import json
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -205,9 +205,9 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
     def build_links(*, device, **kwargs):
         return [
             f"vless://{device.xray_uuid}@direct.example:443?" + urlencode({
-                "type": "tcp", "security": "reality", "sni": "cover.example",
-                "pbk": "public-key", "fp": "chrome",
-            }),
+            "type": "tcp", "security": "reality", "sni": "cover.example",
+            "pbk": "public-key", "fp": "chrome",
+        }) + "#" + quote("🇳🇱 Нидерланды — Wi-Fi", safe=""),
             f"vless://{device.mobile_xray_uuid}@cdn.example:443?" + urlencode({
                 "type": "xhttp", "security": "tls", "sni": "cdn.example",
                 "path": "/relay/",

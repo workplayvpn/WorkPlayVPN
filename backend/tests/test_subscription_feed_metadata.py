@@ -23,7 +23,7 @@ def test_basic_and_mobile_have_distinct_happ_descriptions() -> None:
     assert all(len(item["profile-title"]) <= 25 for item in (basic, mobile))
     def description(item):
         return base64.b64decode(item["announce"].removeprefix("base64:")).decode("utf-8")
-    assert "Нидерландах" in description(basic)
+    assert description(basic) == "Надёжное подключение для работы и отдыха."
     assert "автоматически" in description(mobile)
     assert description(basic) != description(mobile)
 

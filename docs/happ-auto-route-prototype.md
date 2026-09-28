@@ -57,8 +57,13 @@ subtitle customization needs a Happ Provider ID and is outside this rollout.
 
 | Subscription | Announcement in Happ |
 | --- | --- |
-| Basic | Надёжное подключение для работы и отдыха. Сервер в Нидерландах. |
+| Basic | Надёжное подключение для работы и отдыха. |
 | Mobile (routed pilot) | Подключение для Wi-Fi и мобильной сети. Маршрут выбирается автоматически. |
+
+The Mobile configuration name comes from the selected node's Direct Happ
+profile label (without its Wi-Fi suffix). A later region change must update
+the device's node and its profiles; the displayed country then follows that
+profile instead of staying fixed to the Netherlands.
 
 ## Enable and inspect the pilot
 

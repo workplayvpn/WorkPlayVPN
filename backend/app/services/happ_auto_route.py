@@ -4,10 +4,17 @@ The existing Mobile URL uses this entry only for explicitly enabled pilot IDs.
 """
 
 import json
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 from uuid import UUID
 
 from app.services.happ_smart_routing import HAPP_SMART_ROUTING_PROFILE
+
+
+def routed_display_name(direct_link: str) -> str:
+    """Use the selected node's Happ label, without the old Wi-Fi suffix."""
+    label = unquote(urlsplit(direct_link).fragment).strip()
+    label = label.removesuffix(" — Wi-Fi").strip()
+    return label or "Work&PlayVPN Mobile"
 
 
 def _parse(link: str, *, transport: str, security: str) -> tuple:
@@ -111,7 +118,7 @@ def build_routed_auto_config(direct_link: str, cdn_link: str) -> list[dict]:
     config = build_auto_route_config(direct_link, cdn_link)
     entry = config[0]
     policy = HAPP_SMART_ROUTING_PROFILE
-    entry["remarks"] = "🇳🇱 Нидерланды"
+    entry["remarks"] = routed_display_name(direct_link)
     entry["outbounds"].append({
         "tag": "ru-direct", "protocol": "freedom",
         "streamSettings": {"sockopt": {"domainStrategy": "UseIP"}},

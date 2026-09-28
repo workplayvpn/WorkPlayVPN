@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 def subscription_presentation(*, access_tier: str, routed_mobile: bool = False) -> dict[str, str]:
     if access_tier == "basic":
         title = "Work&PlayVPN Basic"
-        description = "Надёжное подключение для работы и отдыха. Сервер в Нидерландах."
+        description = "Надёжное подключение для работы и отдыха."
     elif access_tier == "mobile":
         title = "Work&PlayVPN Mobile"
         description = (

@@ -1,7 +1,7 @@
 import json
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from fastapi import HTTPException
 import pytest
@@ -19,7 +19,7 @@ def _links():
         f"vless://{DIRECT}@direct.example:443?" + urlencode({
             "type": "tcp", "security": "reality", "sni": "cover.example",
             "pbk": "public-key", "sid": "a1b2", "fp": "chrome",
-        }),
+        }) + "#" + quote("🇳🇱 Нидерланды — Wi-Fi", safe=""),
         f"vless://{CDN}@cdn.example:443?" + urlencode({
             "type": "xhttp", "security": "tls", "sni": "cdn.example",
             "path": "/relay/", "mode": "auto",

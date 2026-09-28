@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from itertools import count
 from types import SimpleNamespace
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 import json
 
 import pytest
@@ -279,7 +279,7 @@ def test_pilot_mobile_feed_refreshes_to_one_routed_happ_configuration(account, m
         direct = f"vless://{device.xray_uuid}@direct.example:443?" + urlencode({
             "type": "tcp", "security": "reality", "sni": "cover.example",
             "pbk": "public-key", "fp": "chrome",
-        })
+        }) + "#" + quote("🇳🇱 Нидерланды — Wi-Fi", safe="")
         if not include_happ_mobile:
             return [direct]
         cdn = f"vless://{device.mobile_xray_uuid}@cdn.example:443?" + urlencode({

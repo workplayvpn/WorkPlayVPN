@@ -109,11 +109,8 @@ def _build_response(
     try:
         builder = build_routed_auto_config if routed else build_auto_route_config
         config = builder(*links)
-        if routed:
-            config[0]["remarks"] = (
-                f"🇳🇱 Нидерланды · WP-{device_id:06d}" if device_id is not None
-                else "🇳🇱 Нидерланды"
-            )
+        if routed and device_id is not None:
+            config[0]["remarks"] += f" · WP-{device_id:06d}"
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

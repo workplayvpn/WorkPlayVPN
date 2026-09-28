@@ -1,10 +1,11 @@
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import pytest
 
 from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
+    routed_display_name,
 )
 from app.services.happ_smart_routing import HAPP_SMART_ROUTING_PROFILE
 
@@ -17,7 +18,7 @@ def links() -> tuple[str, str]:
     direct = "vless://" + DIRECT + "@direct.example:443?" + urlencode({
         "type": "tcp", "security": "reality", "sni": "cover.example",
         "pbk": "public-key", "sid": "a1b2", "fp": "chrome",
-    })
+    }) + "#" + quote("🇳🇱 Нидерланды — Wi-Fi", safe="")
     cdn = "vless://" + CDN + "@cdn.example:443?" + urlencode({
         "type": "xhttp", "security": "tls", "sni": "cdn.example",
         "path": "/relay/", "mode": "auto", "host": "cdn.example",
@@ -77,3 +78,11 @@ def test_routed_canary_keeps_failover_and_bypasses_ru() -> None:
     assert routed["routing"]["rules"][2] == normal["routing"]["rules"][0]
     assert routed["routing"]["balancers"] == normal["routing"]["balancers"]
     assert routed["dns"]["servers"][0]["address"] == "77.88.8.8"
+
+
+def test_routed_label_follows_selected_node() -> None:
+    direct, cdn = links()
+    german = direct.split("#", 1)[0] + "#" + quote("🇩🇪 Германия — Wi-Fi", safe="")
+    assert routed_display_name(german) == "🇩🇪 Германия"
+    assert build_routed_auto_config(german, cdn)[0]["remarks"] == "🇩🇪 Германия"
+    assert routed_display_name(direct.split("#", 1)[0]) == "Work&PlayVPN Mobile"
