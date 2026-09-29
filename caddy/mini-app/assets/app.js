@@ -2,6 +2,7 @@
 
 const telegram = window.Telegram?.WebApp ?? null;
 const CLIENT_INSTANCE_STORAGE_KEY = "workplayvpn.client-instance.v1";
+const REGION_FLAGS = Object.freeze({ NL: "🇳🇱", DE: "🇩🇪", RU: "🇷🇺", FI: "🇫🇮" });
 
 let cachedClientInstanceId = null;
 
@@ -652,6 +653,8 @@ function showDeviceConnections() {
 
 function renderRegion() {
   const currentRegion = state.me.current_region;
+  const icon = elements.changeRegionButton.querySelector(".region-card-icon");
+  icon.textContent = REGION_FLAGS[currentRegion?.code] || "📍";
   elements.currentRegionName.textContent = currentRegion?.name
     || "Регион пока недоступен";
   elements.changeRegionButton.disabled = !currentRegion;
@@ -662,6 +665,7 @@ function renderLocations() {
   const currentCode = state.me.current_region?.code;
 
   for (const location of state.catalog.locations) {
+    if (!REGION_FLAGS[location.code]) continue;
     const isCurrent = location.code === currentCode;
     const button = document.createElement("button");
     button.className = "location-button";
@@ -671,7 +675,7 @@ function renderLocations() {
     const title = document.createElement("strong");
     const detail = document.createElement("span");
 
-    title.textContent = `${isCurrent ? "✅ " : ""}${location.name}`;
+    title.textContent = `${REGION_FLAGS[location.code]} ${location.name}${isCurrent ? " ✓" : ""}`;
     detail.textContent = isCurrent
       ? "Текущий регион"
       : location.available

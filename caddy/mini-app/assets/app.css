@@ -882,6 +882,7 @@ h2 {
 .device-card {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   align-items: center;
   gap: 8px;
   min-height: 88px;
@@ -891,6 +892,7 @@ h2 {
 
 .device-icon {
   display: grid;
+  grid-row: 1 / 3;
   width: 28px;
   height: 28px;
   place-items: center;
@@ -905,7 +907,7 @@ h2 {
 }
 
 .device-info {
-  min-width: 0;
+  display: contents;
 }
 
 .device-info strong,
@@ -914,14 +916,19 @@ h2 {
 }
 
 .device-info strong {
-  margin-bottom: 3px;
-  overflow-wrap: anywhere;
-  white-space: normal;
-  font-size: 14px;
+  grid-column: 2 / -1;
+  grid-row: 1;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: clamp(10px, 2.7vw, 13px);
+  letter-spacing: -0.035em;
   line-height: 1.35;
 }
 
 .device-info span {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.35;
@@ -960,6 +967,8 @@ h2 {
 
 .delete-button {
   display: inline-flex;
+  grid-column: 3;
+  grid-row: 2;
   min-height: 36px;
   align-items: center;
   justify-content: center;
