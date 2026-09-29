@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20260928-6">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20260929-1">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20260928-7" defer></script>
+  <script src="/app/assets/app.js?v=20260929-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -31,6 +31,7 @@
     <h1>Не удалось открыть приложение</h1>
     <p id="error-message">Откройте Work&amp;PlayVPN из Telegram-бота и попробуйте ещё раз.</p>
     <button id="retry-button" class="button button-primary" type="button">Повторить</button>
+    <button id="reopen-bot-button" class="button button-primary hidden" type="button">Вернуться к боту</button>
     <a class="button button-secondary" href="https://t.me/workplayvpn_bot">Открыть бота</a>
   </div>
 
@@ -155,7 +156,7 @@
 
         <aside id="device-limit-alert" class="device-limit-alert hidden" role="status">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
-          <p><strong>Свободных мест больше нет</strong><span>Удалите ненужное устройство, чтобы подключить новое.</span></p>
+          <p><strong>Свободных мест больше нет</strong><span>Можно повторно открыть подключение для существующего устройства. Для нового потребуется освободить место или увеличить лимит.</span></p>
         </aside>
 
         <div id="devices-list" class="devices-list" aria-live="polite"></div>
@@ -280,6 +281,21 @@
       <div class="setup-actions">
         <button id="confirm-device-setup" class="button button-primary" type="button">Подключить устройство</button>
       </div>
+    </div>
+  </div>
+
+  <div id="device-connect-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="device-connect-title">
+    <div class="sheet sheet-small">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head">
+        <div>
+          <p class="eyebrow">Подключение</p>
+          <h2 id="device-connect-title">Выберите устройство</h2>
+        </div>
+        <button id="close-device-connect" class="icon-button" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div id="device-connect-list" class="device-connect-list"></div>
+      <button id="connect-new-device" class="button button-primary button-wide" type="button">Подключить новое устройство</button>
     </div>
   </div>
 

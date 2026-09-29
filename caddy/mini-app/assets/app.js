@@ -36,6 +36,7 @@ const elements = {
   errorMessage: document.querySelector("#error-message"),
   app: document.querySelector("#app"),
   retryButton: document.querySelector("#retry-button"),
+  reopenBotButton: document.querySelector("#reopen-bot-button"),
   refreshButton: document.querySelector("#refresh-button"),
   firstName: document.querySelector("#user-first-name"),
   subscriptionCard: document.querySelector("#subscription-card"),
@@ -70,6 +71,10 @@ const elements = {
   closeLocationSheet: document.querySelector("#close-location-sheet"),
   locationsList: document.querySelector("#locations-list"),
   deviceSetupSheet: document.querySelector("#device-setup-sheet"),
+  deviceConnectSheet: document.querySelector("#device-connect-sheet"),
+  deviceConnectList: document.querySelector("#device-connect-list"),
+  closeDeviceConnect: document.querySelector("#close-device-connect"),
+  connectNewDevice: document.querySelector("#connect-new-device"),
   closeDeviceSetup: document.querySelector("#close-device-setup"),
   detectedDeviceIcon: document.querySelector("#detected-device-icon"),
   detectedDeviceName: document.querySelector("#detected-device-name"),
@@ -163,6 +168,29 @@ function humanError(error) {
   return "Не удалось выполнить действие. Попробуйте ещё раз.";
 }
 
+function isSessionError(error) {
+  return error instanceof ApiError && error.status === 401;
+}
+
+function showLoadError(error) {
+  const sessionExpired = isSessionError(error);
+  elements.loading.classList.add("hidden");
+  elements.app.classList.add("hidden");
+  elements.errorMessage.textContent = sessionExpired
+    ? "Сеанс Telegram истёк. Откройте бота и снова запустите Mini App, чтобы войти заново."
+    : humanError(error);
+  elements.retryButton.classList.toggle("hidden", sessionExpired);
+  elements.reopenBotButton.classList.toggle("hidden", !sessionExpired);
+  elements.error.classList.remove("hidden");
+}
+
+function initDataIsStale() {
+  const rawDate = new URLSearchParams(telegram?.initData || "").get("auth_date");
+  if (!rawDate) return false;
+  const timestamp = Number(rawDate);
+  return Number.isFinite(timestamp) && Date.now() / 1000 - timestamp > 300;
+}
+
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("X-Telegram-Init-Data", telegram.initData);
@@ -187,7 +215,9 @@ async function api(path, options = {}) {
       detail = "";
     }
 
-    throw new ApiError(response.status, detail);
+    const error = new ApiError(response.status, detail);
+    if (isSessionError(error)) showLoadError(error);
+    throw error;
   }
 
   if (response.status === 204) {
@@ -518,15 +548,11 @@ function renderPlans() {
 function renderDevices() {
   elements.devicesList.replaceChildren();
   const deviceLimit = state.me.devices.total_limit;
-  const isAtLimit = deviceLimit > 0 && state.devices.length >= deviceLimit;
+  const isAtLimit = deviceLimit > 0 && state.me.devices.active_count >= deviceLimit;
 
-  elements.devicesCounter.textContent = `${state.devices.length} из ${deviceLimit}`;
+  elements.devicesCounter.textContent = `${state.me.devices.active_count} из ${deviceLimit}`;
   elements.deviceLimitAlert.classList.toggle("hidden", !isAtLimit);
-  elements.addDeviceButton.disabled = isAtLimit;
-  elements.addDeviceButton.classList.toggle("is-disabled", isAtLimit);
-  elements.addDeviceButton.querySelector("span").textContent = isAtLimit
-    ? "Лимит устройств исчерпан"
-    : "Подключить устройство";
+  elements.addDeviceButton.disabled = !state.me.subscriptions?.length && state.me?.subscription?.status !== "active";
 
   if (state.devices.length === 0) {
     const empty = document.createElement("div");
@@ -564,27 +590,7 @@ function renderDevices() {
     identifier.className = "device-id";
     identifier.textContent = `ID: ${device.public_id}`;
 
-    const node = document.createElement("span");
-    node.className = "device-region";
-    node.textContent = `Регион: ${device.node_name}`;
-
-    info.append(name, identifier, node);
-    const basicUrl = state.me.basic_device_connect_urls?.[device.id];
-    if (basicUrl) {
-      const basicLink = document.createElement("a");
-      basicLink.className = "button button-secondary device-auto-link";
-      basicLink.href = basicUrl;
-      basicLink.textContent = "Подключить Basic на этом устройстве";
-      info.append(basicLink);
-    }
-    const autoUrl = state.me.auto_connect_urls?.[device.id];
-    if (autoUrl) {
-      const autoLink = document.createElement("a");
-      autoLink.className = "button button-secondary device-auto-link";
-      autoLink.href = autoUrl;
-      autoLink.textContent = "Подключить Mobile на этом устройстве";
-      info.append(autoLink);
-    }
+    info.append(name, identifier);
 
     const removeButton = document.createElement("button");
     removeButton.className = "delete-button";
@@ -602,6 +608,46 @@ function renderDevices() {
     card.append(icon, info, removeButton);
     elements.devicesList.append(card);
   });
+}
+
+function showDeviceConnections() {
+  elements.deviceConnectList.replaceChildren();
+  for (const device of state.devices) {
+    const links = [
+      ["Basic", state.me.basic_device_connect_urls?.[device.id]],
+      ["Mobile", state.me.auto_connect_urls?.[device.id]],
+    ].filter(([, url]) => Boolean(url));
+    if (!links.length) continue;
+
+    const entry = document.createElement("div");
+    entry.className = "device-connect-entry";
+    const title = document.createElement("strong");
+    title.textContent = device.happ_device_model && device.happ_device_os
+      ? `${device.happ_device_model} (${device.happ_device_os})`
+      : device.device_name;
+    entry.append(title);
+    for (const [tier, url] of links) {
+      const link = document.createElement("a");
+      link.className = "button button-secondary";
+      link.textContent = `Открыть ${tier} в HAPP`;
+      link.href = url;
+      entry.append(link);
+    }
+    elements.deviceConnectList.append(entry);
+  }
+  const canAdd = state.me.devices.active_count < state.me.devices.total_limit;
+  elements.connectNewDevice.classList.toggle("hidden", !canAdd);
+  if (!elements.deviceConnectList.childElementCount && !canAdd) {
+    const message = document.createElement("p");
+    message.className = "setup-note";
+    message.textContent = "Нет доступных ссылок. Освободите место или обновите подписку и попробуйте снова.";
+    elements.deviceConnectList.append(message);
+  }
+  if (!elements.deviceConnectList.childElementCount && canAdd) {
+    showDeviceSetup();
+  } else {
+    openSheet(elements.deviceConnectSheet);
+  }
 }
 
 function renderRegion() {
@@ -668,6 +714,7 @@ function closeSheet(sheet) {
   if (
     elements.locationSheet.classList.contains("hidden") &&
     elements.deviceSetupSheet.classList.contains("hidden") &&
+    elements.deviceConnectSheet.classList.contains("hidden") &&
     elements.regionSuccessSheet.classList.contains("hidden") &&
     elements.confirmSheet.classList.contains("hidden")
   ) {
@@ -885,6 +932,9 @@ async function loadData() {
   elements.refreshButton.disabled = true;
 
   try {
+    if (initDataIsStale()) {
+      throw new ApiError(401, "Telegram Mini App credentials expired");
+    }
     state.me = await api("/mini-app/me");
 
     const [catalog, devices, payment] = await Promise.all([
@@ -914,10 +964,7 @@ async function loadData() {
 
     return true;
   } catch (error) {
-    elements.loading.classList.add("hidden");
-    elements.app.classList.add("hidden");
-    elements.errorMessage.textContent = humanError(error);
-    elements.error.classList.remove("hidden");
+    showLoadError(error);
     return false;
   } finally {
     elements.refreshButton.disabled = false;
@@ -966,6 +1013,18 @@ elements.plansTierSwitch.querySelectorAll("[data-plan-tier]").forEach((button) =
 });
 
 elements.retryButton.addEventListener("click", initializeTelegram);
+elements.reopenBotButton.addEventListener("click", () => {
+  const botUrl = "https://t.me/workplayvpn_bot";
+  try {
+    if (telegram?.openTelegramLink) {
+      telegram.openTelegramLink(botUrl);
+    } else {
+      window.location.assign(botUrl);
+    }
+  } catch {
+    window.location.assign(botUrl);
+  }
+});
 elements.refreshButton.addEventListener("click", async () => {
   const refreshed = await loadData();
 
@@ -987,11 +1046,11 @@ elements.addDeviceButton.addEventListener("click", () => {
     return;
   }
 
-  if (state.devices.length >= state.me.devices.total_limit) {
-    showToast("Достигнут лимит устройств.", "error");
-    return;
-  }
-
+  showDeviceConnections();
+});
+elements.closeDeviceConnect.addEventListener("click", () => closeSheet(elements.deviceConnectSheet));
+elements.connectNewDevice.addEventListener("click", () => {
+  closeSheet(elements.deviceConnectSheet);
   showDeviceSetup();
 });
 elements.closeLocationSheet.addEventListener("click", () => {
@@ -1013,6 +1072,7 @@ elements.confirmDelete.addEventListener("click", removeDevice);
 for (const sheet of [
   elements.locationSheet,
   elements.deviceSetupSheet,
+  elements.deviceConnectSheet,
   elements.regionSuccessSheet,
   elements.confirmSheet,
 ]) {
@@ -1030,6 +1090,7 @@ document.addEventListener("keydown", (event) => {
 
   closeSheet(elements.locationSheet);
   closeSheet(elements.deviceSetupSheet);
+  closeSheet(elements.deviceConnectSheet);
   closeSheet(elements.regionSuccessSheet);
   closeSheet(elements.confirmSheet);
 });

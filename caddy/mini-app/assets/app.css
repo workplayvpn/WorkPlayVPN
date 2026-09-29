@@ -718,6 +718,10 @@ h2 {
   gap: 13px;
 }
 
+.devices-list {
+  margin-inline: 6px;
+}
+
 .plan-card {
   position: relative;
   overflow: hidden;
@@ -877,18 +881,18 @@ h2 {
 
 .device-card {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 11px;
+  gap: 8px;
   min-height: 88px;
-  padding: 13px;
+  padding: 13px 10px;
   border-color: rgba(145, 148, 209, 0.38);
 }
 
 .device-icon {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   color: #73b1ff;
   background: rgba(47, 128, 237, 0.12);
@@ -910,11 +914,11 @@ h2 {
 }
 
 .device-info strong {
-  overflow: hidden;
   margin-bottom: 3px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
   font-size: 14px;
+  line-height: 1.35;
 }
 
 .device-info span {
@@ -929,11 +933,28 @@ h2 {
   font-weight: 650;
 }
 
-.device-info .device-auto-link {
-  margin-top: 9px;
-  min-height: 36px;
-  padding: 6px 10px;
-  font-size: 12px;
+.device-connect-list {
+  display: grid;
+  gap: 12px;
+  max-height: 48vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.device-connect-entry {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+}
+
+.device-connect-entry strong {
+  overflow-wrap: anywhere;
+}
+
+.device-connect-entry .button {
+  justify-content: center;
   text-align: center;
 }
 
