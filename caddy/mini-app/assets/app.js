@@ -38,6 +38,7 @@ const elements = {
   app: document.querySelector("#app"),
   retryButton: document.querySelector("#retry-button"),
   reopenBotButton: document.querySelector("#reopen-bot-button"),
+  openBotLink: document.querySelector("#open-bot-link"),
   refreshButton: document.querySelector("#refresh-button"),
   firstName: document.querySelector("#user-first-name"),
   subscriptionCard: document.querySelector("#subscription-card"),
@@ -181,7 +182,8 @@ function showLoadError(error) {
     ? "Сеанс Telegram истёк. Откройте бота и снова запустите Mini App, чтобы войти заново."
     : humanError(error);
   elements.retryButton.classList.toggle("hidden", sessionExpired);
-  elements.reopenBotButton.classList.toggle("hidden", !sessionExpired);
+  elements.reopenBotButton.classList.toggle("hidden", !sessionExpired || !telegram?.close);
+  elements.openBotLink.classList.toggle("hidden", sessionExpired && !!telegram?.close);
   elements.error.classList.remove("hidden");
 }
 
@@ -978,6 +980,9 @@ async function loadData() {
 function initializeTelegram() {
   if (!telegram || !telegram.initData) {
     elements.loading.classList.add("hidden");
+    elements.retryButton.classList.add("hidden");
+    elements.reopenBotButton.classList.add("hidden");
+    elements.openBotLink.classList.remove("hidden");
     elements.errorMessage.textContent =
       "Откройте приложение кнопкой внутри Telegram-бота Work&PlayVPN.";
     elements.error.classList.remove("hidden");
@@ -1018,15 +1023,11 @@ elements.plansTierSwitch.querySelectorAll("[data-plan-tier]").forEach((button) =
 
 elements.retryButton.addEventListener("click", initializeTelegram);
 elements.reopenBotButton.addEventListener("click", () => {
-  const botUrl = "https://t.me/workplayvpn_bot";
   try {
-    if (telegram?.openTelegramLink) {
-      telegram.openTelegramLink(botUrl);
-    } else {
-      window.location.assign(botUrl);
-    }
+    telegram.close();
   } catch {
-    window.location.assign(botUrl);
+    elements.reopenBotButton.classList.add("hidden");
+    elements.openBotLink.classList.remove("hidden");
   }
 });
 elements.refreshButton.addEventListener("click", async () => {
