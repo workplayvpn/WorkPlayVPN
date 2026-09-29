@@ -208,6 +208,7 @@ def get_me(
     total_device_limit = shared_device_limit(entitlements, user.extra_device_slots)
     connect_urls: dict[str, str] = {}
     auto_connect_urls: dict[str, str] = {}
+    basic_device_connect_urls: dict[str, str] = {}
     if entitlements:
         token_record, basic_token = subscription_token_service.get_or_create_token(
             database=database, telegram_id=user.telegram_id,
@@ -216,6 +217,20 @@ def get_me(
             raw = (basic_token if tier == "basic" else
                    subscription_token_service.scoped_token(token_record, tier))
             connect_urls[tier] = f"{settings.connect_base_url.rstrip('/')}/{raw}"
+            if tier == "basic":
+                basic_devices = database.scalars(
+                    select(VpnDevice).where(
+                        VpnDevice.user_id == user.id,
+                        VpnDevice.is_active.is_(True),
+                    ).order_by(VpnDevice.id.asc())
+                ).all()
+                for device in basic_devices:
+                    basic_device_connect_urls[str(device.id)] = (
+                        f"{settings.connect_base_url.rstrip('/')}/device/"
+                        f"{device.id}/{raw}"
+                    )
+                if basic_device_connect_urls:
+                    connect_urls["basic"] = next(iter(basic_device_connect_urls.values()))
             if tier == "mobile" and auto_route_allowed(user.id):
                 ready_devices = database.scalars(
                     select(VpnDevice).where(
@@ -268,6 +283,7 @@ def get_me(
         subscriptions=subscriptions_read,
         connect_urls=connect_urls,
         auto_connect_urls=auto_connect_urls,
+        basic_device_connect_urls=basic_device_connect_urls,
         devices=MiniAppDeviceSummaryRead(
             active_count=active_device_count or 0,
             total_limit=total_device_limit,
@@ -459,6 +475,8 @@ def build_mini_app_device(
     return MiniAppDeviceRead(
         id=device.id,
         public_id=device.public_id,
+        happ_device_model=device.happ_device_model,
+        happ_device_os=device.happ_device_os,
         device_name=device.device_name,
         node_code=node.code,
         node_name=node.name,
@@ -585,7 +603,7 @@ def create_device(
         if mobile_token else None
     )
     connect_url = (
-        f"{settings.connect_base_url.rstrip('/')}/{basic_token}"
+        f"{settings.connect_base_url.rstrip('/')}/device/{device.id}/{basic_token}"
         if "basic" in entitlements else mobile_url
     )
 

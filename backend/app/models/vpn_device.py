@@ -43,6 +43,9 @@ class VpnDevice(Base):
         String(64),
         nullable=True,
     )
+    happ_device_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    happ_device_os: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    happ_hwid_digest: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     xray_uuid: Mapped[str] = mapped_column(
         String(36),
         unique=True,

@@ -1,7 +1,7 @@
 import base64
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +19,7 @@ from app.services.happ_network_candidates import network_candidates
 from app.services.happ_subscription_info import subscription_expiry_info
 from app.services.happ_subscription_info import subscription_presentation
 from app.services.happ_subscription_info import hidden_settings_metadata, happ_server_description
+from app.services.happ_device_metadata import record_happ_device_metadata
 from app.api.happ_auto_route import auto_route_allowed, get_routed_mobile_subscription
 from app.services.subscription_builder import (
     subscription_builder,
@@ -177,6 +178,20 @@ def get_subscription_feed(
     request: Request,
     database: Session = Depends(get_db),
 ):
+    return _build_subscription_feed(token, request, database)
+
+
+@router.get("/device/{device_id}/{token}")
+def get_device_subscription_feed(
+    device_id: int, token: str, request: Request,
+    database: Session = Depends(get_db),
+):
+    return _build_subscription_feed(token, request, database, device_id=device_id)
+
+
+def _build_subscription_feed(
+    token: str, request: Request, database: Session, *, device_id: int | None = None,
+):
     user_agent = request.headers.get(
         "user-agent",
         "",
@@ -211,13 +226,15 @@ def get_subscription_feed(
     user, access_tier = subscription_token_service.resolve_token_scope(
         database=database, raw_token=token,
     )
+    if device_id is not None and access_tier != "basic":
+        raise HTTPException(status_code=404)
     entitlement = active_entitlements(database, user.id).get(access_tier)
     if entitlement is None:
         return Response(content="", status_code=403, media_type="text/plain")
     if client == "happ" and access_tier == "mobile" and auto_route_allowed(user.id):
         # The canary's existing Mobile URL updates to the single routed JSON entry.
         # Legacy Mobile URLs for other users retain their current format.
-        return get_routed_mobile_subscription(token, database)
+        return get_routed_mobile_subscription(token, database, request)
     mobile_entitled = access_tier == "mobile"
 
     devices = database.scalars(
@@ -230,6 +247,11 @@ def get_subscription_feed(
             VpnDevice.id.asc()
         )
     ).all()
+
+    if device_id is not None:
+        devices = [device for device in devices if device.id == device_id]
+        if not devices:
+            raise HTTPException(status_code=404)
 
     if not devices:
         return Response(
@@ -348,6 +370,12 @@ def get_subscription_feed(
         expires_at=entitlement[0].expires_at,
         provider_metadata=provider_metadata,
     )
+
+    if client == "happ":
+        record_happ_device_metadata(
+            database, devices, request.headers,
+            selected_device=source_device if device_id is not None else None,
+        )
 
     return Response(
         content=encoded,

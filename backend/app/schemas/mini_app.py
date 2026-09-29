@@ -42,6 +42,7 @@ class MiniAppMeRead(BaseModel):
     subscriptions: list[MiniAppSubscriptionRead] = Field(default_factory=list)
     connect_urls: dict[str, str] = Field(default_factory=dict)
     auto_connect_urls: dict[str, str] = Field(default_factory=dict)
+    basic_device_connect_urls: dict[str, str] = Field(default_factory=dict)
 
 
 class MiniAppPlanRead(BaseModel):
@@ -88,6 +89,8 @@ class MiniAppDeviceCreate(BaseModel):
 class MiniAppDeviceRead(BaseModel):
     id: int
     public_id: str
+    happ_device_model: str | None = None
+    happ_device_os: str | None = None
     device_name: str = Field(min_length=1, max_length=100)
     node_code: str = Field(min_length=1, max_length=50)
     node_name: str

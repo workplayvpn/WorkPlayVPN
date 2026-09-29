@@ -555,7 +555,10 @@ function renderDevices() {
     info.className = "device-info";
 
     const name = document.createElement("strong");
-    name.textContent = `(${index + 1}/${deviceLimit}) ${device.device_name}`;
+    const deviceLabel = device.happ_device_model && device.happ_device_os
+      ? `${device.happ_device_model} (${device.happ_device_os})`
+      : device.device_name;
+    name.textContent = `(${index + 1}/${deviceLimit}) ${deviceLabel}`;
 
     const identifier = document.createElement("span");
     identifier.className = "device-id";
@@ -566,6 +569,14 @@ function renderDevices() {
     node.textContent = `Регион: ${device.node_name}`;
 
     info.append(name, identifier, node);
+    const basicUrl = state.me.basic_device_connect_urls?.[device.id];
+    if (basicUrl) {
+      const basicLink = document.createElement("a");
+      basicLink.className = "button button-secondary device-auto-link";
+      basicLink.href = basicUrl;
+      basicLink.textContent = "Подключить Basic на этом устройстве";
+      info.append(basicLink);
+    }
     const autoUrl = state.me.auto_connect_urls?.[device.id];
     if (autoUrl) {
       const autoLink = document.createElement("a");

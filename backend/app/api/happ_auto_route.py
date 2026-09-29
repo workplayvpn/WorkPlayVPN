@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from app.services.happ_subscription_info import (
     hidden_settings_metadata,
 )
 from app.services.happ_smart_routing import build_happ_smart_routing_link
+from app.services.happ_device_metadata import record_happ_device_metadata
 from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
@@ -54,23 +55,27 @@ def get_routed_auto_route(
     return _build_response(token, database, routed=True)
 
 
-def get_routed_mobile_subscription(token: str, database: Session) -> JSONResponse:
+def get_routed_mobile_subscription(
+    token: str, database: Session, request: Request | None = None,
+) -> JSONResponse:
     """Serve the existing Mobile URL as one routed profile for canary users."""
-    return _build_response(token, database, routed=True, branded=True)
+    return _build_response(token, database, routed=True, branded=True, request=request)
 
 
 @router.get("/routed/device/{device_id}/{token}")
 def get_routed_auto_route_for_device(
     device_id: int,
     token: str,
+    request: Request,
     database: Annotated[Session, Depends(get_db)],
 ) -> JSONResponse:
-    return _build_response(token, database, routed=True, device_id=device_id)
+    return _build_response(token, database, routed=True, device_id=device_id,
+                           request=request)
 
 
 def _build_response(
     token: str, database: Session, *, routed: bool, device_id: int | None = None,
-    branded: bool = False,
+    branded: bool = False, request: Request | None = None,
 ) -> JSONResponse:
     user, tier = subscription_token_service.resolve_token_scope(database, token)
     if tier != "mobile" or not auto_route_allowed(user.id):
@@ -148,6 +153,12 @@ def _build_response(
         part.strip() for part in settings.happ_smart_routing_user_ids.split(",")
     }:
         headers["routing"] = build_happ_smart_routing_link()
+
+    if request is not None:
+        record_happ_device_metadata(
+            database, devices, request.headers,
+            selected_device=device if device_id is not None else None,
+        )
 
     return JSONResponse(
         content=config,

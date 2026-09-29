@@ -229,13 +229,26 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
     ):
         page = urlsplit(auto_urls[str(item_id)]).path
         assert client.get(page).status_code == 200
-        response = client.get(page.replace("/connect/happ/", "/sub/"))
+        happ_headers = ({
+            "User-Agent": "Happ/5.9.0/ios",
+            "X-Device-Model": "iPhone 14 Pro Max",
+            "X-Device-OS": "iOS",
+            "X-HWID": "test-hwid-for-first-device",
+        } if item_id == device_id else {})
+        response = client.get(page.replace("/connect/happ/", "/sub/"),
+                              headers=happ_headers)
         assert response.status_code == 200
         assert response.headers["profile-title"] == "Work&PlayVPN Mobile"
         config = response.json()[0]
         assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["id"] == direct_uuid
         assert config["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == mobile_uuid
         assert config["remarks"] == "🇳🇱 Нидерланды"
+
+    refreshed = client.get("/mini-app/devices", headers=headers).json()
+    by_id = {item["id"]: item for item in refreshed}
+    assert by_id[device_id]["happ_device_model"] == "iPhone 14 Pro Max"
+    assert by_id[device_id]["happ_device_os"] == "iOS"
+    assert by_id[second_id]["happ_device_model"] is None
 
     unknown_page = urlsplit(auto_urls[str(device_id)]).path.replace(
         f"/device/{device_id}/", "/device/999999/",
@@ -394,6 +407,8 @@ def test_device_lifecycle_uses_signed_user(
     assert set(created_device) == {
         "id",
         "public_id",
+        "happ_device_model",
+        "happ_device_os",
         "device_name",
         "node_code",
         "node_name",
@@ -464,13 +479,33 @@ def test_device_can_be_created_inside_mini_app(
     assert created_device["connect_url"].startswith(
         settings.connect_base_url
     )
+    assert f"/device/{created_device['id']}/" in created_device["connect_url"]
+    assert client.get(urlsplit(created_device["connect_url"]).path).status_code == 200
     assert created_device["mobile_connect_url"] is None
+
+    basic_feed_path = urlsplit(created_device["connect_url"]).path.replace(
+        "/connect/happ/", "/sub/",
+    )
+    assert client.get(basic_feed_path.replace(
+        f"/device/{created_device['id']}/", "/device/999999/",
+    )).status_code == 404
+    assert client.get(basic_feed_path, headers={
+        "User-Agent": "Happ/5.9.0/ios",
+        "X-Device-Model": "iPhone 14 Pro Max",
+        "X-Device-OS": "iOS",
+        "X-HWID": "basic-device-hwid",
+    }).status_code == 200
+    detected_device = client.get("/mini-app/devices", headers=headers).json()[0]
+    assert detected_device["happ_device_model"] == "iPhone 14 Pro Max"
+    assert detected_device["happ_device_os"] == "iOS"
 
     device = {
         key: value
         for key, value in created_device.items()
         if key not in {"connect_url", "mobile_connect_url"}
     }
+    device["happ_device_model"] = "iPhone 14 Pro Max"
+    device["happ_device_os"] = "iOS"
     assert device["device_name"] == "iPhone (iOS)"
     assert device["node_code"] == NODE_CODE
     assert device["node_name"] == "Mini App Test Node"
@@ -488,7 +523,11 @@ def test_device_can_be_created_inside_mini_app(
     )
 
     assert repeated_response.status_code == 201
-    assert repeated_response.json() == created_device
+    assert repeated_response.json() == {
+        **created_device,
+        "happ_device_model": "iPhone 14 Pro Max",
+        "happ_device_os": "iOS",
+    }
     assert len(added_users) == 1
 
     devices_response = client.get(
@@ -498,6 +537,10 @@ def test_device_can_be_created_inside_mini_app(
 
     assert devices_response.status_code == 200
     assert devices_response.json() == [device]
+    profile = client.get("/mini-app/me", headers=headers).json()
+    assert profile["basic_device_connect_urls"][str(device["id"])] == (
+        created_device["connect_url"]
+    )
 
 
 def test_device_creation_requires_valid_client_instance_id() -> None:

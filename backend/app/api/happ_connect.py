@@ -119,6 +119,38 @@ def launch_routed_auto_happ(
     )
 
 
+def _require_basic_device_access(token: str, database: Session, device_id: int) -> int:
+    user, tier = subscription_token_service.resolve_token_scope(database, token)
+    if tier != "basic":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if "basic" not in active_entitlements(database, user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+    device = database.scalar(select(VpnDevice.id).where(
+        VpnDevice.id == device_id,
+        VpnDevice.user_id == user.id,
+        VpnDevice.is_active.is_(True),
+    ))
+    if device is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return user.id
+
+
+@router.get("/launch/device/{device_id}/{token}", include_in_schema=False)
+def launch_basic_happ_for_device(
+    device_id: int, token: str, database: Session = Depends(get_db),
+) -> RedirectResponse:
+    user_id = _require_basic_device_access(token, database, device_id)
+    subscription_url = (
+        f"{settings.subscription_base_url.rstrip('/')}/device/{device_id}/{token}"
+    )
+    return RedirectResponse(
+        url=_import_link(subscription_url, user_id),
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache",
+                 "Referrer-Policy": "no-referrer"},
+    )
+
+
 @router.get("/launch/auto/routed/device/{device_id}/{token}", include_in_schema=False)
 def launch_routed_auto_happ_for_device(
     device_id: int, token: str, database: Session = Depends(get_db),
@@ -181,6 +213,14 @@ def connect_routed_auto_happ_for_device(
     return _connect_happ_page(token, database, routed=True, device_id=device_id)
 
 
+@router.get("/device/{device_id}/{token}", response_class=HTMLResponse)
+def connect_basic_happ_for_device(
+    device_id: int, token: str, database: Session = Depends(get_db),
+):
+    _require_basic_device_access(token, database, device_id)
+    return _connect_happ_page(token, database, routed=False, device_id=device_id)
+
+
 @router.get("/auto/routed/{token}", response_class=HTMLResponse)
 def connect_routed_auto_happ(
     token: str,
@@ -215,6 +255,8 @@ def _connect_happ_page(
 
     launch_url = (
         f"/connect/happ/launch/auto/routed/device/{device_id}/{token}"
+        if routed and device_id is not None else
+        f"/connect/happ/launch/device/{device_id}/{token}"
         if device_id is not None else
         f"/connect/happ/launch/auto/routed/{token}" if routed else
         f"/connect/happ/launch/{token}"
