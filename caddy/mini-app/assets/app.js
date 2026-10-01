@@ -55,7 +55,6 @@ const elements = {
   resumePaymentButton: document.querySelector("#resume-payment-button"),
   trialButton: document.querySelector("#trial-button"),
   plansList: document.querySelector("#plans-list"),
-  plansTierSwitch: document.querySelector("#plans-tier-switch"),
   plansTierDescription: document.querySelector("#plans-tier-description"),
   plansStartingPrice: document.querySelector("#plans-starting-price"),
   plansDeviceLimit: document.querySelector("#plans-device-limit"),
@@ -334,7 +333,7 @@ function setView(name) {
   });
 
   document.querySelectorAll(".nav-item").forEach((button) => {
-    button.classList.toggle("active", button.dataset.viewLink === (name === "devices" ? "subscriptions" : name));
+    button.classList.toggle("active", button.dataset.viewLink === (name === "devices" ? "subscriptions" : name === "terms" ? "plans" : name));
   });
 
   if (telegram?.BackButton) {
@@ -405,34 +404,113 @@ function renderSubscriptionDetail() {
   document.querySelector("#header-avatar").textContent = (state.me?.user?.first_name || "W").slice(0, 1).toUpperCase();
 }
 
+function openPlanTerms(tier) {
+  if (!state.catalog.plans.some((plan) => (plan.access_tier || "basic") === tier)) {
+    showToast("Эта подписка сейчас недоступна.", "error");
+    setView("plans");
+    return;
+  }
+  state.planTier = tier;
+  renderPlans();
+  setView("terms");
+}
+
+function mobileRouteDescription() {
+  return Object.keys(state.me?.auto_connect_urls || {}).length
+    ? "Прямой и резервный маршруты. Выбор маршрута автоматический."
+    : "Прямой маршрут и резерв через CDN. Нужный профиль выбирается в Happ.";
+}
+
 function renderCatalogOverview() {
   const container = document.querySelector("#catalog-overview");
   container.replaceChildren();
+  const availableTiers = [];
   for (const tier of ["basic", "mobile"]) {
     const plans = state.catalog.plans.filter((plan) => (plan.access_tier || "basic") === tier);
     if (!plans.length) continue;
+    availableTiers.push(tier);
     const card = document.createElement("article");
-    card.className = "catalog-card";
+    card.className = `catalog-card catalog-card-${tier}`;
+    const heading = document.createElement("div");
+    heading.className = "catalog-card-heading";
     const title = document.createElement("h2");
     title.textContent = tierLabel(tier);
+    const badge = document.createElement("span");
+    badge.className = "tier-badge";
+    badge.textContent = tier === "mobile" ? "Больше маршрутов" : "На каждый день";
+    heading.append(title, badge);
     const description = document.createElement("p");
-    description.textContent = tier === "mobile" ? "Wi-Fi и мобильная сеть. Общие устройства с Basic." : "Рабочие задачи, видео и развлечения. Подключение через Happ.";
-    const price = document.createElement("span");
-    price.className = "catalog-price";
-    const cheapest = plans.reduce((a, b) => Number(a.price_amount) < Number(b.price_amount) ? a : b);
-    price.textContent = `От ${formatMoney(cheapest.price_amount, cheapest.currency)}`;
+    description.textContent = tier === "mobile"
+      ? "Для тех, кто пользуется и Wi-Fi, и мобильным интернетом: рабочие задачи, игры и видео с дополнительным вариантом подключения."
+      : "Для работы и отдыха в обычной сети: созвоны, сайты, игры, видео и любимые сервисы через прямое VPN-подключение.";
+    const features = document.createElement("ul");
+    features.className = "catalog-features";
+    for (const text of [
+      tier === "mobile" ? mobileRouteDescription() : "Прямое подключение. При ограничениях мобильной сети может быть недоступно.",
+      "Подключение через приложение Happ.",
+      `До ${Math.max(...plans.map((plan) => plan.device_limit))} устройств в тарифе. Лимит общий с другой подпиской.`,
+      tier === "mobile" ? "Можно использовать вместе с Basic — сроки подписок независимы." : "Можно использовать вместе с Mobile — сроки подписок независимы.",
+    ]) {
+      const item = document.createElement("li");
+      item.textContent = text;
+      features.append(item);
+    }
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "button button-secondary button-wide";
-    button.textContent = `Выбрать ${tierLabel(tier)} →`;
-    button.addEventListener("click", () => {
-      state.planTier = tier;
-      renderPlans();
-      document.querySelector("#plans-tier-description").scrollIntoView({behavior: "smooth", block: "start"});
-    });
-    card.append(title, description, price, button);
+    button.className = `button ${tier === "mobile" ? "button-primary" : "button-secondary"} button-wide`;
+    button.textContent = `Выбрать срок ${tierLabel(tier)} →`;
+    button.addEventListener("click", () => openPlanTerms(tier));
+    card.append(heading, description, features, button);
+    if (activeSubscriptions().some((entry) => subscriptionTier(entry) === tier)) {
+      const manage = document.createElement("button");
+      manage.type = "button";
+      manage.className = "text-button catalog-manage";
+      manage.textContent = `Моя подписка ${tierLabel(tier)} →`;
+      manage.addEventListener("click", () => openSubscription(tier));
+      card.append(manage);
+    }
     container.append(card);
   }
+  const comparison = document.querySelector("#catalog-comparison");
+  comparison.replaceChildren();
+  if (availableTiers.length < 2) return;
+  const heading = document.createElement("h2");
+  heading.textContent = "Чем отличаются";
+  const wrap = document.createElement("div");
+  wrap.className = "comparison-wrap";
+  const table = document.createElement("table");
+  table.className = "comparison-table";
+  const caption = document.createElement("caption");
+  caption.textContent = "Сравнение Basic и Mobile";
+  table.append(caption);
+  const thead = document.createElement("thead");
+  const header = document.createElement("tr");
+  for (const label of ["Возможности", "Basic", "Mobile"]) {
+    const th = document.createElement("th"); th.scope = "col"; th.textContent = label; header.append(th);
+  }
+  thead.append(header); table.append(thead);
+  const tbody = document.createElement("tbody");
+  for (const values of [
+    ["Подключение", "Через Happ", "Через Happ"],
+    ["Прямой маршрут", "Да", "Да"],
+    ["Резерв через CDN", "Нет", "Да"],
+    ["При ограничениях сети", "Может быть недоступно", "Можно попробовать резерв"],
+    ["Устройства", "Общий лимит", "Общий лимит"],
+    ["Срок действия", "Отдельный", "Отдельный"],
+  ]) {
+    const row = document.createElement("tr");
+    values.forEach((value, index) => {
+      const cell = document.createElement(index === 0 ? "th" : "td");
+      if (index === 0) cell.scope = "row";
+      cell.textContent = value; row.append(cell);
+    });
+    tbody.append(row);
+  }
+  table.append(tbody); wrap.append(table);
+  const note = document.createElement("p");
+  note.className = "shared-note";
+  note.textContent = "Работа подключения зависит от сети и её ограничений. Резервный маршрут не гарантирует доступ в любой ситуации.";
+  comparison.append(heading, wrap, note);
 }
 
 function renderSubscription() {
@@ -525,10 +603,7 @@ function renderPlans() {
     state.planTier = availableTiers.has("mobile") && !availableTiers.has("basic")
       ? "mobile" : "basic";
   }
-  elements.plansTierSwitch.classList.toggle("hidden", !availableTiers.has("mobile"));
-  elements.plansTierSwitch.querySelectorAll("[data-plan-tier]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.planTier === state.planTier));
-  });
+  document.querySelector("#terms-title").textContent = `Выбери срок ${tierLabel(state.planTier)}`;
   elements.plansTierDescription.textContent = state.planTier === "mobile"
     ? (Object.keys(state.me?.auto_connect_urls || {}).length
       ? "Подключение для Wi-Fi и мобильной сети. Маршрут выбирается автоматически."
@@ -829,6 +904,18 @@ function showDeviceSetup() {
   openSheet(elements.deviceSetupSheet);
 }
 
+function openBotLink(url) {
+  if (telegram?.openTelegramLink) {
+    try {
+      telegram.openTelegramLink(url);
+      // Modern clients can keep the Mini App over the chat; reveal the destination.
+      try { telegram.close?.(); } catch { /* The Telegram link still opens. */ }
+      return;
+    } catch { /* Older clients retain ordinary URL navigation. */ }
+  }
+  window.location.href = url;
+}
+
 function openExternal(url) {
   if (!url) {
     showToast("Ссылка пока недоступна.", "error");
@@ -1087,7 +1174,7 @@ function initializeTelegram() {
     applyTheme();
 
     if (!state.telegramEventsBound) {
-      telegram.BackButton?.onClick(() => setView("home"));
+      telegram.BackButton?.onClick(() => setView(state.view === "terms" ? "plans" : state.view === "devices" ? "subscriptions" : "home"));
       telegram.onEvent?.("activated", () => loadData());
       telegram.onEvent?.("themeChanged", applyTheme);
       state.telegramEventsBound = true;
@@ -1103,13 +1190,6 @@ document.querySelectorAll("[data-view-link]").forEach((button) => {
   button.addEventListener("click", (event) => {
     event.preventDefault();
     setView(button.dataset.viewLink);
-  });
-});
-
-elements.plansTierSwitch.querySelectorAll("[data-plan-tier]").forEach((button) => {
-  button.addEventListener("click", () => {
-    state.planTier = button.dataset.planTier;
-    renderPlans();
   });
 });
 
@@ -1138,9 +1218,7 @@ elements.changeRegionButton.addEventListener("click", () => {
 });
 document.querySelector("#detail-connect").addEventListener("click", showDeviceConnections);
 document.querySelector("#detail-renew").addEventListener("click", () => {
-  state.planTier = state.detailTier;
-  renderPlans();
-  setView("plans");
+  openPlanTerms(state.detailTier);
 });
 
 elements.addDeviceButton.addEventListener("click", () => {
@@ -1203,6 +1281,13 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && !elements.app.classList.contains("hidden")) {
     loadData();
   }
+});
+
+document.querySelectorAll('a[href^="https://t.me/"]').forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    openBotLink(link.href);
+  });
 });
 
 initializeTelegram();

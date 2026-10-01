@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20261001-1">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261001-2">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20261001-1" defer></script>
+  <script src="/app/assets/app.js?v=20261001-2" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -127,7 +127,7 @@
           </button>
         </div>
         <button class="referral-teaser" type="button" data-view-link="referrals"><span class="eyebrow">Связь объединяет</span><strong>Хорошей связью хочется делиться.</strong><span>Реферальная программа · скоро →</span></button>
-        <a class="button button-secondary button-wide" href="https://t.me/workplayvpn_bot">Нужна помощь? Написать нам</a>
+        <a class="button button-secondary button-wide" href="https://t.me/workplayvpn_bot">Нужна помощь? Написать в бот</a>
       </section>
 
       <section id="view-subscriptions" class="view" aria-labelledby="subscriptions-title">
@@ -146,16 +146,19 @@
         <div class="section-head">
           <p class="eyebrow">Выбери своё подключение</p>
           <h1 id="plans-title">Работа и отдых.<br>Один сервис.</h1>
-          <p id="plans-device-limit">Загружаем параметры тарифов…</p>
+          <p>Сравни Basic и Mobile, затем выбери подходящий срок.</p>
         </div>
         <div id="catalog-overview" class="catalog-overview"></div>
-        <h2 class="duration-heading">Срок подписки</h2>
-        <div id="plans-tier-switch" class="plans-tier-switch hidden" role="group" aria-label="Версия VPN">
-          <button type="button" data-plan-tier="basic" aria-pressed="true">Обычный VPN</button>
-          <button type="button" data-plan-tier="mobile" aria-pressed="false">VPN Mobile</button>
-        </div>
+        <div id="catalog-comparison"></div>
+        <button class="button button-secondary button-wide" type="button" data-view-link="subscriptions">Перейти к моим подпискам →</button>
+      </section>
+
+      <section id="view-terms" class="view" aria-labelledby="terms-title">
+        <button class="text-button detail-back" type="button" data-view-link="plans">← В каталог</button>
+        <div class="section-head"><p class="eyebrow">Срок подписки</p><h1 id="terms-title">Basic</h1><p id="plans-device-limit">Загружаем параметры…</p></div>
         <p id="plans-tier-description" class="plans-tier-description"></p>
         <div id="plans-list" class="plans-list" aria-live="polite"></div>
+        <button class="button button-secondary button-wide terms-subscriptions" type="button" data-view-link="subscriptions">Мои подписки →</button>
       </section>
 
       <section id="view-devices" class="view" aria-labelledby="devices-title">

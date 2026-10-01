@@ -1629,3 +1629,42 @@ button.referral-teaser { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 
 :root[data-theme="light"] body { background: var(--bg); }
+
+/* Product cards: quieter Basic, brighter Mobile, shared orbital language. */
+.catalog-card, .subscription-tile { position: relative; isolation: isolate; overflow: hidden; }
+.catalog-card::before, .subscription-tile::before {
+  content: ""; position: absolute; z-index: -1; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 100% 0, #32d4c514, transparent 70%),
+    repeating-linear-gradient(0deg, transparent 0 30px, #32d4c505 31px 32px), var(--surface);
+}
+.catalog-card::after, .subscription-tile::after {
+  content: ""; position: absolute; z-index: -1; right: -95px; top: -80px;
+  width: 220px; height: 220px; border: 1px solid #32d4c520; border-radius: 50%;
+  box-shadow: 0 0 0 24px #32d4c504, 0 0 0 48px #32d4c503; pointer-events: none;
+}
+.catalog-card-mobile::before, .subscription-tile-mobile::before {
+  background: radial-gradient(ellipse at 100% 0, #32d4c532, transparent 68%),
+    radial-gradient(ellipse at 0 100%, #ffbd6919, transparent 65%),
+    repeating-linear-gradient(0deg, transparent 0 30px, #32d4c508 31px 32px), var(--surface);
+}
+.catalog-card-mobile, .subscription-tile-mobile { border-color: var(--border-strong); }
+.catalog-card-mobile::after, .subscription-tile-mobile::after { border-color: #32d4c560; box-shadow: 0 0 0 24px #32d4c50b, 0 0 0 48px #32d4c508; }
+.catalog-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.catalog-card-heading .tier-badge { font-size: 10px; }
+.catalog-card-mobile .tier-badge { color: var(--gold); background: #ffbd6912; }
+.catalog-features { margin: 16px 0 20px; padding-left: 17px; color: var(--text-soft); font-size: 12px; line-height: 1.6; }
+.catalog-features li { margin: 8px 0; padding-left: 2px; }
+.catalog-features li::marker { color: var(--cyan); }
+.catalog-manage { display: block; width: 100%; margin-top: 10px; text-align: center; }
+#catalog-comparison h2 { font-size: 18px; margin: 24px 0 14px; }
+.comparison-wrap { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.comparison-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+.comparison-table caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.comparison-table th, .comparison-table td { padding: 12px 9px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.comparison-table thead { background: var(--surface); color: var(--text); }
+.comparison-table thead th:first-child { width: 36%; }
+.comparison-table tbody th { color: var(--text-soft); font-weight: 500; }
+.comparison-table td { color: var(--text); }
+.comparison-table tr:last-child > * { border-bottom: 0; }
+.terms-subscriptions { margin-top: 20px; }
+:root[data-theme="light"] .catalog-card-mobile::before, :root[data-theme="light"] .subscription-tile-mobile::before { background: radial-gradient(ellipse at 100% 0, #32d4c525, transparent 68%), radial-gradient(ellipse at 0 100%, #ffbd6920, transparent 65%), var(--surface); }
