@@ -1,5 +1,5 @@
 [Unit]
-Description=Collect WorkPlayVPN Mobile Xray traffic
+Description=Collect Work&PlayVPN Mobile Xray traffic
 After=xray-yandex-cdn-test.service
 Requires=xray-yandex-cdn-test.service
 

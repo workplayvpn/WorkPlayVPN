@@ -3,7 +3,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
-from config import mini_app_devices_url, mini_app_url
+from config import mini_app_devices_url, mini_app_url, mini_app_referrals_url
 from ui.common import build_keyboard
 
 
@@ -45,6 +45,8 @@ main_menu = build_keyboard(
                 callback_data="change_region",
             ),
         ],
+        [InlineKeyboardButton(text="🤝 Реферальная программа",
+            web_app=WebAppInfo(url=mini_app_referrals_url))],
         [
             InlineKeyboardButton(
                 text="📄 Документы",

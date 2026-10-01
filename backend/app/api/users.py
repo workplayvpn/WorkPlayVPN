@@ -1,3 +1,5 @@
+from app.schemas.mini_app import MiniAppRegionRead, MiniAppRegionUpdate
+from app.services.vpn_device_service import vpn_device_service
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -64,3 +66,11 @@ def get_user(
         )
 
     return user
+
+@router.patch("/{telegram_id}/region", response_model=MiniAppRegionRead)
+def change_user_region(telegram_id: int, payload: MiniAppRegionUpdate,
+                       database: Session = Depends(get_db)):
+    location = vpn_device_service.change_account_location(
+        database=database, telegram_id=telegram_id,
+        location_code=payload.location_code)
+    return MiniAppRegionRead(code=location.code, name=location.name)

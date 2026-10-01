@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class SubscriptionTokenCreate(BaseModel):
@@ -16,3 +16,5 @@ class SubscriptionTokenRead(BaseModel):
     mobile_access_key: str | None = None
     mobile_subscription_url: str | None = None
     mobile_connect_url: str | None = None
+    basic_device_connect_urls: dict[str, str] = Field(default_factory=dict)
+    mobile_device_connect_urls: dict[str, str] = Field(default_factory=dict)

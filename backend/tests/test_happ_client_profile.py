@@ -81,7 +81,7 @@ def test_legacy_happ_profile_output_remains_unchanged() -> None:
 
     assert len(links) == 1
     assert "@nl1.workplayvpn.ru:8443" in links[0]
-    assert links[0].endswith("#WorkPlayVPN-NL-01")
+    assert links[0].endswith("#Work%26PlayVPN-NL-01")
 
 
 def test_mobile_profile_is_hidden_without_rollout() -> None:
@@ -118,7 +118,7 @@ def test_mobile_profile_is_hidden_without_rollout() -> None:
 
     assert len(links) == 1
     assert "@nl1.workplayvpn.ru:8443" in links[0]
-    assert unquote(urlsplit(links[0]).fragment) == "WorkPlayVPN-NL-01"
+    assert unquote(urlsplit(links[0]).fragment) == "Work&PlayVPN-NL-01"
 
 
 def test_basic_happ_prefers_direct_reality_and_hides_mobile() -> None:
@@ -160,7 +160,7 @@ def test_basic_happ_prefers_direct_reality_and_hides_mobile() -> None:
     assert len(links) == 1
     assert "@nl1.workplayvpn.ru:443" in links[0]
     assert parse_qs(urlsplit(links[0]).query)["security"] == ["reality"]
-    assert unquote(urlsplit(links[0]).fragment) == "WorkPlayVPN-NL-01"
+    assert unquote(urlsplit(links[0]).fragment) == "Work&PlayVPN-NL-01"
 
 
 def test_basic_happ_uses_the_same_country_label_as_mobile_wifi() -> None:

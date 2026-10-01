@@ -1,3 +1,5 @@
+from app.api.internal_auth import require_internal_api_secret
+from app.services.catalog import available_plans
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -60,3 +62,9 @@ def get_locations(
         )
         for location in locations
     ]
+
+
+@router.get("/users/{telegram_id}/plans", response_model=list[PlanRead],
+            dependencies=[Depends(require_internal_api_secret)])
+def get_user_plans(telegram_id: int, database: Session = Depends(get_db)):
+    return available_plans(database, telegram_id, include_trial=True)

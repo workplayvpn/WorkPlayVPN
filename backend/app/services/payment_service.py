@@ -261,7 +261,7 @@ class PaymentService:
             provider_result = provider_service.create_payment(
                 amount=payment.amount,
                 currency=payment.currency,
-                description=f"WorkPlayVPN {plan.name}",
+                description=f"Work&PlayVPN {plan.name}",
                 idempotency_key=payment.idempotency_key,
                 metadata={
                     "payment_id": str(payment.id),

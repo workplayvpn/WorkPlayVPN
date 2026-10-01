@@ -1,135 +1,39 @@
-from aiogram.types import (
-    CopyTextButton,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    WebAppInfo,
-)
-
-from config import mini_app_devices_url, mini_app_url
+from aiogram.types import InlineKeyboardButton, CopyTextButton, WebAppInfo
+from config import mini_app_url
 from ui.common import build_keyboard
 
 
-def build_subscription_keyboard(
-    *,
-    active: bool,
-    connect_url: str | None = None,
-    mobile_connect_url: str | None = None,
-) -> InlineKeyboardMarkup:
-    if not active:
-        return build_keyboard(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="💎 Выбрать тариф",
-                        callback_data="plans",
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="🚀 Открыть Work&PlayVPN",
-                        web_app=WebAppInfo(url=mini_app_url),
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="← На главную",
-                        callback_data="main_menu",
-                    )
-                ],
-            ]
-        )
-
-    instruction_button = InlineKeyboardButton(
-        text="📖 Открыть инструкцию",
-        web_app=WebAppInfo(
-            url=connect_url or mini_app_url,
-        ),
-    )
-
-    return build_keyboard(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🔑 Показать ключ",
-                    callback_data="subscription_key",
-                ),
-                InlineKeyboardButton(
-                    text="📷 Показать QR-код",
-                    callback_data="subscription_qr",
-                ),
-            ],
-            [instruction_button],
-            *([[InlineKeyboardButton(
-                text="📱 Подключить Mobile",
-                web_app=WebAppInfo(url=mobile_connect_url),
-            )]] if mobile_connect_url and mobile_connect_url != connect_url else []),
-            [
-                InlineKeyboardButton(
-                    text="🌍 Сменить регион",
-                    callback_data="change_region",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⏳ Продлить подписку",
-                    callback_data="subscription_plans",
-                ),
-                InlineKeyboardButton(
-                    text="📱 Подключить устройство",
-                    web_app=WebAppInfo(
-                        url=mini_app_devices_url,
-                    ),
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="🛟 Сообщить о проблеме",
-                    url="https://t.me/workplayvpnteam",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="← На главную",
-                    callback_data="main_menu",
-                )
-            ],
-        ]
-    )
+def tier_name(tier):
+    return "Mobile" if tier == "mobile" else "Basic"
 
 
-def build_subscription_secret_keyboard(
-    copy_value: str | None = None,
-    mobile_copy_value: str | None = None,
-) -> InlineKeyboardMarkup:
-    rows = []
+def build_tier_keyboard(tiers, action, *, back="subscription"):
+    return build_keyboard(inline_keyboard=[
+        [InlineKeyboardButton(text=tier_name(t), callback_data=f"{action}:{t}", style="primary")]
+        for t in ("basic", "mobile") if t in tiers
+    ] + [[InlineKeyboardButton(text="← Назад", callback_data=back)]])
 
-    if copy_value:
-        rows.append(
-            [
-                InlineKeyboardButton(
-                    text="📋 Скопировать основную ссылку",
-                    copy_text=CopyTextButton(
-                        text=copy_value,
-                    ),
-                )
-            ]
-        )
 
-    if mobile_copy_value and mobile_copy_value != copy_value:
-        rows.append([InlineKeyboardButton(
-            text="📋 Скопировать Mobile",
-            copy_text=CopyTextButton(text=mobile_copy_value),
-        )])
+def build_subscription_keyboard(*, active, connect_url=None, mobile_connect_url=None, tier=None):
+    if tier:
+        rows = [[InlineKeyboardButton(text="🔑 Показать ключ", callback_data=f"subscription_key:{tier}", style="primary")],
+                [InlineKeyboardButton(text="📷 Показать QR-код", callback_data=f"subscription_qr:{tier}", style="primary")],
+                [InlineKeyboardButton(text="📖 Подключение и устройства", web_app=WebAppInfo(url=mini_app_url+('&' if '?' in mini_app_url else '?')+'view=devices'))],
+                [InlineKeyboardButton(text="⏳ Продлить подписку", callback_data=f"plans_tier:{tier}", style="primary")],
+                [InlineKeyboardButton(text="🌍 Сменить регион", callback_data="change_region")],
+                [InlineKeyboardButton(text="🛟 Сообщить о проблеме", url="https://t.me/workplayvpnteam")],
+                [InlineKeyboardButton(text="← К подпискам", callback_data="subscription")]]
+    else:
+        rows = [[InlineKeyboardButton(text="💎 Выбрать подписку", callback_data="plans")],
+                [InlineKeyboardButton(text="🚀 Открыть Work&PlayVPN", web_app=WebAppInfo(url=mini_app_url))],
+                [InlineKeyboardButton(text="← На главную", callback_data="main_menu")]]
+    return build_keyboard(inline_keyboard=rows)
 
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text="← К подписке",
-                callback_data="subscription",
-            )
-        ]
-    )
 
-    return build_keyboard(
-        inline_keyboard=rows,
-    )
+def build_subscription_secret_keyboard(copy_value=None, mobile_copy_value=None, *, tier=None):
+    rows=[]
+    for label, value in ((tier_name(tier or "basic"), copy_value), ("Mobile", mobile_copy_value)):
+        if value and not any(row[0].copy_text.text == value for row in rows):
+            rows.append([InlineKeyboardButton(text=f"📋 Скопировать {label}", copy_text=CopyTextButton(text=value))])
+    rows.append([InlineKeyboardButton(text="← К подписке", callback_data=f"subscription_tier:{tier}" if tier else "subscription")])
+    return build_keyboard(inline_keyboard=rows)

@@ -43,4 +43,5 @@ def build_keyboard(
             ):
                 style = "primary"
             rows.append([button.model_copy(update={"style": style})])
+    rows.sort(key=lambda row: row[0].style != "primary")
     return InlineKeyboardMarkup(inline_keyboard=rows)

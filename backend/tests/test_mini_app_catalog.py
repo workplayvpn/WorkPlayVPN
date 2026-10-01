@@ -183,3 +183,28 @@ def test_catalog_exposes_mobile_only_to_pilot_users(monkeypatch: pytest.MonkeyPa
             db.execute(delete(Plan).where(Plan.code == code))
             db.execute(delete(User).where(User.telegram_id == 993100002))
             db.commit()
+
+
+def test_bot_catalog_matches_mini_app_and_protects_mobile(monkeypatch):
+    headers = {"Authorization": f"Bearer {settings.internal_api_secret}"}
+    assert client.get("/catalog/users/993100002/plans").status_code == 401
+    with SessionLocal() as db:
+        existing = db.scalar(select(User).where(User.telegram_id == 993100002))
+        user = existing or User(telegram_id=993100002, first_name="Catalog", is_active=True)
+        db.add(user)
+        db.commit()
+        pilot_id = user.id
+    try:
+        for pilot in ("", str(pilot_id)):
+            monkeypatch.setattr(settings, "mobile_pilot_user_ids", pilot)
+            bot = client.get("/catalog/users/993100002/plans", headers=headers)
+            mini = client.get("/mini-app/catalog", headers={"X-Telegram-Init-Data": build_init_data()})
+            assert bot.status_code == mini.status_code == 200
+            bot_paid = {p["code"] for p in bot.json() if p["code"] != "trial_1d"}
+            assert bot_paid == {p["code"] for p in mini.json()["plans"]}
+            assert any(p["access_tier"] == "mobile" for p in bot.json()) == bool(pilot)
+    finally:
+        if existing is None:
+            with SessionLocal() as db:
+                db.execute(delete(User).where(User.telegram_id == 993100002))
+                db.commit()

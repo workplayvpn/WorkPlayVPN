@@ -1,5 +1,5 @@
 [Unit]
-Description=Collect WorkPlayVPN Mobile traffic every minute
+Description=Collect Work&PlayVPN Mobile traffic every minute
 
 [Timer]
 OnBootSec=1min

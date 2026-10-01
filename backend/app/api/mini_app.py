@@ -1,3 +1,4 @@
+from app.services.catalog import available_plans
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -39,7 +40,6 @@ from app.schemas.mini_app import (
     MiniAppUserRead,
 )
 from app.services.device_activation_service import device_activation_service
-from app.services.mobile_rollout import mobile_pilot_allowed
 from app.services.payment_service import payment_service
 from app.services.subscription_service import subscription_service
 from app.services.entitlements import active_entitlements, shared_device_limit
@@ -344,19 +344,7 @@ def get_catalog(
         Depends(get_db),
     ],
 ) -> MiniAppCatalogRead:
-    plans = database.scalars(
-        select(Plan)
-        .where(
-            Plan.is_active.is_(True),
-            Plan.code.like("standard_%") | Plan.code.like("mobile_%"),
-        )
-        .order_by(Plan.access_tier, Plan.duration_days)
-    ).all()
-    user_id = database.scalar(
-        select(User.id).where(User.telegram_id == auth.user.id)
-    )
-    if user_id is None or not mobile_pilot_allowed(user_id):
-        plans = [plan for plan in plans if plan.access_tier != "mobile"]
+    plans = available_plans(database, auth.user.id)
 
     locations = database.scalars(
         select(Location)
@@ -479,7 +467,7 @@ def build_mini_app_device(
         happ_device_os=device.happ_device_os,
         device_name=device.device_name,
         node_code=node.code,
-        node_name=node.name,
+        node_name=node.name.replace("WorkPlayVPN", "Work&PlayVPN"),
         is_active=device.is_active,
         created_at=device.created_at,
     )

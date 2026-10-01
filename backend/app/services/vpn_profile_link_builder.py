@@ -88,7 +88,7 @@ class VpnProfileLinkBuilder:
         )
 
         name = quote(
-            display_name or node.name,
+            (display_name or node.name).replace("WorkPlayVPN", "Work&PlayVPN"),
             safe="",
         )
 

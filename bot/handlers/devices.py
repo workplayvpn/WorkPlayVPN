@@ -118,7 +118,7 @@ async def show_devices(
     for device in devices:
         lines.append(
             f"🟢 {device['device_name']}\n"
-            f"   {device['node_name']}"
+            f"   ID: {device.get('public_id') or '—'}"
         )
 
     lines.extend(
@@ -179,26 +179,11 @@ async def show_device(
 
     instructions_url = None
 
-    try:
-        token_response = await backend_post(
-            "/subscription-tokens",
-            {
-                "telegram_id": callback.from_user.id,
-            },
-        )
-
-        if token_response.status_code == 201:
-            instructions_url = token_response.json().get(
-                "connect_url"
-            )
-    except httpx.RequestError:
-        pass
-
     text = (
         f"📱 {device['device_name']}\n\n"
         "🟢 Доступ активно подключён\n\n"
         f"Сервер: {device['node_name']}\n"
-        f"Код: {device['node_code']}\n\n"
+        f"ID: {device.get('public_id') or '—'}\n\n"
         "Выберите нужное действие:"
     )
 
@@ -218,115 +203,8 @@ async def show_device(
 async def show_device_key(
     callback: CallbackQuery,
 ) -> None:
-    await callback.answer()
-
-    if callback.data is None:
-        return
-
-    device_id = int(
-        callback.data.split(
-            ":",
-            maxsplit=1,
-        )[1]
-    )
-
-    try:
-        device = await find_device(
-            callback.from_user.id,
-            device_id,
-        )
-    except httpx.RequestError:
-        await edit_screen(
-            callback,
-            "⚠️ Не удалось получить ключ.",
-            build_devices_keyboard(),
-        )
-        return
-
-    if device is None:
-        await edit_screen(
-            callback,
-            "Устройство не найдено "
-            "или уже отключено.",
-            build_devices_keyboard(),
-        )
-        return
-
-    try:
-        response = await backend_post(
-            "/subscription-tokens",
-            {
-                "telegram_id": callback.from_user.id,
-            },
-        )
-    except httpx.RequestError:
-        await edit_screen(
-            callback,
-            "⚠️ Не удалось получить ключ.\n\n"
-            "Попробуйте немного позже.",
-            build_device_keyboard(
-                device_id
-            ),
-        )
-        return
-
-    if response.status_code == 403:
-        await edit_screen(
-            callback,
-            "🔒 Для получения ключа нужна "
-            "активная подписка.",
-            build_device_keyboard(
-                device_id
-            ),
-        )
-        return
-
-    if response.status_code == 404:
-        await edit_screen(
-            callback,
-            "⚠️ Профиль пользователя не найден.\n\n"
-            "Попробуйте отправить /start.",
-            main_menu,
-        )
-        return
-
-    if response.status_code != 201:
-        await edit_screen(
-            callback,
-            "⚠️ Не удалось получить ключ.\n\n"
-            "Попробуйте немного позже.",
-            build_device_keyboard(
-                device_id
-            ),
-        )
-        return
-
-    token_data = response.json()
-    access_key = token_data.get("access_key")
-    instructions_url = token_data.get("connect_url")
-
-    if not access_key:
-        await edit_screen(
-            callback,
-            "⚠️ Не удалось получить ключ.",
-            build_device_keyboard(
-                device_id,
-                instructions_url=instructions_url,
-            ),
-        )
-        return
-
-    await edit_screen(
-        callback,
-        "🔑 Ключ подписки\n\n"
-        f"{access_key}\n\n"
-        "Не передавайте этот ключ другим людям — "
-        "он предоставляет доступ к вашей подписке.",
-        build_device_keyboard(
-            device_id,
-            instructions_url=instructions_url,
-        ),
-    )
+    from handlers.subscription import show_subscription_key
+    await show_subscription_key(callback.model_copy(update={"data": "subscription_key"}))
 
 
 @router.callback_query(
@@ -420,9 +298,7 @@ async def show_device_link(
 
     token_data = response.json()
 
-    connect_url = token_data.get(
-        "connect_url"
-    )
+    connect_url = token_data.get("basic_device_connect_urls", {}).get(str(device_id)) or token_data.get("connect_url")
 
     if not connect_url:
         await edit_screen(
@@ -443,7 +319,7 @@ async def show_device_link(
         "и добавлению подписки Work&PlayVPN.",
         build_happ_connect_keyboard(
             connect_url=connect_url,
-            mobile_connect_url=token_data.get("mobile_connect_url"),
+            mobile_connect_url=token_data.get("mobile_device_connect_urls", {}).get(str(device_id)) or token_data.get("mobile_connect_url"),
             device_id=device_id,
         ),
     )

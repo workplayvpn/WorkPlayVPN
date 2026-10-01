@@ -43,7 +43,7 @@ def build_plans_keyboard(
         (
             plan
             for plan in plans
-            if plan["code"] == "standard_1m"
+            if plan["duration_days"] == 30
         ),
         None,
     )

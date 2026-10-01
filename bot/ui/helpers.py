@@ -1,3 +1,4 @@
+from ui.media import get_screen_photo
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     CallbackQuery,
@@ -16,6 +17,15 @@ async def edit_screen(
 ) -> Message | None:
     if callback.message is None:
         return
+
+    if photo is None:
+        photo = get_screen_photo(callback.data, text)
+
+    if len(text) > 1024:
+        await callback.message.edit_media(
+            media=InputMediaPhoto(media=photo, caption=text.split("\n", 1)[0]),
+        )
+        return await callback.message.answer(text, reply_markup=reply_markup)
 
     try:
         if photo is not None:

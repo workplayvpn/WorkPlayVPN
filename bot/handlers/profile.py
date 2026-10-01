@@ -88,18 +88,10 @@ async def show_profile(
             ]
         )
 
-        if subscription["expires_at"]:
-            expires_at = datetime.fromisoformat(
-                subscription["expires_at"].replace(
-                    "Z",
-                    "+00:00",
-                )
-            )
-
-            lines.append(
-                "Действует до: "
-                f"{expires_at:%d.%m.%Y}"
-            )
+        for item in subscription.get("active_subscriptions", []):
+            expiry = datetime.fromisoformat(item["expires_at"].replace("Z", "+00:00"))
+            name = "Mobile" if item["access_tier"] == "mobile" else "Basic"
+            lines.append(f"{name} — до {expiry:%d.%m.%Y}")
 
     else:
         lines.extend(

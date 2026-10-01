@@ -18,6 +18,10 @@ mini_app_url = os.getenv(
     "https://connect.workplayvpn.ru/app/",
 )
 
+mini_app_referrals_url = (
+    f"{mini_app_url}{'&' if '?' in mini_app_url else '?'}view=referrals"
+)
+
 mini_app_devices_url = (
     f"{mini_app_url}"
     f"{'&' if '?' in mini_app_url else '?'}view=devices"

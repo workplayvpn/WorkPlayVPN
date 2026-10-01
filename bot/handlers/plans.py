@@ -17,6 +17,7 @@ from ui.plans import (
     calculate_plan_saving,
     format_amount,
 )
+from ui.subscription import build_tier_keyboard, tier_name
 from ui.helpers import edit_screen
 
 
@@ -26,7 +27,7 @@ router = Router(
 
 
 @router.callback_query(
-    F.data.in_({"plans", "subscription_plans"})
+    F.data.in_({"plans", "subscription_plans"}) | F.data.startswith("plans_tier:")
 )
 async def show_plans(
     callback: CallbackQuery,
@@ -35,7 +36,7 @@ async def show_plans(
 
     try:
         response = await backend_get(
-            "/catalog/plans"
+            f"/catalog/users/{callback.from_user.id}/plans"
         )
     except httpx.RequestError:
         await edit_screen(
@@ -54,74 +55,19 @@ async def show_plans(
         return
 
     plans = response.json()
-
-    monthly_plan = next(
-        (
-            plan
-            for plan in plans
-            if plan["code"] == "standard_1m"
-        ),
-        None,
-    )
-
-    lines = [
-        "💎 Тарифы Work&PlayVPN",
-        "",
-        "Выберите удобный срок подписки.",
-        "В каждый тариф входит до трёх устройств.",
-        "",
-    ]
-
-    for plan in plans:
-        price = format_amount(
-            plan["price_amount"]
-        )
-
-        devices = plan["device_limit"]
-
-        if plan["code"] == "trial_1d":
-            lines.append(
-                "🎁 Пробный доступ — бесплатно\n"
-                f"   1 день · до {devices} устройств"
-            )
-        else:
-            saving = calculate_plan_saving(
-                plan,
-                monthly_plan,
-            )
-            saving_text = (
-                f" · выгода {saving} ₽"
-                if saving
-                else ""
-            )
-            lines.append(
-                f"• {plan['name']} — {price} ₽"
-                f"{saving_text}"
-            )
-
-    lines.extend(
-        [
-            "",
-            "Дополнительное устройство — 249 ₽.",
-            "",
-            "Нажмите на подходящий тариф:",
-        ]
-    )
-
-    source = (
-        "subscription"
-        if callback.data == "subscription_plans"
-        else "main"
-    )
-
-    await edit_screen(
-        callback,
-        "\n".join(lines),
-        build_plans_keyboard(
-            plans,
-            source=source,
-        ),
-    )
+    tier = callback.data.split(":", 1)[1] if callback.data.startswith("plans_tier:") else None
+    if tier is None:
+        tiers={plan.get("access_tier", "basic") for plan in plans}
+        await edit_screen(callback,
+            "💎 Каталог Work&PlayVPN\n\nBasic — для работы, игр, видео и повседневных задач.\nMobile — подключение с резервным маршрутом для Wi-Fi и мобильной сети.\n\nУстройства общие; сроки подписок независимы. Выберите подписку:",
+            build_tier_keyboard(tiers, "plans_tier", back="subscription" if callback.data == "subscription_plans" else "main_menu"))
+        return
+    plans=[plan for plan in plans if plan.get("access_tier", "basic") == tier]
+    if tier not in ("basic", "mobile") or not plans:
+        await edit_screen(callback, "Эта подписка сейчас недоступна.", main_menu)
+        return
+    await edit_screen(callback, f"⏳ {tier_name(tier)} · Выберите срок\n\nПродление добавляет время только к выбранной подписке. Лимит устройств общий.",
+                      build_plans_keyboard(plans, source="subscription"))
 
 
 @router.callback_query(
@@ -211,7 +157,7 @@ async def select_plan(
 
     try:
         response = await backend_get(
-            "/catalog/plans"
+            f"/catalog/users/{callback.from_user.id}/plans"
         )
     except httpx.RequestError:
         await edit_screen(
@@ -255,7 +201,8 @@ async def select_plan(
     await edit_screen(
         callback,
         "💳 Подтверждение тарифа\n\n"
-        f"Срок: {plan['name']}\n"
+        f"Подписка: {tier_name(plan.get('access_tier', 'basic'))}\n"
+        f"Срок: {plan['duration_days']} дней\n"
         f"К оплате: {price} ₽\n"
         f"Устройств: до {plan['device_limit']}\n\n"
         "После оплаты подписка активируется "
@@ -287,6 +234,15 @@ async def pay_plan(
     )
 
     telegram_id = callback.from_user.id
+    try:
+        catalog = await backend_get(f"/catalog/users/{telegram_id}/plans")
+        catalog.raise_for_status()
+        if not any(p["code"] == plan_code for p in catalog.json()):
+            await edit_screen(callback, "Подписка сейчас недоступна.", main_menu)
+            return
+    except (httpx.HTTPError, ValueError):
+        await edit_screen(callback, "⚠️ Не удалось проверить доступность подписки.", main_menu)
+        return
 
     idempotency_key = (
         f"tg-{telegram_id}-"
@@ -442,7 +398,7 @@ async def cancel_payment(
     if response.status_code == 200:
         try:
             plans_response = await backend_get(
-                "/catalog/plans"
+                f"/catalog/users/{callback.from_user.id}/plans"
             )
         except httpx.RequestError:
             await edit_screen(

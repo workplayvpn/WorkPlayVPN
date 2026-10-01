@@ -256,7 +256,7 @@ services:
       CONNECT_BASE_URL: https://connect.test.local/connect/happ
       ACTIVATION_BASE_URL: https://connect.test.local/activate
 
-      VPN_NODE_NAME: WorkPlayVPN-Test
+      VPN_NODE_NAME: Work&PlayVPN-Test
       VPN_NODE_HOST: 127.0.0.1
       VPN_NODE_SSH_PORT: "22"
       VPN_NODE_SSH_USER: test

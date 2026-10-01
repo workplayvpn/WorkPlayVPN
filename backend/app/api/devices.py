@@ -98,7 +98,7 @@ def create_device(
         id=device.id,
         device_name=device.device_name,
         node_code=node.code,
-        node_name=node.name,
+        node_name=node.name.replace("WorkPlayVPN", "Work&PlayVPN"),
         is_active=device.is_active,
         created_at=device.created_at,
         vless_url=vless_url,
@@ -141,9 +141,13 @@ def get_devices(
         result.append(
             VpnDeviceRead(
                 id=device.id,
-                device_name=device.device_name,
+                device_name=(f"{device.happ_device_model} ({device.happ_device_os})"
+                    if device.happ_device_model and device.happ_device_os else device.device_name),
+                public_id=device.public_id,
+                happ_device_model=device.happ_device_model,
+                happ_device_os=device.happ_device_os,
                 node_code=node.code,
-                node_name=node.name,
+                node_name=node.name.replace("WorkPlayVPN", "Work&PlayVPN"),
                 is_active=device.is_active,
                 created_at=device.created_at,
                 vless_url=vless_url,
@@ -183,7 +187,7 @@ def remove_device(
         id=device.id,
         device_name=device.device_name,
         node_code=node.code,
-        node_name=node.name,
+        node_name=node.name.replace("WorkPlayVPN", "Work&PlayVPN"),
         is_active=device.is_active,
         created_at=device.created_at,
         vless_url=None,
@@ -221,7 +225,7 @@ def change_device_location(
         id=device.id,
         device_name=device.device_name,
         node_code=node.code,
-        node_name=node.name,
+        node_name=node.name.replace("WorkPlayVPN", "Work&PlayVPN"),
         is_active=device.is_active,
         created_at=device.created_at,
         vless_url=build_device_vless_url(

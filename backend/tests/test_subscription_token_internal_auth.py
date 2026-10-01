@@ -91,3 +91,35 @@ def test_build_token_response_includes_access_key() -> None:
     )
     assert response.created_at == now
     assert response.rotated_at is None
+
+
+def test_device_token_links_match_mini_app_routes(monkeypatch):
+    from unittest.mock import MagicMock
+    from app.api import subscription_tokens as tokens
+    now = datetime.now(UTC)
+    token = SimpleNamespace(user_id=174, created_at=now, rotated_at=None)
+    device = SimpleNamespace(id=7, mobile_xray_uuid="test", mobile_xray_email="test")
+    database = MagicMock()
+    database.scalars.return_value.all.return_value = [device]
+    monkeypatch.setattr(tokens, "active_entitlements", lambda *args: {"basic": (), "mobile": ()})
+    monkeypatch.setattr(tokens.subscription_token_service, "scoped_token", lambda *args: "mobile-token")
+    monkeypatch.setattr(tokens, "auto_route_allowed", lambda user_id: True)
+    result = tokens.build_token_response(token=token, raw_token="basic-token", database=database)
+    assert result.basic_device_connect_urls["7"].endswith("/device/7/basic-token")
+    assert result.mobile_device_connect_urls["7"].endswith("/auto/routed/device/7/mobile-token")
+    assert result.mobile_subscription_url != result.subscription_url
+
+
+def test_mobile_only_token_has_no_basic_device_links(monkeypatch):
+    from unittest.mock import MagicMock
+    from app.api import subscription_tokens as tokens
+    token = SimpleNamespace(user_id=174, created_at=datetime.now(UTC), rotated_at=None)
+    database = MagicMock()
+    database.scalars.return_value.all.return_value = [SimpleNamespace(id=7, mobile_xray_uuid="test", mobile_xray_email="test")]
+    monkeypatch.setattr(tokens, "active_entitlements", lambda *args: {"mobile": ()})
+    monkeypatch.setattr(tokens.subscription_token_service, "scoped_token", lambda *args: "mobile-token")
+    monkeypatch.setattr(tokens, "auto_route_allowed", lambda user_id: False)
+    result = tokens.build_token_response(token=token, raw_token="basic-token", database=database)
+    assert result.basic_device_connect_urls == {}
+    assert result.subscription_url == result.mobile_subscription_url
+    assert result.mobile_device_connect_urls["7"].endswith("/mobile-token")

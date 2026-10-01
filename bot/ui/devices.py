@@ -195,7 +195,7 @@ def build_happ_connect_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="Открыть инструкцию →",
+                    text="Открыть Basic →" if mobile_connect_url and mobile_connect_url != connect_url else "Открыть инструкцию →",
                     web_app=WebAppInfo(
                         url=connect_url,
                     ),

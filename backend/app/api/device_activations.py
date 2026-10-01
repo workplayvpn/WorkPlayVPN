@@ -114,7 +114,7 @@ def complete_device_activation(
         device_id=device.id,
         device_name=device.device_name,
         node_code=node.code,
-        node_name=node.name,
+        node_name=node.name.replace("WorkPlayVPN", "Work&PlayVPN"),
         platform=payload.platform,
         vless_url=vless_url,
     )

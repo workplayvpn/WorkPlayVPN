@@ -1,3 +1,6 @@
+from sqlalchemy import select
+from app.models.vpn_device import VpnDevice
+from app.api.happ_auto_route import auto_route_allowed
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -47,7 +50,25 @@ def build_token_response(
         f"{raw_token}"
     )
 
+    basic_devices = {}
+    mobile_devices = {}
+    if database is not None:
+        devices = database.scalars(select(VpnDevice).where(
+            VpnDevice.user_id == token.user_id, VpnDevice.is_active.is_(True))
+            .order_by(VpnDevice.id)).all()
+        base = settings.connect_base_url.rstrip("/")
+        for device in devices:
+            if "basic" in entitlements:
+                basic_devices[str(device.id)] = f"{base}/device/{device.id}/{raw_token}"
+            if mobile_token:
+                if auto_route_allowed(token.user_id) and device.mobile_xray_uuid and device.mobile_xray_email:
+                    mobile_devices[str(device.id)] = f"{base}/auto/routed/device/{device.id}/{mobile_token}"
+                else:
+                    mobile_devices[str(device.id)] = f"{base}/{mobile_token}"
+
     return SubscriptionTokenRead(
+        basic_device_connect_urls=basic_devices,
+        mobile_device_connect_urls=mobile_devices,
         access_key=raw_token,
         subscription_url=subscription_url,
         connect_url=connect_url,

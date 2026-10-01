@@ -22,3 +22,6 @@ class VpnDeviceRead(BaseModel):
     is_active: bool
     created_at: datetime
     vless_url: str | None = None
+    public_id: str | None = None
+    happ_device_model: str | None = None
+    happ_device_os: str | None = None
