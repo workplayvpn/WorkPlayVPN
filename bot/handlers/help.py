@@ -1,8 +1,7 @@
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
+from ui.common import build_keyboard
 from ui.helpers import edit_screen
 
 
@@ -36,7 +35,7 @@ async def show_help(
         "или платёжные данные."
     )
 
-    keyboard = InlineKeyboardMarkup(
+    keyboard = build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(

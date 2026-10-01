@@ -3,13 +3,15 @@ from aiogram.types import (
     InlineKeyboardMarkup,
 )
 
+from ui.common import build_keyboard
+
 
 def build_payment_confirmation_keyboard(
     plan_code: str,
     *,
     source: str = "main",
 ) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
@@ -39,11 +41,12 @@ def build_payment_keyboard(
     *,
     source: str = "main",
 ) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="Оплатить безопасно →",
+                    style="primary",
                     url=confirmation_url,
                 )
             ],

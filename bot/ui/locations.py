@@ -1,5 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from ui.common import build_keyboard
+
 
 def build_region_devices_keyboard(
     devices: list[dict],
@@ -21,7 +23,7 @@ def build_region_devices_keyboard(
             )
         ]
     )
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+    return build_keyboard(inline_keyboard=rows)
 
 
 def build_region_locations_keyboard(
@@ -76,13 +78,13 @@ def build_region_locations_keyboard(
             )
         ]
     )
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+    return build_keyboard(inline_keyboard=rows)
 
 
 def build_region_result_keyboard(
     device_id: int,
 ) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(

@@ -1,13 +1,13 @@
 from aiogram.types import (
     InlineKeyboardButton,
-    InlineKeyboardMarkup,
     WebAppInfo,
 )
 
 from config import mini_app_devices_url, mini_app_url
+from ui.common import build_keyboard
 
 
-main_menu = InlineKeyboardMarkup(
+main_menu = build_keyboard(
     inline_keyboard=[
         [
             InlineKeyboardButton(
@@ -19,13 +19,13 @@ main_menu = InlineKeyboardMarkup(
         ],
         [
             InlineKeyboardButton(
-                text="🔑 Моя подписка",
+                text="🔑 Мои подписки",
                 callback_data="subscription",
             ),
         ],
         [
             InlineKeyboardButton(
-                text="💎 Тарифы",
+                text="💎 Каталог подписок",
                 callback_data="plans",
             ),
             InlineKeyboardButton(

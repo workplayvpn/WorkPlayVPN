@@ -3,6 +3,8 @@ from aiogram.types import (
     InlineKeyboardMarkup,
 )
 
+from ui.common import build_keyboard
+
 
 def format_amount(value: object) -> str:
     return str(value).removesuffix(".00")
@@ -96,6 +98,6 @@ def build_plans_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=rows,
     )

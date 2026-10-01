@@ -1,8 +1,10 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from ui.common import build_keyboard
+
 
 def build_documents_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
@@ -39,7 +41,7 @@ def build_documents_keyboard() -> InlineKeyboardMarkup:
 
 
 def build_document_back_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(

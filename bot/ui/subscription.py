@@ -6,6 +6,7 @@ from aiogram.types import (
 )
 
 from config import mini_app_devices_url, mini_app_url
+from ui.common import build_keyboard
 
 
 def build_subscription_keyboard(
@@ -15,7 +16,7 @@ def build_subscription_keyboard(
     mobile_connect_url: str | None = None,
 ) -> InlineKeyboardMarkup:
     if not active:
-        return InlineKeyboardMarkup(
+        return build_keyboard(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
@@ -39,13 +40,13 @@ def build_subscription_keyboard(
         )
 
     instruction_button = InlineKeyboardButton(
-        text="📖 Инструкция",
+        text="📖 Открыть инструкцию",
         web_app=WebAppInfo(
             url=connect_url or mini_app_url,
         ),
     )
 
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
@@ -53,7 +54,7 @@ def build_subscription_keyboard(
                     callback_data="subscription_key",
                 ),
                 InlineKeyboardButton(
-                    text="📷 QR-код",
+                    text="📷 Показать QR-код",
                     callback_data="subscription_qr",
                 ),
             ],
@@ -64,11 +65,17 @@ def build_subscription_keyboard(
             )]] if mobile_connect_url and mobile_connect_url != connect_url else []),
             [
                 InlineKeyboardButton(
-                    text="⏳ Продлить",
+                    text="🌍 Сменить регион",
+                    callback_data="change_region",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⏳ Продлить подписку",
                     callback_data="subscription_plans",
                 ),
                 InlineKeyboardButton(
-                    text="＋ Устройство",
+                    text="📱 Подключить устройство",
                     web_app=WebAppInfo(
                         url=mini_app_devices_url,
                     ),
@@ -123,6 +130,6 @@ def build_subscription_secret_keyboard(
         ]
     )
 
-    return InlineKeyboardMarkup(
+    return build_keyboard(
         inline_keyboard=rows,
     )
