@@ -10,6 +10,8 @@ const state = {
   me: null,
   catalog: null,
   planTier: "basic",
+  detailTier: "basic",
+  view: "home",
   devices: [],
   payment: null,
   deleteDeviceId: null,
@@ -20,14 +22,14 @@ const state = {
 
 const THEMES = {
   dark: {
-    header: "#081321",
-    background: "#07111e",
-    bottomBar: "#081423",
+    header: "#0b1118",
+    background: "#0b1118",
+    bottomBar: "#0b1118",
   },
   light: {
-    header: "#f7f9fc",
-    background: "#edf3f9",
-    bottomBar: "#ffffff",
+    header: "#f2f6f5",
+    background: "#f2f6f5",
+    bottomBar: "#f2f6f5",
   },
 };
 
@@ -320,12 +322,19 @@ function deviceDisplayName(device) {
 }
 
 function setView(name) {
+  if (name === "devices") {
+    if (!activeSubscriptions().some((entry) => subscriptionTier(entry) === state.detailTier)) {
+      state.detailTier = subscriptionTier(activeSubscriptions()[0] || {});
+    }
+    renderSubscriptionDetail();
+  }
+  state.view = name;
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === `view-${name}`);
   });
 
   document.querySelectorAll(".nav-item").forEach((button) => {
-    button.classList.toggle("active", button.dataset.viewLink === name);
+    button.classList.toggle("active", button.dataset.viewLink === (name === "devices" ? "subscriptions" : name));
   });
 
   if (telegram?.BackButton) {
@@ -340,27 +349,98 @@ function setView(name) {
   haptic("light");
 }
 
+function subscriptionTier(entry) {
+  return entry.access_tier || (entry.plan_code?.startsWith("mobile_") ? "mobile" : "basic");
+}
+
+function tierLabel(tier) { return tier === "mobile" ? "Mobile" : "Basic"; }
+
+function activeSubscriptions() {
+  const entries = state.me?.subscriptions?.filter((entry) => entry.status === "active") || [];
+  return entries.length ? entries : (state.me?.subscription?.status === "active" ? [state.me.subscription] : []);
+}
+
+function openSubscription(tier) {
+  state.detailTier = tier;
+  setView("devices");
+}
+
+function renderSubscriptionCards(container, entries) {
+  container.replaceChildren();
+  if (!entries.length) {
+    const note = document.createElement("p");
+    note.className = "shared-note";
+    note.textContent = "Пока нет активной подписки. Выбери подходящий тариф в каталоге.";
+    container.append(note);
+  }
+  for (const entry of entries) {
+    const tier = subscriptionTier(entry);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = `subscription-tile subscription-tile-${tier}`;
+    const title = document.createElement("strong");
+    title.textContent = tierLabel(tier);
+    const badge = document.createElement("span");
+    badge.className = "tier-badge";
+    badge.textContent = "Активна";
+    const description = document.createElement("span");
+    description.className = "tile-description";
+    description.textContent = tier === "mobile" ? "Wi-Fi и мобильная сеть" : "Для работы и досуга";
+    const date = document.createElement("span");
+    date.className = "tile-date";
+    date.textContent = `До ${formatDate(entry.expires_at)} · Открыть →`;
+    card.append(title, badge, description, date);
+    card.addEventListener("click", () => openSubscription(tier));
+    container.append(card);
+  }
+}
+
+function renderSubscriptionDetail() {
+  const entry = activeSubscriptions().find((item) => subscriptionTier(item) === state.detailTier);
+  document.querySelector("#detail-tier-name").textContent = tierLabel(state.detailTier);
+  document.querySelector("#detail-expiry").textContent = entry ? formatDate(entry.expires_at) : "Неактивна";
+  document.querySelector("#detail-description").textContent = state.detailTier === "mobile"
+    ? "Подключение для Wi-Fi и мобильной сети." : "Подключение для работы и любимого досуга.";
+  document.querySelector("#detail-connect").disabled = !entry;
+  document.querySelector("#header-avatar").textContent = (state.me?.user?.first_name || "W").slice(0, 1).toUpperCase();
+}
+
+function renderCatalogOverview() {
+  const container = document.querySelector("#catalog-overview");
+  container.replaceChildren();
+  for (const tier of ["basic", "mobile"]) {
+    const plans = state.catalog.plans.filter((plan) => (plan.access_tier || "basic") === tier);
+    if (!plans.length) continue;
+    const card = document.createElement("article");
+    card.className = "catalog-card";
+    const title = document.createElement("h2");
+    title.textContent = tierLabel(tier);
+    const description = document.createElement("p");
+    description.textContent = tier === "mobile" ? "Wi-Fi и мобильная сеть. Общие устройства с Basic." : "Рабочие задачи, видео и развлечения. Подключение через Happ.";
+    const price = document.createElement("span");
+    price.className = "catalog-price";
+    const cheapest = plans.reduce((a, b) => Number(a.price_amount) < Number(b.price_amount) ? a : b);
+    price.textContent = `От ${formatMoney(cheapest.price_amount, cheapest.currency)}`;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button-secondary button-wide";
+    button.textContent = `Выбрать ${tierLabel(tier)} →`;
+    button.addEventListener("click", () => {
+      state.planTier = tier;
+      renderPlans();
+      document.querySelector("#plans-tier-description").scrollIntoView({behavior: "smooth", block: "start"});
+    });
+    card.append(title, description, price, button);
+    container.append(card);
+  }
+}
+
 function renderSubscription() {
   const { subscription, devices } = state.me;
-  const activeSubscriptions = state.me.subscriptions ||
-    (subscription?.status === "active" ? [subscription] : []);
-  const isActive = activeSubscriptions.length > 0;
-  elements.subscriptionProfiles.replaceChildren();
-  for (const entry of activeSubscriptions) {
-    const tier = entry.access_tier || (entry.plan_code.startsWith("mobile_") ? "mobile" : "basic");
-    const row = document.createElement("div");
-    row.className = "subscription-tier";
-    const label = document.createElement("strong");
-    label.textContent = tier === "mobile" ? "Work&PlayVPN Mobile" : "Work&PlayVPN Basic";
-    const date = document.createElement("span");
-    date.textContent = `До ${formatDate(entry.expires_at)}`;
-    const link = document.createElement("a");
-    link.className = "button button-secondary";
-    link.href = state.me.connect_urls?.[tier] || "#";
-    link.textContent = tier === "mobile" ? "Подключить Work&PlayVPN Mobile" : "Подключить Work&PlayVPN Basic";
-    row.append(label, date, link);
-    elements.subscriptionProfiles.append(row);
-  }
+  const entries = activeSubscriptions();
+  const isActive = entries.length > 0;
+  renderSubscriptionCards(elements.subscriptionProfiles, entries);
+  renderSubscriptionCards(document.querySelector("#subscriptions-list"), entries);
 
   elements.subscriptionCard.classList.toggle("is-active", isActive);
   elements.deviceSummary.textContent =
@@ -368,13 +448,13 @@ function renderSubscription() {
 
   if (isActive) {
     elements.subscriptionLabel.textContent = "Подписка активна";
-    elements.subscriptionTitle.textContent = activeSubscriptions.length > 1
-      ? "Две подписки активны" : subscription.plan_name;
-    elements.subscriptionDescription.textContent = activeSubscriptions.length > 1
+    elements.subscriptionTitle.textContent = entries.length > 1
+      ? "Две подписки активны" : entries[0].plan_name || tierLabel(subscriptionTier(entries[0]));
+    elements.subscriptionDescription.textContent = entries.length > 1
       ? "Обычный VPN и Mobile действуют каждый до своего срока."
       : "Защищённое подключение доступно на ваших устройствах.";
-    elements.subscriptionExpiry.textContent = activeSubscriptions.length > 1
-      ? "Отдельно для каждой" : formatDate(subscription.expires_at);
+    elements.subscriptionExpiry.textContent = entries.length > 1
+      ? "Отдельно для каждой" : formatDate(entries[0].expires_at);
   } else if (subscription?.status === "pending") {
     elements.subscriptionLabel.textContent = "Ожидает оплаты";
     elements.subscriptionTitle.textContent = subscription.plan_name;
@@ -391,7 +471,7 @@ function renderSubscription() {
 
   const canStartTrial = (
     state.me.trial_available
-    && state.me.subscription?.status !== "active"
+    && !isActive
   );
 
   elements.trialButton.classList.toggle(
@@ -619,7 +699,7 @@ function showDeviceConnections() {
     const links = [
       ["Basic", state.me.basic_device_connect_urls?.[device.id]],
       ["Mobile", state.me.auto_connect_urls?.[device.id]],
-    ].filter(([, url]) => Boolean(url));
+    ].filter(([tier, url]) => Boolean(url) && tier.toLowerCase() === state.detailTier);
     if (!links.length) continue;
 
     const entry = document.createElement("div");
@@ -637,6 +717,14 @@ function showDeviceConnections() {
       entry.append(link);
     }
     elements.deviceConnectList.append(entry);
+  }
+  // Accounts outside the automatic-routing pilot retain their existing Mobile link.
+  if (!elements.deviceConnectList.childElementCount && state.devices.length && state.detailTier === "mobile" && state.me.connect_urls?.mobile) {
+    const link = document.createElement("a");
+    link.className = "button button-secondary";
+    link.textContent = "Открыть Mobile в Happ";
+    link.href = state.me.connect_urls.mobile;
+    elements.deviceConnectList.append(link);
   }
   const canAdd = state.me.devices.active_count < state.me.devices.total_limit;
   elements.connectNewDevice.classList.toggle("hidden", !canAdd);
@@ -706,6 +794,8 @@ function renderAll() {
   renderDevices();
   renderRegion();
   renderLocations();
+  renderSubscriptionDetail();
+  renderCatalogOverview();
 }
 
 function openSheet(sheet) {
@@ -901,7 +991,9 @@ async function connectDevice() {
 
     closeSheet(elements.deviceSetupSheet);
     haptic("heavy");
-    window.location.assign(result.connect_url);
+    window.location.assign(state.detailTier === "mobile"
+      ? result.mobile_connect_url || result.connect_url
+      : result.connect_url);
   } catch (error) {
     showToast(humanError(error), "error");
   } finally {
@@ -963,7 +1055,7 @@ async function loadData() {
 
     if (!state.initialViewApplied) {
       const requestedView = new URLSearchParams(window.location.search).get("view");
-      const allowedViews = new Set(["home", "plans", "devices", "profile"]);
+      const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals"]);
       setView(allowedViews.has(requestedView) ? requestedView : "home");
       state.initialViewApplied = true;
     }
@@ -1044,8 +1136,15 @@ elements.resumePaymentButton.addEventListener("click", () => {
 elements.changeRegionButton.addEventListener("click", () => {
   openSheet(elements.locationSheet);
 });
+document.querySelector("#detail-connect").addEventListener("click", showDeviceConnections);
+document.querySelector("#detail-renew").addEventListener("click", () => {
+  state.planTier = state.detailTier;
+  renderPlans();
+  setView("plans");
+});
+
 elements.addDeviceButton.addEventListener("click", () => {
-  if (state.me?.subscription?.status !== "active") {
+  if (!activeSubscriptions().length) {
     showToast("Сначала активируйте подписку.", "error");
     setView(state.me?.trial_available ? "home" : "plans");
     return;
