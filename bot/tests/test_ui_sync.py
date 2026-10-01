@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 from ui.main import main_menu
+from texts.description import DESCRIPTION, SHORT_DESCRIPTION
 from ui.subscription import build_subscription_keyboard
 from ui.media import get_screen_photo
 from handlers import subscription, plans, locations
@@ -29,6 +30,12 @@ CATALOG=[{'code':'standard_1m','access_tier':'basic','duration_days':30,'price_a
 
 
 class MenuTests(unittest.TestCase):
+    def test_bot_description_limits(self):
+        self.assertLessEqual(len(SHORT_DESCRIPTION),120)
+        self.assertLessEqual(len(DESCRIPTION),512)
+        self.assertIn("Basic",DESCRIPTION)
+        self.assertIn("Mobile",DESCRIPTION)
+
     def test_primary_buttons_first(self):
         for keyboard in [main_menu,build_subscription_keyboard(active=True,tier='basic'),build_subscription_keyboard(active=True,tier='mobile')]:
             styles=[row[0].style=='primary' for row in keyboard.inline_keyboard]

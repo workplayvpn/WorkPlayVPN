@@ -1,3 +1,4 @@
+from app.services.rollout_access import rollout_allowed
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
@@ -193,8 +194,7 @@ def _require_routed_auto_access(
 
 
 def _import_link(subscription_url: str, user_id: int) -> str:
-    allowed = {part.strip() for part in settings.happ_crypt5_user_ids.split(",")}
-    if str(user_id) not in allowed:
+    if not rollout_allowed(settings.happ_crypt5_user_ids, user_id):
         return f"happ://add/{subscription_url}"
     try:
         return encrypted_happ_link(subscription_url)

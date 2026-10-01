@@ -1,3 +1,4 @@
+from app.services.rollout_access import rollout_allowed
 """Opt-in experimental JSON subscription. Existing /sub links are untouched."""
 
 from typing import Annotated
@@ -32,11 +33,8 @@ router = APIRouter(prefix="/sub/auto", tags=["subscription-feed"])
 
 
 def auto_route_allowed(user_id: int) -> bool:
-    """No wildcard: this experimental path must be explicitly enabled."""
-    return str(user_id) in {
-        item.strip() for item in settings.happ_auto_route_user_ids.split(",")
-        if item.strip().isdigit()
-    }
+    """Public routing requires an explicit *; entitlement checks stay in place."""
+    return rollout_allowed(settings.happ_auto_route_user_ids, user_id)
 
 
 @router.get("/{token}")
@@ -149,9 +147,7 @@ def _build_response(
     expiry_info = subscription_expiry_info(mobile_entitlement[0].expires_at)
     if expiry_info is not None:
         headers["subscription-userinfo"] = expiry_info
-    if str(user.id) in {
-        part.strip() for part in settings.happ_smart_routing_user_ids.split(",")
-    }:
+    if rollout_allowed(settings.happ_smart_routing_user_ids, user.id):
         headers["routing"] = build_happ_smart_routing_link()
 
     if request is not None:

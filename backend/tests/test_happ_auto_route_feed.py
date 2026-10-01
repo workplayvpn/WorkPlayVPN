@@ -42,7 +42,10 @@ def test_auto_feed_is_closed_for_other_users_and_basic(monkeypatch):
     assert exc.value.status_code == 404
 
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", "*")
-    assert not route.auto_route_allowed(174)
+    assert route.auto_route_allowed(174)
+    assert route.auto_route_allowed(175)
+    monkeypatch.setattr(settings, "happ_auto_route_user_ids", "174")
+    assert not route.auto_route_allowed(175)
     monkeypatch.setattr(settings, "happ_auto_route_user_ids", "174")
     monkeypatch.setattr(
         route.subscription_token_service, "resolve_token_scope",

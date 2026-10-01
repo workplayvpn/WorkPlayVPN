@@ -1,3 +1,4 @@
+from texts.description import DESCRIPTION, SHORT_DESCRIPTION
 import asyncio
 
 from aiogram import Bot, Dispatcher
@@ -100,19 +101,8 @@ async def main() -> None:
             ]
         )
 
-        await bot.set_my_short_description(
-            "Защищённое подключение для работы, общения и развлечений. Управление через Telegram."
-        )
-
-        await bot.set_my_description(
-            "Work&PlayVPN — сервис защищённого подключения "
-            "для телефона, планшета и компьютера. Выберите "
-            "тариф, подключите до трёх устройств и управляйте "
-            "подпиской прямо в Telegram. Доступны пошаговые "
-            "инструкции, QR-код, смена региона и поддержка. "
-            "Продление выполняется вручную — без неожиданных "
-            "автоматических списаний."
-        )
+        await bot.set_my_short_description(SHORT_DESCRIPTION)
+        await bot.set_my_description(DESCRIPTION)
 
         await dispatcher.start_polling(
             bot

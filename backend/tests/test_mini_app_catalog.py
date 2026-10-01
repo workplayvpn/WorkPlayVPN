@@ -195,7 +195,7 @@ def test_bot_catalog_matches_mini_app_and_protects_mobile(monkeypatch):
         db.commit()
         pilot_id = user.id
     try:
-        for pilot in ("", str(pilot_id)):
+        for pilot in ("", str(pilot_id), "*"):
             monkeypatch.setattr(settings, "mobile_pilot_user_ids", pilot)
             bot = client.get("/catalog/users/993100002/plans", headers=headers)
             mini = client.get("/mini-app/catalog", headers={"X-Telegram-Init-Data": build_init_data()})

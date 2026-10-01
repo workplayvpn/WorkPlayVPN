@@ -16,10 +16,13 @@ from app.services.happ_subscription_info import (
 )
 
 
-def test_hidden_happ_settings_require_provider_and_explicit_user() -> None:
+def test_hidden_happ_settings_require_provider_and_allowed_user() -> None:
     assert hidden_settings_metadata(provider_id="", user_id=174, allowed_ids="174") == {}
     assert hidden_settings_metadata(provider_id="provider-1", user_id=175, allowed_ids="174") == {}
-    assert hidden_settings_metadata(provider_id="provider-1", user_id=174, allowed_ids="*") == {}
+    assert hidden_settings_metadata(provider_id="provider-1", user_id=174, allowed_ids="*") == {
+        "providerid": "provider-1", "hide-settings": "1",
+    }
+    assert hidden_settings_metadata(provider_id="provider-1", user_id=174, allowed_ids="") == {}
     assert hidden_settings_metadata(provider_id="bad\r\nheader", user_id=174, allowed_ids="174") == {}
     enabled = hidden_settings_metadata(provider_id="provider-1", user_id=174,
                                        allowed_ids="174")

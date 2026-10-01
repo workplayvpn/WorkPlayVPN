@@ -1,5 +1,7 @@
 """Presentation metadata for Happ subscriptions."""
 
+from app.services.rollout_access import rollout_allowed
+
 import base64
 import re
 from urllib.parse import urlsplit, urlunsplit
@@ -7,10 +9,10 @@ from datetime import UTC, datetime
 
 
 def hidden_settings_metadata(*, provider_id: str, user_id: int, allowed_ids: str) -> dict[str, str]:
-    """Keep Happ's provider controls limited to explicitly selected users."""
+    """Provider controls require a valid provider and explicit rollout setting."""
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", provider_id):
         return {}
-    if str(user_id) not in {part.strip() for part in allowed_ids.split(",") if part.strip().isdigit()}:
+    if not rollout_allowed(allowed_ids, user_id):
         return {}
     return {"providerid": provider_id, "hide-settings": "1"}
 

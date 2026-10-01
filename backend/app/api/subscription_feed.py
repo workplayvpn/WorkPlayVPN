@@ -1,3 +1,4 @@
+from app.services.rollout_access import rollout_allowed
 import base64
 from datetime import UTC, datetime
 
@@ -132,16 +133,7 @@ def should_enable_happ_feature(
     if client != "happ":
         return False
 
-    allowed_values = {
-        value.strip()
-        for value in configured_user_ids.split(",")
-        if value.strip()
-    }
-
-    return (
-        "*" in allowed_values
-        or str(user_id) in allowed_values
-    )
+    return rollout_allowed(configured_user_ids, user_id)
 
 
 def should_include_happ_mobile_profile(
