@@ -1,10 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Work&amp;PlayVPN">
-  <defs>
-    <linearGradient id="g" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2f7df4"/>
-      <stop offset="1" stop-color="#55d5e8"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="18" fill="url(#g)"/>
-  <path d="M14 20h8l4 22 5-17h7l5 17 4-22h8l-8 28h-8l-4.5-15-4.5 15h-8L14 20Z" fill="#fff"/>
+  <rect width="64" height="64" rx="18" fill="#0b1118"/>
+  <ellipse cx="32" cy="32" rx="28" ry="18" transform="rotate(-25 32 32)" fill="none" stroke="#2ccdbd" stroke-width="3"/>
+  <path d="M12 19h8l5 24 4-18h7l4 18 5-24h8L45 48h-9l-4-17-4 17h-9z" fill="#edf4f8"/>
+  <circle cx="54" cy="18" r="4" fill="#ffb45c"/>
 </svg>

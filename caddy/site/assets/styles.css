@@ -1095,3 +1095,44 @@ h1 {
     justify-self: stretch;
   }
 }
+
+/* Work & Play palette, 2026-10-02. No external fonts, trackers or scripts. */
+:root {--background:#0b1118;--surface:#16212c;--surface-muted:#101920;--ink:#edf4f7;--ink-muted:#a7b5c3;--navy:#0b1118;--navy-soft:#16212c;--blue:#2ccdbd;--blue-dark:#21b7a8;--cyan:#2ccdbd;--green:#2ccdbd;--border:#293c49;--shadow:0 24px 70px #0003;}
+body {background:var(--background);}
+.site-header {background:#0b1118ed;}
+.brand-mark {background:#2ccdbd;color:#0b1118;box-shadow:none;}
+.button {background:#2ccdbd;color:#071c1b;box-shadow:none;}
+.button:hover {background:#50dfd0;box-shadow:0 8px 26px #2ccdbd20;}
+.button-secondary {background:#17242b;color:var(--ink);border-color:var(--border);}
+.button-secondary:hover {background:#21333d;}
+.hero {background:radial-gradient(ellipse at 84% 35%,#2ccdbd10,transparent 45%),linear-gradient(145deg,#0b1118,#101b22);}
+.hero-text,.hero-facts span,.steps p,.connection-meta span,.footer-description,.footer-bottom {color:var(--ink-muted);}
+.trust-strip,.faq-list {background:var(--surface);border-color:var(--border);}
+.section-muted,.cta-section {background:var(--surface-muted);}
+.feature-card,.plan-card {box-shadow:none;}
+.feature-number {color:#ffb45c;}
+.plan-card-featured {background:linear-gradient(155deg,#193530,#16212c);border-color:#2ccdbd;box-shadow:0 12px 36px #2ccdbd0a;}
+.plan-card-featured .plan-term,.plan-card-featured .plan-note {color:var(--ink-muted);}
+.faq-list summary::after {background:#2ccdbd14;}
+.faq-list a,.legal-content a {color:#2ccdbd;text-decoration:underline;text-underline-offset:3px;}
+.cta-card {background:radial-gradient(ellipse at right top,#ffb45c10,transparent 45%),#16212c;border:1px solid var(--border);box-shadow:none;}
+.site-footer {background:#080e13;}
+.orbit-card {overflow:hidden;background:linear-gradient(155deg,#152a2c,#14202a);box-shadow:none;border-color:var(--border);backdrop-filter:none;}
+.orbit-caption {margin:0;color:#2ccdbd;letter-spacing:.16em;font-size:11px;font-weight:700;}
+.orbital-scene {position:relative;}
+.orbital-map {display:block;width:100%;height:auto;}
+.orbit-chip {position:absolute;padding:7px 12px;border:1px solid var(--border);background:#12212aee;border-radius:99px;font-size:11px;letter-spacing:.07em;}
+.work-chip {top:28%;left:0;color:#2ccdbd;}
+.play-chip {bottom:21%;right:0;color:#ffb45c;}
+.signal-ring {animation:signal 7s ease-in-out infinite;transform-origin:250px 206px;}
+.orbital-satellite {animation:satellite 6s ease-in-out infinite;}
+@keyframes signal {50% {opacity:.45;transform:scale(1.035);}}
+@keyframes satellite {50% {transform:translate(-4px,5px);}}
+.slots-panel {display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:24px;margin-top:32px;padding:28px;border:1px solid var(--border);border-radius:20px;background:var(--surface);}
+.slots-panel h3 {margin:0;font-size:22px;}.slots-panel p:last-child {color:var(--ink-muted);margin-bottom:0;}
+.slot-prices {display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}.slot-prices span {padding:18px 8px;text-align:center;background:#2ccdbd0a;border:1px solid #2ccdbd30;border-radius:14px;font-size:21px;color:#2ccdbd;}.slot-prices b {display:block;color:var(--ink);font-size:13px;margin-bottom:5px;}
+.legal-content {max-width:900px;margin:0 auto;padding:52px 0 80px;}.legal-content h1 {font-size:clamp(30px,5vw,48px);line-height:1.14;letter-spacing:-.03em;}.legal-content h2 {font-size:24px;margin-top:36px;}.legal-content p,.legal-content li {color:var(--ink-muted);}.legal-content strong {color:var(--ink);}.legal-content table {width:100%;border-collapse:collapse;}.legal-content th,.legal-content td {text-align:left;padding:12px;border:1px solid var(--border);vertical-align:top;}.legal-content th {width:35%;}.legal-meta {color:#2ccdbd;font-size:13px;}.draft-note {padding:18px;border:1px solid #ffb45c60;border-radius:12px;background:#ffb45c0a;color:#ffb45c!important;}.legal-nav {display:flex;gap:18px;flex-wrap:wrap;font-size:14px;margin-bottom:32px;}
+@media(max-width:680px) {.slots-panel {grid-template-columns:1fr;padding:22px;}.orbit-card {padding:20px;} .hero-grid {gap:36px;} .legal-content {padding-top:32px;} .legal-content th,.legal-content td {padding:9px;font-size:13px;}}
+@media(prefers-reduced-motion:reduce) {html {scroll-behavior:auto;} .signal-ring,.orbital-satellite {animation:none;} .button {transition:none;} .button:hover {transform:none;}}
+
+.brand-mark.brand-avatar {display:block;object-fit:cover;border-radius:50%;background:#0b1118;box-shadow:none;flex-shrink:0;}
