@@ -8,6 +8,9 @@ let cachedClientInstanceId = null;
 
 const state = {
   me: null,
+  referrals: null,
+  referralKey: null,
+  referralLoading: false,
   catalog: null,
   planTier: "basic",
   detailTier: "basic",
@@ -139,6 +142,11 @@ function humanError(error) {
   const detail = error instanceof ApiError ? error.detail : "";
 
   const translations = {
+    "Withdrawal minimum is 500 RUB": "Минимальная сумма вывода — 500 ₽.",
+    "Withdrawal already pending": "У вас уже есть заявка на вывод.",
+    "Insufficient referral balance": "Недостаточно доступных средств.",
+    "Withdrawal cannot be canceled": "Заявка уже обрабатывается или завершена.",
+    "Withdrawal key already used": "Обновите баланс и повторите заявку.",
     "Trial already used": "Пробный период уже был использован.",
     "User already has active subscription": "У вас уже есть активная подписка.",
     "Active subscription required": "Сначала активируйте подписку.",
@@ -317,6 +325,7 @@ function deviceDisplayName(device) {
 }
 
 function setView(name) {
+  if (name === "referrals") loadReferrals();
   if (name === "devices") {
     if (!activeSubscriptions().some((entry) => subscriptionTier(entry) === state.detailTier)) {
       state.detailTier = subscriptionTier(activeSubscriptions()[0] || {});
@@ -1142,6 +1151,7 @@ async function loadData() {
     state.payment = payment;
 
     renderAll();
+    if (state.view === "referrals") loadReferrals();
     elements.loading.classList.add("hidden");
     elements.error.classList.add("hidden");
     if (!state.initialViewApplied) {
@@ -1283,6 +1293,83 @@ document.querySelectorAll('a[href^="https://t.me/"]').forEach((link) => {
     event.preventDefault();
     openBotLink(link.href);
   });
+});
+
+function referralMoney(kopecks) { return new Intl.NumberFormat("ru-RU", {style:"currency",currency:"RUB",minimumFractionDigits:2,maximumFractionDigits:2}).format(kopecks / 100); }
+const referralStatus = {requested:"Ожидает обработки",processing:"В обработке",paid:"Выплачено",rejected:"Отклонено",canceled:"Отменено"};
+function referralNode(tag, text, className = "") {
+  const node = document.createElement(tag); node.textContent = text; node.className = className; return node;
+}
+function renderReferrals() {
+  const data=state.referrals;
+  if (!data) return;
+  document.querySelector("#referral-balance").textContent = referralMoney(data.available_kopecks) + " доступно";
+  document.querySelector("#referral-stats").textContent = `Приглашено: ${data.invited_count} · Оплатили: ${data.paying_count}`;
+  document.querySelector("#referral-reserved").textContent = data.reserved_kopecks ? `В заявках: ${referralMoney(data.reserved_kopecks)}` : data.balance_kopecks < 0 ? `Корректировка после возвратов: ${referralMoney(data.balance_kopecks)}` : "Вывод от 500 ₽ на личную карту";
+  document.querySelector("#referral-mode").textContent = data.live_payments ? "" : "Оплата сейчас в тестовом режиме. Тестовые покупки не приносят денежного вознаграждения.";
+  document.querySelector("#referral-link").value=data.link;
+  document.querySelector("#referral-copy").disabled=false;
+  document.querySelector("#referral-share").disabled=false;
+  document.querySelector("#referral-withdraw").disabled=data.available_kopecks < data.minimum_kopecks || data.reserved_kopecks>0;
+  const history=document.querySelector("#referral-commissions");history.replaceChildren();
+  if (!data.commissions.length) history.append(referralNode("p","Начислений пока нет. Поделись своей ссылкой с друзьями."));
+  for(const row of data.commissions) {
+    const item=referralNode("article","","referral-history-row");
+    item.append(referralNode("strong",referralMoney(row.amount_kopecks-row.reversed_kopecks)),referralNode("span",`Оплата №${row.payment_id} · ${formatDate(row.created_at)}`));
+    if(row.reversed_kopecks) item.append(referralNode("span",`Возврат: −${referralMoney(row.reversed_kopecks)}`));
+    history.append(item);
+  }
+  const requests=document.querySelector("#referral-withdrawals");requests.replaceChildren();
+  if(!data.withdrawals.length) requests.append(referralNode("p","Заявок на вывод пока нет."));
+  for(const row of data.withdrawals) {
+    const item=referralNode("article","","referral-history-row");
+    item.append(referralNode("strong",`${referralMoney(row.amount_kopecks)} · ${referralStatus[row.status] || row.status}`),referralNode("span",`№${row.id} · ${formatDate(row.created_at)}`));
+    if(row.note) item.append(referralNode("p",row.note));
+    if(["requested","processing"].includes(row.status)) {
+      const contact=referralNode("button","Согласовать выплату","button button-secondary");contact.type="button";
+      contact.addEventListener("click",()=>{ navigator.clipboard?.writeText(row.id).catch(()=>{});openBotLink("https://t.me/workplayvpnteam"); });item.append(contact);
+    }
+    if(row.status==="requested") {
+      const button=referralNode("button","Отменить заявку","button button-secondary");button.type="button";
+      button.addEventListener("click",async()=>{
+        button.disabled=true;
+        try {await api(`/mini-app/referrals/withdrawals/${row.id}/cancel`,{method:"POST"}); await loadReferrals();showToast("Заявка отменена.");}
+        catch(error){showToast(humanError(error),"error");button.disabled=false;}
+      });item.append(button);
+    }
+    requests.append(item);
+  }
+}
+async function loadReferrals() {
+  if(state.referralLoading) return;
+  state.referralLoading=true;
+  document.querySelector("#referral-error").textContent="";
+  try {state.referrals=await api("/mini-app/referrals");renderReferrals();}
+  catch(error){document.querySelector("#referral-error").textContent=humanError(error);document.querySelector("#referral-balance").textContent="Баланс временно недоступен";document.querySelector("#referral-withdraw").disabled=true;}
+  finally {state.referralLoading=false;}
+}
+document.querySelector("#referral-refresh").addEventListener("click",loadReferrals);
+document.querySelector("#referral-copy").addEventListener("click",async()=>{
+  try {await navigator.clipboard.writeText(state.referrals.link);showToast("Ссылка скопирована.");}
+  catch {document.querySelector("#referral-link").select();showToast("Выдели и скопируй ссылку.");}
+});
+document.querySelector("#referral-share").addEventListener("click",()=>{
+  const link=state.referrals?.link;if(!link)return;
+  openBotLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Work&PlayVPN — для работы, игр и любимого досуга. Попробуй Basic на 24 часа, если ещё не пользовался сервисом.")}`);
+});
+document.querySelector("#referral-withdraw-form").addEventListener("submit",async(event)=>{
+  event.preventDefault();
+  const raw=document.querySelector("#referral-amount").value.trim().replace(",",".");
+  if(!/^\d{1,8}(\.\d{1,2})?$/.test(raw)){showToast("Укажи сумму в рублях, например 500,00.","error");return;}
+  const [rub,coins=""]=raw.split(".");const amount=Number(rub)*100+Number(coins.padEnd(2,"0"));
+  if(amount<50000){showToast("Минимальная сумма — 500 ₽.","error");return;}
+  const button=document.querySelector("#referral-withdraw");button.disabled=true;
+  if(!state.referralKey) state.referralKey=makeIdempotencyKey();
+  try {
+    await api("/mini-app/referrals/withdrawals",{method:"POST",body:JSON.stringify({amount_kopecks:amount,idempotency_key:state.referralKey})});
+    state.referralKey=null;document.querySelector("#referral-amount").value="";
+    await loadReferrals();showToast("Заявка создана. Согласуй выплату с поддержкой.");
+  }catch(error){if(error instanceof ApiError && error.status>=400 && error.status<500)state.referralKey=null;showToast(humanError(error),"error");button.disabled=false;}
 });
 
 initializeTelegram();

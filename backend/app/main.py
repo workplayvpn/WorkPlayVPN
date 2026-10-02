@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from app.api.referrals import router as referrals_router
 from sqlalchemy import text
 
 from app.api.activation_page import router as activation_page_router
@@ -28,6 +29,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(referrals_router)
 app.include_router(catalog_router)
 app.include_router(users_router)
 app.include_router(subscriptions_router)

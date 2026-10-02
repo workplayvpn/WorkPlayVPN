@@ -1,7 +1,9 @@
+import re
 import httpx
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
+from aiogram.filters.command import CommandObject
 from aiogram.types import FSInputFile, Message
 
 from api.backend import backend_post
@@ -43,6 +45,7 @@ async def send_home_message(
 @router.message(CommandStart())
 async def handle_start(
     message: Message,
+    command: CommandObject,
 ) -> None:
     telegram_user = message.from_user
 
@@ -54,6 +57,10 @@ async def handle_start(
         "username": telegram_user.username,
         "first_name": telegram_user.first_name,
     }
+
+    match = re.fullmatch(r"ref_([a-f0-9]{24})", command.args or "")
+    if match:
+        payload["referral_code"] = match.group(1)
 
     try:
         response = await backend_post(

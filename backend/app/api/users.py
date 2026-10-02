@@ -8,6 +8,7 @@ from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead
+from app.services.referrals import bind_new_user
 
 
 router = APIRouter(
@@ -38,9 +39,11 @@ def create_user(
             detail="User already exists",
         )
 
-    user = User(**payload.model_dump())
+    user = User(**payload.model_dump(exclude={"referral_code"}))
 
     database.add(user)
+    database.flush()
+    bind_new_user(database, user, payload.referral_code)
     database.commit()
     database.refresh(user)
 

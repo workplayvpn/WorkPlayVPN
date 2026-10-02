@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserCreate(BaseModel):
+    referral_code: str | None = Field(default=None, min_length=24, max_length=24, pattern=r"^[a-f0-9]+$")
     telegram_id: int = Field(gt=0)
     username: str | None = Field(
         default=None,

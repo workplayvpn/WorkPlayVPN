@@ -17,6 +17,7 @@ from app.services.mobile_rollout import mobile_pilot_allowed
 from app.services.device_slots import slot_count
 from app.services.entitlements import active_entitlements
 from app.services.subscription_service import subscription_service
+from app.services.referrals import credit_payment
 
 logger = logging.getLogger(__name__)
 
@@ -422,6 +423,7 @@ class PaymentService:
         try:
             database.add(fulfillment)
             database.flush()
+            credit_payment(database, payment, plan)
 
             subscription_service.activate_subscription(
                 database=database,
