@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+<defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#0b1117"/><stop offset="1" stop-color="#101923"/></linearGradient></defs>
+<rect width="1280" height="640" fill="url(#bg)"/>
+<g fill="none" stroke="#214447"><circle cx="1150" cy="390" r="489"/><circle cx="1150" cy="390" r="399"/><circle cx="1150" cy="390" r="309"/></g>
+<circle cx="1028" cy="112" r="12" fill="#ffbd69"/>
+<rect x="70" y="74" width="71" height="71" rx="23" fill="#2bcebf"/>
+<g font-family="DejaVu Sans, sans-serif"><text x="88" y="122" font-size="38" font-weight="bold" fill="#08141c">W</text><text x="164" y="121" font-size="36" font-weight="bold" fill="#eaf2f8">Work&amp;PlayVPN</text>
+<text x="74" y="243" font-size="24" fill="#2bcebf">WORK · PLAY · CONNECT</text>
+<text x="70" y="341" font-size="60" font-weight="bold" fill="#eaf2f8">{{TITLE}}</text>
+<path d="M74 427h102" stroke="#ffbd69" stroke-width="4"/>
+<text x="74" y="499" font-size="28" fill="#a0afbf">Для работы. Для игр. Для всего, что любишь.</text></g></svg>

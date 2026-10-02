@@ -609,7 +609,7 @@ function renderPlans() {
     state.planTier = availableTiers.has("mobile") && !availableTiers.has("basic")
       ? "mobile" : "basic";
   }
-  document.querySelector("#terms-title").textContent = `Выбери срок ${tierLabel(state.planTier)}`;
+  document.querySelector("#terms-title").textContent = `Выберите длительность подписки · ${tierLabel(state.planTier)}`;
   elements.plansTierDescription.textContent = state.planTier === "mobile"
     ? (Object.keys(state.me?.auto_connect_urls || {}).length
       ? "Подключение для Wi-Fi и мобильной сети. Маршрут выбирается автоматически."
