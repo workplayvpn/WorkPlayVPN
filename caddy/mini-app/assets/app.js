@@ -690,8 +690,7 @@ function renderPlans() {
     const button = document.createElement("button");
     button.className = "button button-primary";
     button.type = "button";
-    state.creatingPayment = false;
-    button.innerHTML = originalLabel;
+    button.textContent = "Выбрать";
     button.addEventListener("click", () => startPayment(plan, button));
 
     bottom.append(detail, button);
