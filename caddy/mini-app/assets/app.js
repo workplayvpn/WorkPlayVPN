@@ -325,6 +325,8 @@ function deviceDisplayName(device) {
 }
 
 function setView(name) {
+  if (name === "help") { loadKnowledge(); loadSupportTickets(); }
+  if (name === "support") prepareSupportForm();
   if (name === "referrals") loadReferrals();
   if (name === "devices") {
     if (!activeSubscriptions().some((entry) => subscriptionTier(entry) === state.detailTier)) {
@@ -1161,7 +1163,7 @@ async function loadData() {
 
     if (!state.initialViewApplied) {
       const requestedView = new URLSearchParams(window.location.search).get("view");
-      const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals"]);
+      const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals", "help", "support"]);
       setView(allowedViews.has(requestedView) ? requestedView : "home");
       state.initialViewApplied = true;
     }
@@ -1193,7 +1195,7 @@ function initializeTelegram() {
     applyTheme();
 
     if (!state.telegramEventsBound) {
-      telegram.BackButton?.onClick(() => setView(state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : "home"));
+      telegram.BackButton?.onClick(() => setView(state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : state.view === "support" ? "help" : "home"));
       telegram.onEvent?.("activated", () => loadData());
       telegram.onEvent?.("themeChanged", applyTheme);
       state.telegramEventsBound = true;

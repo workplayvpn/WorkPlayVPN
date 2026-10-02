@@ -7,9 +7,10 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20261002-6">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261003-2">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20261003-1" defer></script>
+  <script src="/app/assets/support.js?v=20261003-2" defer></script>
+  <script src="/app/assets/app.js?v=20261003-2" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -127,7 +128,7 @@
           </button>
         </div>
         <button class="referral-teaser" type="button" data-view-link="referrals"><span class="eyebrow">Связь объединяет</span><strong>Хорошей связью хочется делиться.</strong><span>15% за приглашения · вывод от 500 ₽ →</span></button>
-        <a class="button button-secondary button-wide" href="https://t.me/workplayvpn_bot">Нужна помощь? Написать в бот</a>
+        <button class="button button-secondary button-wide" type="button" data-view-link="help">Нужна помощь? База знаний</button>
       </section>
 
       <section id="view-subscriptions" class="view" aria-labelledby="subscriptions-title">
@@ -150,6 +151,32 @@
         <button id="referral-refresh" class="button button-secondary button-wide" type="button">Обновить баланс</button>
         <a class="button button-secondary button-wide" href="https://t.me/workplayvpnteam">Связаться с поддержкой</a>
         <a class="muted" href="https://workplayvpn.ru/referrals.html" target="_blank" rel="noopener">Условия реферальной программы</a>
+      </section>
+
+
+      <section id="view-help" class="view" aria-labelledby="help-title">
+        <div class="section-head"><p class="eyebrow">На связи с тобой</p><h1 id="help-title">База знаний</h1><p>Подключение, подписки и помощь при сбоях.</p></div>
+        <label for="knowledge-search">Найти ответ</label><input id="knowledge-search" class="referral-input" type="search" placeholder="Например: Happ, скорость, устройства">
+        <p id="knowledge-error" role="status"></p><div id="knowledge-list" class="knowledge-list"></div>
+        <button class="button button-wide" type="button" data-view-link="support">Сообщить о проблеме</button>
+        <article class="support-card"><h2>Мои обращения</h2><p>Ответы и статусы последних 50 обращений.</p><button id="support-refresh" class="button button-secondary button-wide" type="button">Обновить обращения</button><p id="support-history-error" role="status"></p><div id="support-history" class="referral-history"></div></article>
+        <a class="button button-secondary button-wide" href="https://t.me/workplayvpnteam">Написать в поддержку</a>
+      </section>
+      <section id="view-support" class="view" aria-labelledby="support-title">
+        <button class="text-button detail-back" type="button" data-view-link="help">← В базу знаний</button>
+        <div class="section-head"><p class="eyebrow">Поможем разобраться</p><h1 id="support-title">Сообщить о проблеме</h1><p>Опиши ситуацию — обращение сохранится, а поддержка получит уведомление.</p></div>
+        <form id="support-form" class="support-card">
+          <label for="support-category">Тема</label><select id="support-category" class="referral-input" required><option value="connection">Не подключается</option><option value="speed">Скорость, видео или игры</option><option value="device">Устройства и слоты</option><option value="payment">Оплата или продление</option><option value="referral">Реферальная программа</option><option value="other">Другой вопрос</option></select>
+          <label for="support-tier">Подписка</label><select id="support-tier" class="referral-input"><option value="unknown">Не относится к подписке / не знаю</option><option value="mobile">Mobile</option><option value="basic">Basic</option></select>
+          <label for="support-network">Тип сети</label><select id="support-network" class="referral-input"><option value="unknown">Не знаю / не относится к вопросу</option><option value="wifi">Wi-Fi</option><option value="mobile">Мобильная сеть</option><option value="both">Wi-Fi и мобильная сеть</option></select>
+          <label for="support-device">Устройство</label><select id="support-device" class="referral-input"><option value="">Это устройство / не относится к вопросу</option></select>
+          <label for="support-description">Что произошло?</label><textarea id="support-description" class="referral-input" rows="6" minlength="20" maxlength="3000" placeholder="Что не работает, когда началось, какой текст ошибки и что уже попробовали?" required></textarea>
+          <p class="muted">От 20 до 3000 символов. Не отправляй ключ подписки, пароли, номера карт, CVV или коды из SMS.</p>
+          <details class="knowledge-article"><summary>Какие данные передаются?</summary><p>Твой Telegram ID, версия Mini App, тип платформы, выбранная сеть и подписка, а также ID и название устройства, если ты выбрал его в списке. IP-адреса, ключи доступа и история посещений в диагностику не включаются.</p></details>
+          <p>Отправляя обращение, ты передаёшь эти данные поддержке для решения вопроса. <a href="https://workplayvpn.ru/privacy.html" target="_blank" rel="noopener">Обработка персональных данных</a>.</p>
+          <button id="support-submit" class="button button-wide" type="submit">Отправить обращение</button><p id="support-result" role="status" aria-live="polite"></p>
+        </form>
+        <button class="button button-secondary button-wide" type="button" data-view-link="help">Посмотреть мои обращения</button>
       </section>
 
       <section id="view-plans" class="view" aria-labelledby="plans-title">

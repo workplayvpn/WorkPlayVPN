@@ -1696,3 +1696,13 @@ button.referral-teaser { cursor: pointer; }
 .referral-history-card .referral-history>p{margin:0;color:var(--muted,#9cacba);line-height:1.6;overflow-wrap:anywhere;}
 .referral-history-card>.muted{margin:16px 0 0;font-size:.85em;line-height:1.5;}
 @media(max-width:380px){.referral-actions{flex-direction:column;}}
+
+.support-card{padding:24px;margin:24px 0;border:1px solid var(--border);border-radius:24px;background:var(--surface);min-width:0;}
+.knowledge-list{display:grid;gap:12px;margin:20px 0 28px;}
+.knowledge-article{border:1px solid var(--border);border-radius:20px;padding:20px;background:var(--surface);overflow-wrap:anywhere;}
+.knowledge-article summary{cursor:pointer;font-weight:700;line-height:1.4;}
+.knowledge-article p,.support-card .muted{color:var(--muted);line-height:1.6;}
+.knowledge-article .eyebrow{display:block;margin-top:20px;}
+.support-card textarea{resize:vertical;min-height:160px;}
+.support-card .referral-history-row p{margin:4px 0;white-space:pre-wrap;line-height:1.6;}
+#support-result{overflow-wrap:anywhere;line-height:1.6;}

@@ -1,5 +1,7 @@
 from texts.description import DESCRIPTION, SHORT_DESCRIPTION
 import asyncio
+from contextlib import suppress
+from handlers.support import router as support_router, deliver_notifications
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -26,6 +28,7 @@ from handlers.start import router as start_router
 
 
 dispatcher = Dispatcher()
+dispatcher.include_router(support_router)
 dispatcher.include_router(device_slots_router)
 
 dispatcher.include_router(
@@ -79,6 +82,7 @@ def create_bot() -> Bot:
 
 async def main() -> None:
     bot = create_bot()
+    support_task = None
 
     try:
         await bot.delete_webhook(
@@ -106,11 +110,16 @@ async def main() -> None:
         await bot.set_my_short_description(SHORT_DESCRIPTION)
         await bot.set_my_description(DESCRIPTION)
 
+        support_task = asyncio.create_task(deliver_notifications(bot))
         await dispatcher.start_polling(
             bot
         )
 
     finally:
+        if support_task is not None:
+            support_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await support_task
         await bot.session.close()
 
 
