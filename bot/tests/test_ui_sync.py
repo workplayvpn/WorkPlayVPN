@@ -101,7 +101,7 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('249',screen.call_args.args[1])
             await plans.show_plans(callback('plans_tier:mobile'))
             rows=screen.call_args.args[2].inline_keyboard
-            self.assertEqual(rows[0][0].callback_data,'select_plan:mobile_1m:subscription')
+            self.assertEqual(rows[0][0].callback_data,'select_plan:mobile_1m:main')
             self.assertFalse(any('standard_' in (r[0].callback_data or '') for r in rows))
 
     async def test_qr_uses_selected_tier_link(self):
@@ -156,3 +156,23 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RenewalNavigationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_catalogue_and_renewal_back_targets(self):
+        for tier in ('basic', 'mobile'):
+            for renewal in (False, True):
+                data = f'plans_tier:{tier}' + (':renew' if renewal else '')
+                with patch.object(plans, 'backend_get', AsyncMock(return_value=response(CATALOG))), patch.object(plans, 'edit_screen', AsyncMock()) as screen:
+                    await plans.show_plans(callback(data))
+                    rows = screen.call_args.args[2].inline_keyboard
+                    self.assertEqual(rows[-1][0].callback_data, f'subscription_tier:{tier}' if renewal else 'plans')
+                    self.assertTrue(rows[0][0].callback_data.endswith(f':renew_{tier}' if renewal else ':main'))
+
+    def test_payment_back_preserves_renewal(self):
+        from ui.payments import build_payment_confirmation_keyboard, build_payment_keyboard
+        for tier in ('basic', 'mobile'):
+            buttons = [row[0] for row in build_subscription_keyboard(active=True, tier=tier).inline_keyboard]
+            self.assertTrue(any(b.callback_data == f'plans_tier:{tier}:renew' for b in buttons))
+            for keyboard in (build_payment_confirmation_keyboard('standard_1m', source=f'renew_{tier}'), build_payment_keyboard('https://pay.test', 1, source=f'renew_{tier}')):
+                self.assertEqual(keyboard.inline_keyboard[-1][0].callback_data, f'plans_tier:{tier}:renew')

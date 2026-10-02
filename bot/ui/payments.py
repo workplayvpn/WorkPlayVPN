@@ -25,7 +25,7 @@ def build_payment_confirmation_keyboard(
                 InlineKeyboardButton(
                     text="← Изменить тариф",
                     callback_data=(
-                        "subscription_plans"
+                        f"plans_tier:{source[6:]}:renew" if source in ("renew_basic", "renew_mobile") else "subscription_plans"
                         if source == "subscription"
                         else "plans"
                     ),
@@ -54,7 +54,7 @@ def build_payment_keyboard(
                 InlineKeyboardButton(
                     text="← К лимиту" if source == "slots" else "← К тарифам",
                     callback_data=(
-                        "device_slots" if source == "slots" else "subscription_plans"
+                        "device_slots" if source == "slots" else f"plans_tier:{source[6:]}:renew" if source in ("renew_basic", "renew_mobile") else "subscription_plans"
                         if source == "subscription"
                         else "plans"
                     ),

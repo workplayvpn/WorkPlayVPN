@@ -20,7 +20,7 @@ def build_subscription_keyboard(*, active, connect_url=None, mobile_connect_url=
         rows = [[InlineKeyboardButton(text="🔑 Показать ключ", callback_data=f"subscription_key:{tier}", style="primary")],
                 [InlineKeyboardButton(text="📷 Показать QR-код", callback_data=f"subscription_qr:{tier}", style="primary")],
                 [InlineKeyboardButton(text="📖 Подключение и устройства", web_app=WebAppInfo(url=mini_app_url+('&' if '?' in mini_app_url else '?')+'view=devices'))],
-                [InlineKeyboardButton(text="⏳ Продлить подписку", callback_data=f"plans_tier:{tier}", style="primary")],
+                [InlineKeyboardButton(text="⏳ Продлить подписку", callback_data=f"plans_tier:{tier}:renew", style="primary")],
                 [InlineKeyboardButton(text="➕ Добавить лимит устройств", callback_data="device_slots", style="primary")],
                 [InlineKeyboardButton(text="🌍 Сменить регион", callback_data="change_region")],
                 [InlineKeyboardButton(text="🛟 Сообщить о проблеме", url="https://t.me/workplayvpnteam")],

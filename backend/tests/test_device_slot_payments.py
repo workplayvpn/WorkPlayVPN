@@ -109,3 +109,20 @@ def test_replay_with_stale_session_does_not_double_credit(db):
         payment_service.mark_succeeded(stale,payment.id)
         stale.refresh(cached_user)
         assert cached_user.extra_device_slots == 1
+
+
+@pytest.mark.parametrize('tier', ['basic', 'mobile'])
+def test_active_subscription_hides_trial_from_bot_catalogue(db, tier):
+    from app.services.catalog import available_plans
+    user = make_user(db, tier=tier)
+    assert 'trial_1d' not in {plan.code for plan in available_plans(db, user.telegram_id, include_trial=True)}
+
+
+def test_unused_trial_remains_available_to_new_user(db):
+    from app.services.catalog import available_plans
+    user = make_user(db, active=False)
+    assert 'trial_1d' in {plan.code for plan in available_plans(db, user.telegram_id, include_trial=True)}
+    trial = db.scalar(select(Plan).where(Plan.code == 'trial_1d'))
+    db.add(Subscription(user_id=user.id, plan_id=trial.id, status='expired', starts_at=datetime.now(UTC)-timedelta(days=2), expires_at=datetime.now(UTC)-timedelta(days=1)))
+    db.commit()
+    assert 'trial_1d' not in {plan.code for plan in available_plans(db, user.telegram_id, include_trial=True)}

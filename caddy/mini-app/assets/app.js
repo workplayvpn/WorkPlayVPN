@@ -400,7 +400,8 @@ function renderSubscriptionDetail() {
   document.querySelector("#header-avatar").textContent = (state.me?.user?.first_name || "W").slice(0, 1).toUpperCase();
 }
 
-function openPlanTerms(tier) {
+function openPlanTerms(tier, returnView = "plans") {
+  state.termsReturnView = returnView;
   if (!state.catalog.plans.some((plan) => (plan.access_tier || "basic") === tier)) {
     showToast("Эта подписка сейчас недоступна.", "error");
     setView("plans");
@@ -1182,7 +1183,7 @@ function initializeTelegram() {
     applyTheme();
 
     if (!state.telegramEventsBound) {
-      telegram.BackButton?.onClick(() => setView(state.view === "terms" ? "plans" : state.view === "devices" ? "subscriptions" : "home"));
+      telegram.BackButton?.onClick(() => setView(state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : "home"));
       telegram.onEvent?.("activated", () => loadData());
       telegram.onEvent?.("themeChanged", applyTheme);
       state.telegramEventsBound = true;
@@ -1226,7 +1227,7 @@ elements.changeRegionButton.addEventListener("click", () => {
 });
 document.querySelector("#detail-connect").addEventListener("click", showDeviceConnections);
 document.querySelector("#detail-renew").addEventListener("click", () => {
-  openPlanTerms(state.detailTier);
+  openPlanTerms(state.detailTier, "devices");
 });
 
 elements.addDeviceButton.addEventListener("click", showSlotOffers);

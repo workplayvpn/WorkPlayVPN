@@ -81,7 +81,8 @@ def build_plans_keyboard(
             ]
         )
 
-    rows.append([InlineKeyboardButton(text="← Назад", callback_data="plans")])
+    back = f"subscription_tier:{source[6:]}" if source in ("renew_basic", "renew_mobile") else "plans"
+    rows.append([InlineKeyboardButton(text="← Назад", callback_data=back)])
 
     return build_keyboard(
         inline_keyboard=rows,

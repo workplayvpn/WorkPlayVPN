@@ -55,7 +55,9 @@ async def show_plans(
         return
 
     plans = response.json()
-    tier = callback.data.split(":", 1)[1] if callback.data.startswith("plans_tier:") else None
+    parts = callback.data.split(":")
+    tier = parts[1] if callback.data.startswith("plans_tier:") else None
+    renewal = len(parts) > 2 and parts[2] == "renew"
     if tier is None:
         tiers={plan.get("access_tier", "basic") for plan in plans}
         await edit_screen(callback,
@@ -72,7 +74,7 @@ async def show_plans(
         "💻 Basic — для работы и отдыха.\nПодключение через Happ для рабочих сервисов, игр, видео и общения в обычной сети."
     )
     await edit_screen(callback, f"⏳ {tier_name(tier)} · Выберите срок\n\n{description}\n\nДо 3 устройств, дополнительные слоты можно купить отдельно. Лимит общий для Basic и Mobile.\nПродление добавляет время только к выбранной подписке, без автосписаний.",
-                      build_plans_keyboard(plans, source="subscription"))
+                      build_plans_keyboard(plans, source=f"renew_{tier}" if renewal else "main"))
 
 
 @router.callback_query(
