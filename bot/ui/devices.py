@@ -44,6 +44,8 @@ def build_user_devices_keyboard(
             ]
         )
 
+    rows.append([InlineKeyboardButton(text="➕ Добавить лимит устройств", callback_data="device_slots", style="primary")])
+
     rows.append(
         [
             InlineKeyboardButton(

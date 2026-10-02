@@ -1,4 +1,5 @@
 from app.services.catalog import available_plans
+from app.services.device_slots import device_slot_offers
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -762,3 +763,11 @@ def get_current_payment(
         expires_at=payment.expires_at,
         paid_at=payment.paid_at,
     )
+
+
+@router.get("/device-slots/offers")
+def get_slot_offers(
+    auth: Annotated[TelegramWebAppAuthResult, Depends(require_telegram_webapp_auth)],
+    database: Annotated[Session, Depends(get_db)],
+):
+    return device_slot_offers(database, auth.user.id)

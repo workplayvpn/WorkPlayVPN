@@ -9,8 +9,9 @@ def tier_name(tier):
 
 def build_tier_keyboard(tiers, action, *, back="subscription"):
     return build_keyboard(inline_keyboard=[
-        [InlineKeyboardButton(text=tier_name(t), callback_data=f"{action}:{t}", style="primary")]
-        for t in ("basic", "mobile") if t in tiers
+        [InlineKeyboardButton(text="📲 Mobile" if t == "mobile" else "Basic",
+            callback_data=f"{action}:{t}", style="primary" if t == "mobile" else None)]
+        for t in ("mobile", "basic") if t in tiers
     ] + [[InlineKeyboardButton(text="← Назад", callback_data=back)]])
 
 
@@ -20,6 +21,7 @@ def build_subscription_keyboard(*, active, connect_url=None, mobile_connect_url=
                 [InlineKeyboardButton(text="📷 Показать QR-код", callback_data=f"subscription_qr:{tier}", style="primary")],
                 [InlineKeyboardButton(text="📖 Подключение и устройства", web_app=WebAppInfo(url=mini_app_url+('&' if '?' in mini_app_url else '?')+'view=devices'))],
                 [InlineKeyboardButton(text="⏳ Продлить подписку", callback_data=f"plans_tier:{tier}", style="primary")],
+                [InlineKeyboardButton(text="➕ Добавить лимит устройств", callback_data="device_slots", style="primary")],
                 [InlineKeyboardButton(text="🌍 Сменить регион", callback_data="change_region")],
                 [InlineKeyboardButton(text="🛟 Сообщить о проблеме", url="https://t.me/workplayvpnteam")],
                 [InlineKeyboardButton(text="← К подпискам", callback_data="subscription")]]

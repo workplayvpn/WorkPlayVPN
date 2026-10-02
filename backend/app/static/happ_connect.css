@@ -577,3 +577,16 @@ button {
         font-size: 10px;
     }
 }
+/* Work · Play · Connect */
+:root { --background: #0b1118; --background-soft: #0b1118; --surface: #16212c; --surface-raised: #1b2a36; --surface-active: #19352f; --text: #eaf2f8; --muted: #9baaba; --muted-light: #c0ccd7; --accent: #32d4c5; --accent-strong: #32d4c5; --accent-soft: rgba(50,212,197,.12); --warning: #ffbd69; --border: rgba(155,180,201,.2); --border-active: rgba(50,212,197,.55); }
+body { background: radial-gradient(circle at 95% 0, rgba(50,212,197,.08), transparent 32%), #0b1118; }
+.brand-mark { background: #32d4c5; color: #0b1118; border-color: #32d4c5; box-shadow: none; }
+.hero { background: linear-gradient(125deg, #16212c, #10262b); }
+
+.platform-tab { background: var(--surface); }
+.platform-tab.active { background: #19352f; box-shadow: inset 0 0 0 1px rgba(50,212,197,.15); }
+.platform-icon, .panel-heading-icon { background: rgba(50,212,197,.12); }
+.hero::after { border-color: rgba(50,212,197,.07); }
+.button-primary { color: #0b1118; background: #32d4c5; }
+
+.button-primary { box-shadow: 0 14px 32px rgba(50,212,197,.15); }

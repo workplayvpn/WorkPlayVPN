@@ -30,6 +30,19 @@ CATALOG=[{'code':'standard_1m','access_tier':'basic','duration_days':30,'price_a
 
 
 class MenuTests(unittest.TestCase):
+    def test_catalogue_mobile_first_and_basic_neutral(self):
+        from ui.subscription import build_tier_keyboard
+        rows = build_tier_keyboard({'basic', 'mobile'}, 'plans_tier').inline_keyboard
+        self.assertEqual(rows[0][0].text, '📲 Mobile')
+        self.assertEqual(rows[0][0].style, 'primary')
+        self.assertIsNone(rows[1][0].style)
+
+    def test_terms_back_to_catalogue_and_compact_mobile_labels(self):
+        from ui.plans import build_plans_keyboard
+        rows = build_plans_keyboard([CATALOG[1]], source='subscription').inline_keyboard
+        self.assertEqual(rows[-1][0].callback_data, 'plans')
+        self.assertEqual(rows[0][0].text, '1 месяц — 249 ₽')
+
     def test_bot_description_limits(self):
         self.assertLessEqual(len(SHORT_DESCRIPTION),120)
         self.assertLessEqual(len(DESCRIPTION),512)
@@ -41,6 +54,12 @@ class MenuTests(unittest.TestCase):
             styles=[row[0].style=='primary' for row in keyboard.inline_keyboard]
             self.assertEqual(styles,sorted(styles,reverse=True))
             self.assertTrue(all(len(row)==1 for row in keyboard.inline_keyboard))
+
+    def test_slot_payment_keyboard(self):
+        from ui.payments import build_payment_keyboard
+        rows = build_payment_keyboard('https://pay.test', 7, source='slots').inline_keyboard
+        self.assertEqual(rows[0][0].url, 'https://pay.test')
+        self.assertEqual(rows[-1][0].callback_data, 'device_slots')
 
     def test_referral_link(self):
         buttons=[row[0] for row in main_menu.inline_keyboard]
@@ -61,11 +80,24 @@ class MenuTests(unittest.TestCase):
 
 
 class FlowTests(unittest.IsolatedAsyncioTestCase):
+    async def test_slot_purchase_creates_correct_payment_and_button(self):
+        from handlers import device_slots
+        with patch.object(device_slots, 'backend_post', AsyncMock(return_value=response({'id': 7, 'amount': '449.00', 'confirmation_url': 'https://pay.test'},201))) as payment, patch.object(device_slots, 'edit_screen', AsyncMock()) as screen:
+            await device_slots.buy_slots(callback('buy_slots:device_slots_2'))
+            self.assertEqual(payment.call_args.args[1]['plan_code'],'device_slots_2')
+            self.assertEqual(screen.call_args.args[2].inline_keyboard[0][0].url,'https://pay.test')
+
+    async def test_terms_describe_basic_and_mobile(self):
+        for tier, phrase in [('basic','рабочих сервисов'),('mobile','резервный маршрут')]:
+            with patch.object(plans,'backend_get',AsyncMock(return_value=response(CATALOG))),patch.object(plans,'edit_screen',AsyncMock()) as screen:
+                await plans.show_plans(callback('plans_tier:'+tier))
+                self.assertIn(phrase,screen.call_args.args[1])
+
     async def test_catalogue_selects_tier_before_duration(self):
         with patch.object(plans,'backend_get',AsyncMock(return_value=response(CATALOG))), patch.object(plans,'edit_screen',AsyncMock()) as screen:
             await plans.show_plans(callback('plans'))
             rows=screen.call_args.args[2].inline_keyboard
-            self.assertEqual([r[0].callback_data for r in rows[:-1]],['plans_tier:basic','plans_tier:mobile'])
+            self.assertEqual([r[0].callback_data for r in rows[:-1]],['plans_tier:mobile','plans_tier:basic'])
             self.assertNotIn('249',screen.call_args.args[1])
             await plans.show_plans(callback('plans_tier:mobile'))
             rows=screen.call_args.args[2].inline_keyboard

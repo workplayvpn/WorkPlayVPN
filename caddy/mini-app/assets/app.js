@@ -70,20 +70,16 @@ const elements = {
   profileTelegramId: document.querySelector("#profile-telegram-id"),
   profileSubscription: document.querySelector("#profile-subscription"),
   profileDevices: document.querySelector("#profile-devices"),
+  slotSheet: document.querySelector("#slot-sheet"),
+  slotOffers: document.querySelector("#slot-offers"),
+  slotLimit: document.querySelector("#slot-limit"),
   locationSheet: document.querySelector("#location-sheet"),
   closeLocationSheet: document.querySelector("#close-location-sheet"),
   locationsList: document.querySelector("#locations-list"),
-  deviceSetupSheet: document.querySelector("#device-setup-sheet"),
   deviceConnectSheet: document.querySelector("#device-connect-sheet"),
   deviceConnectList: document.querySelector("#device-connect-list"),
   closeDeviceConnect: document.querySelector("#close-device-connect"),
   connectNewDevice: document.querySelector("#connect-new-device"),
-  closeDeviceSetup: document.querySelector("#close-device-setup"),
-  detectedDeviceIcon: document.querySelector("#detected-device-icon"),
-  detectedDeviceName: document.querySelector("#detected-device-name"),
-  detectedDevicePlatform: document.querySelector("#detected-device-platform"),
-  deviceModelInput: document.querySelector("#device-model-input"),
-  confirmDeviceSetup: document.querySelector("#confirm-device-setup"),
   regionSuccessSheet: document.querySelector("#region-success-sheet"),
   regionSuccessClose: document.querySelector("#region-success-close"),
   confirmSheet: document.querySelector("#confirm-sheet"),
@@ -694,7 +690,8 @@ function renderPlans() {
     const button = document.createElement("button");
     button.className = "button button-primary";
     button.type = "button";
-    button.textContent = "Выбрать";
+    state.creatingPayment = false;
+    button.innerHTML = originalLabel;
     button.addEventListener("click", () => startPayment(plan, button));
 
     bottom.append(detail, button);
@@ -711,21 +708,6 @@ function renderDevices() {
   elements.devicesCounter.textContent = `${state.me.devices.active_count} из ${deviceLimit}`;
   elements.deviceLimitAlert.classList.toggle("hidden", !isAtLimit);
   elements.addDeviceButton.disabled = !state.me.subscriptions?.length && state.me?.subscription?.status !== "active";
-
-  if (state.devices.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "empty-card";
-
-    const title = document.createElement("strong");
-    title.textContent = "Нет подключённых устройств";
-
-    const text = document.createElement("span");
-    text.textContent = "Нажмите кнопку ниже, чтобы создать первое подключение.";
-
-    empty.append(title, text);
-    elements.devicesList.append(empty);
-    return;
-  }
 
   state.devices.forEach((device, index) => {
     const card = document.createElement("article");
@@ -766,6 +748,21 @@ function renderDevices() {
     card.append(icon, info, removeButton);
     elements.devicesList.append(card);
   });
+  for (let index = state.devices.length; index < deviceLimit; index += 1) {
+    const card = document.createElement("article");
+    card.className = "device-card vacant-slot";
+    const icon = createIcon('<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 18h4"/>');
+    const info = document.createElement("div");
+    info.className = "device-info";
+    const name = document.createElement("strong");
+    name.textContent = `(${index + 1}/${deviceLimit}) Пустой слот`;
+    const hint = document.createElement("span");
+    hint.textContent = "Доступен для подключения через Happ";
+    info.append(name, hint);
+    card.append(icon, info);
+    elements.devicesList.append(card);
+  }
+
 }
 
 function showDeviceConnections() {
@@ -810,7 +807,7 @@ function showDeviceConnections() {
     elements.deviceConnectList.append(message);
   }
   if (!elements.deviceConnectList.childElementCount && canAdd) {
-    showDeviceSetup();
+    connectDevice();
   } else {
     openSheet(elements.deviceConnectSheet);
   }
@@ -884,24 +881,13 @@ function closeSheet(sheet) {
 
   if (
     elements.locationSheet.classList.contains("hidden") &&
-    elements.deviceSetupSheet.classList.contains("hidden") &&
+    elements.slotSheet.classList.contains("hidden") &&
     elements.deviceConnectSheet.classList.contains("hidden") &&
     elements.regionSuccessSheet.classList.contains("hidden") &&
     elements.confirmSheet.classList.contains("hidden")
   ) {
     document.body.style.overflow = "";
   }
-}
-
-function showDeviceSetup() {
-  const device = detectDevice();
-
-  elements.detectedDeviceIcon.textContent = device.icon;
-  elements.detectedDeviceName.textContent = device.name;
-  elements.detectedDevicePlatform.textContent = device.platform;
-  elements.deviceModelInput.value = device.name;
-
-  openSheet(elements.deviceSetupSheet);
 }
 
 function openBotLink(url) {
@@ -998,13 +984,42 @@ async function startTrial() {
   }
 }
 
+async function showSlotOffers() {
+  elements.addDeviceButton.disabled = true;
+  try {
+    const data = await api("/mini-app/device-slots/offers");
+    elements.slotLimit.textContent = `Сейчас доступно: ${data.total_limit} слотов`;
+    elements.slotOffers.replaceChildren();
+    for (const offer of data.offers) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "slot-offer";
+      const title = document.createElement("strong");
+      title.textContent = `Добавить ${offer.slots} ${offer.slots === 1 ? "устройство" : "устройства"}`;
+      const price = document.createElement("span");
+      price.textContent = `${formatMoney(offer.price_amount, offer.currency)} · станет ${offer.new_limit} слотов`;
+      button.append(title, price);
+      button.addEventListener("click", () => startPayment(offer, button));
+      elements.slotOffers.append(button);
+    }
+    openSheet(elements.slotSheet);
+  } catch (error) {
+    showToast(humanError(error), "error");
+  } finally {
+    elements.addDeviceButton.disabled = !activeSubscriptions().length;
+  }
+}
+
 async function startPayment(plan, button) {
+  if (state.creatingPayment) return;
+  const originalLabel = button.innerHTML;
   if (state.payment?.status === "pending") {
     showToast("Сначала завершите уже созданный платёж.");
     openExternal(state.payment.confirmation_url);
     return;
   }
 
+  state.creatingPayment = true;
   button.disabled = true;
   button.textContent = "Создаём…";
 
@@ -1013,7 +1028,7 @@ async function startPayment(plan, button) {
       method: "POST",
       body: JSON.stringify({
         plan_code: plan.code,
-        idempotency_key: makeIdempotencyKey(),
+        idempotency_key: button.dataset.paymentKey || (button.dataset.paymentKey = makeIdempotencyKey()),
       }),
     });
 
@@ -1029,7 +1044,8 @@ async function startPayment(plan, button) {
     showToast(humanError(error), "error");
   } finally {
     button.disabled = false;
-    button.textContent = "Выбрать";
+    state.creatingPayment = false;
+    button.innerHTML = originalLabel;
   }
 }
 
@@ -1056,15 +1072,8 @@ async function changeAccountRegion(location, button) {
 
 async function connectDevice() {
   const device = detectDevice();
-  const model = elements.deviceModelInput.value.trim().replace(/\s+/g, " ");
-  if (!model || model.length > 65) {
-    showToast("Укажите модель устройства (до 65 символов).", "error");
-    elements.deviceModelInput.focus();
-    return;
-  }
-  device.name = model;
-  elements.confirmDeviceSetup.disabled = true;
-  elements.confirmDeviceSetup.textContent = "Подключаем…";
+  elements.connectNewDevice.disabled = true;
+  elements.connectNewDevice.textContent = "Подключаем…";
 
   try {
     const result = await api("/mini-app/devices", {
@@ -1076,7 +1085,7 @@ async function connectDevice() {
       }),
     });
 
-    closeSheet(elements.deviceSetupSheet);
+    closeSheet(elements.deviceConnectSheet);
     haptic("heavy");
     window.location.assign(state.detailTier === "mobile"
       ? result.mobile_connect_url || result.connect_url
@@ -1084,8 +1093,8 @@ async function connectDevice() {
   } catch (error) {
     showToast(humanError(error), "error");
   } finally {
-    elements.confirmDeviceSetup.disabled = false;
-    elements.confirmDeviceSetup.textContent = "Подключить устройство";
+    elements.connectNewDevice.disabled = false;
+    elements.connectNewDevice.textContent = "Подключить новое устройство";
   }
 }
 
@@ -1221,27 +1230,13 @@ document.querySelector("#detail-renew").addEventListener("click", () => {
   openPlanTerms(state.detailTier);
 });
 
-elements.addDeviceButton.addEventListener("click", () => {
-  if (!activeSubscriptions().length) {
-    showToast("Сначала активируйте подписку.", "error");
-    setView(state.me?.trial_available ? "home" : "plans");
-    return;
-  }
-
-  showDeviceConnections();
-});
+elements.addDeviceButton.addEventListener("click", showSlotOffers);
+document.querySelector("#close-slot-sheet").addEventListener("click", () => closeSheet(elements.slotSheet));
 elements.closeDeviceConnect.addEventListener("click", () => closeSheet(elements.deviceConnectSheet));
-elements.connectNewDevice.addEventListener("click", () => {
-  closeSheet(elements.deviceConnectSheet);
-  showDeviceSetup();
-});
+elements.connectNewDevice.addEventListener("click", connectDevice);
 elements.closeLocationSheet.addEventListener("click", () => {
   closeSheet(elements.locationSheet);
 });
-elements.closeDeviceSetup.addEventListener("click", () => {
-  closeSheet(elements.deviceSetupSheet);
-});
-elements.confirmDeviceSetup.addEventListener("click", connectDevice);
 elements.regionSuccessClose.addEventListener("click", () => {
   closeSheet(elements.regionSuccessSheet);
 });
@@ -1253,7 +1248,7 @@ elements.confirmDelete.addEventListener("click", removeDevice);
 
 for (const sheet of [
   elements.locationSheet,
-  elements.deviceSetupSheet,
+  elements.slotSheet,
   elements.deviceConnectSheet,
   elements.regionSuccessSheet,
   elements.confirmSheet,
@@ -1271,7 +1266,7 @@ document.addEventListener("keydown", (event) => {
   }
 
   closeSheet(elements.locationSheet);
-  closeSheet(elements.deviceSetupSheet);
+  closeSheet(elements.slotSheet);
   closeSheet(elements.deviceConnectSheet);
   closeSheet(elements.regionSuccessSheet);
   closeSheet(elements.confirmSheet);

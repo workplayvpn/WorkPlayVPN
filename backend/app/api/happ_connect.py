@@ -283,7 +283,7 @@ def _connect_happ_page(
 
     <link
         rel="stylesheet"
-        href="/connect/happ/assets/happ-connect.css?v=2"
+        href="/connect/happ/assets/happ-connect.css?v=20261002-1"
     >
 
     <script

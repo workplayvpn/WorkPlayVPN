@@ -39,6 +39,7 @@ def build_plans_keyboard(
     source: str = "main",
 ) -> InlineKeyboardMarkup:
     rows = []
+    tier = "mobile" if any(p.get("access_tier") == "mobile" for p in plans) else "basic"
     monthly_plan = next(
         (
             plan
@@ -65,10 +66,9 @@ def build_plans_keyboard(
                 if saving
                 else ""
             )
-            text = (
-                f"{plan['name']} — {price} ₽"
-                f"{suffix}"
-            )
+            days = plan["duration_days"]
+            duration = "7 дней" if days == 7 else "1 месяц" if days == 30 else f"{round(days / 30)} месяца" if days == 90 else f"{round(days / 30)} месяцев"
+            text = f"{duration} — {price} ₽{suffix}"
 
         rows.append(
             [
@@ -81,22 +81,7 @@ def build_plans_keyboard(
             ]
         )
 
-    rows.append(
-        [
-            InlineKeyboardButton(
-                text=(
-                    "← Назад"
-                    if source == "subscription"
-                    else "← На главную"
-                ),
-                callback_data=(
-                    "subscription"
-                    if source == "subscription"
-                    else "main_menu"
-                ),
-            )
-        ]
-    )
+    rows.append([InlineKeyboardButton(text="← Назад", callback_data="plans")])
 
     return build_keyboard(
         inline_keyboard=rows,

@@ -35,7 +35,7 @@ def build_keyboard(
             style = button.style
             if callback.startswith(_DANGER_PREFIXES):
                 style = "danger"
-            elif (
+            elif not button.text.startswith("←") and (
                 button.web_app is not None
                 or button.copy_text is not None
                 or callback in _PRIMARY_CALLBACKS

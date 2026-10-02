@@ -1668,3 +1668,16 @@ button.referral-teaser { cursor: pointer; }
 .comparison-table tr:last-child > * { border-bottom: 0; }
 .terms-subscriptions { margin-top: 20px; }
 :root[data-theme="light"] .catalog-card-mobile::before, :root[data-theme="light"] .subscription-tile-mobile::before { background: radial-gradient(ellipse at 100% 0, #32d4c525, transparent 68%), radial-gradient(ellipse at 0 100%, #ffbd6920, transparent 65%), var(--surface); }
+
+/* Shared occupied and vacant device slots. */
+.device-card { grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto; row-gap: 8px; }
+.device-card .device-icon { grid-row: 1; }
+.device-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; grid-column: 2; grid-row: 1; }
+.device-info strong { white-space: normal; overflow-wrap: anywhere; }
+.device-card .delete-button { grid-column: 2; grid-row: 2; justify-self: end; }
+.vacant-slot { grid-template-rows: auto; min-height: 70px; border-style: dashed; }
+.vacant-slot .device-icon { opacity: .55; }
+.vacant-slot .device-info strong { color: var(--muted); }
+.slot-offer { display: flex; flex-direction: column; gap: 8px; padding: 20px; width: 100%; text-align: left; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 18px; font: inherit; cursor: pointer; }
+.slot-offer span { color: var(--accent); }
+.slot-offer:disabled { opacity: .6; }

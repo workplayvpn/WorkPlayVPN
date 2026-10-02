@@ -14,6 +14,7 @@ from app.services.payment_redirect_service import (
     payment_redirect_service,
 )
 from app.services.payment_service import payment_service
+from app.services.device_slots import device_slot_offers
 
 
 router = APIRouter(
@@ -87,3 +88,7 @@ def cancel_payment(
     )
 
     return build_payment_response(payment)
+
+@router.get("/device-slots/{telegram_id}/offers")
+def get_device_slot_offers(telegram_id: int, database: Session = Depends(get_db)):
+    return device_slot_offers(database, telegram_id)

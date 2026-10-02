@@ -4,6 +4,7 @@ from decimal import Decimal
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Integer,
     Numeric,
@@ -17,6 +18,12 @@ from app.db.session import Base
 
 class Plan(Base):
     __tablename__ = "plans"
+    __table_args__ = (
+        CheckConstraint(
+            "access_tier IN ('basic', 'mobile', 'device_slots')",
+            name="ck_plans_access_tier",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         BigInteger,

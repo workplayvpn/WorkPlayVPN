@@ -66,7 +66,12 @@ async def show_plans(
     if tier not in ("basic", "mobile") or not plans:
         await edit_screen(callback, "Эта подписка сейчас недоступна.", main_menu)
         return
-    await edit_screen(callback, f"⏳ {tier_name(tier)} · Выберите срок\n\nПродление добавляет время только к выбранной подписке. Лимит устройств общий.",
+    description = (
+        "📲 Mobile — для Wi-Fi и мобильной сети.\nАвтоматический выбор подключения и резервный маршрут, если основной недоступен.\nДля работы, игр, видео и общения через Happ."
+        if tier == "mobile" else
+        "💻 Basic — для работы и отдыха.\nПодключение через Happ для рабочих сервисов, игр, видео и общения в обычной сети."
+    )
+    await edit_screen(callback, f"⏳ {tier_name(tier)} · Выберите срок\n\n{description}\n\nДо 3 устройств, дополнительные слоты можно купить отдельно. Лимит общий для Basic и Mobile.\nПродление добавляет время только к выбранной подписке, без автосписаний.",
                       build_plans_keyboard(plans, source="subscription"))
 
 

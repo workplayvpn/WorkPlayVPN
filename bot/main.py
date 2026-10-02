@@ -15,6 +15,7 @@ from config import (
     telegram_proxy_url,
 )
 from handlers.devices import router as devices_router
+from handlers.device_slots import router as device_slots_router
 from handlers.help import router as help_router
 from handlers.locations import router as locations_router
 from handlers.menu import router as menu_router
@@ -25,6 +26,7 @@ from handlers.start import router as start_router
 
 
 dispatcher = Dispatcher()
+dispatcher.include_router(device_slots_router)
 
 dispatcher.include_router(
     start_router

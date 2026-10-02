@@ -14,6 +14,8 @@ from app.models.subscription import Subscription
 from app.models.user import User
 from app.services.payment_providers import payment_provider_registry
 from app.services.mobile_rollout import mobile_pilot_allowed
+from app.services.device_slots import slot_count
+from app.services.entitlements import active_entitlements
 from app.services.subscription_service import subscription_service
 
 logger = logging.getLogger(__name__)
@@ -60,6 +62,9 @@ class PaymentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Plan not found",
             )
+
+        if slot_count(plan) and not active_entitlements(database, user.id):
+            raise HTTPException(status_code=409, detail="Active subscription required")
 
         if plan.code == "trial_1d":
             raise HTTPException(
@@ -314,6 +319,7 @@ class PaymentService:
                 Payment.id == payment_id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
 
         if payment is None:
@@ -336,10 +342,14 @@ class PaymentService:
             )
 
             if fulfillment is None:
+                existing_subscription = database.get(Subscription, payment.subscription_id)
+                existing_plan = database.get(Plan, existing_subscription.plan_id) if existing_subscription else None
+                is_slots = bool(existing_plan and slot_count(existing_plan))
                 fulfillment = PaymentFulfillment(
                     payment_id=payment.id,
                     user_id=payment.user_id,
-                    status="pending",
+                    status="delivered" if is_slots else "pending",
+                    delivered_at=datetime.now(UTC) if is_slots else None,
                 )
 
                 try:
@@ -372,6 +382,25 @@ class PaymentService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Subscription not found",
             )
+
+        plan = database.get(Plan, subscription.plan_id)
+        slots = slot_count(plan) if plan is not None else 0
+        if slots:
+            user = database.scalar(select(User).where(User.id == payment.user_id).with_for_update().execution_options(populate_existing=True))
+            if user is None:
+                raise HTTPException(status_code=404, detail="User not found")
+            user.extra_device_slots += slots
+            payment.status = "succeeded"
+            payment.paid_at = datetime.now(UTC)
+            if provider_payment_id is not None:
+                payment.provider_payment_id = provider_payment_id
+            subscription.status = "completed"
+            database.add(PaymentFulfillment(payment_id=payment.id, user_id=user.id,
+                status="delivered", delivered_at=datetime.now(UTC)))
+            database.commit()
+            database.refresh(payment)
+            self._cancel_other_pending_payments(database=database, succeeded_payment=payment)
+            return payment
 
         payment.status = "succeeded"
         payment.paid_at = datetime.now(UTC)

@@ -7,9 +7,9 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20261001-2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261002-1">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/app.js?v=20261001-2" defer></script>
+  <script src="/app/assets/app.js?v=20261002-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -184,19 +184,19 @@
 
         <aside id="device-limit-alert" class="device-limit-alert hidden" role="status">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
-          <p><strong>Свободных мест больше нет</strong><span>Можно повторно открыть подключение для существующего устройства. Для нового потребуется освободить место и подключить новое.</span></p>
+          <p><strong>Свободных мест больше нет</strong><span>Можно повторно открыть подключение для существующего устройства. Для нового устройства добавьте лимит или освободите занятый слот.</span></p>
         </aside>
 
         <div id="devices-list" class="devices-list" aria-live="polite"></div>
 
         <button id="add-device-button" class="button button-primary button-wide devices-add-button" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          <span>Подключить устройство</span>
+          <span>Добавить лимит устройств</span>
         </button>
 
         <div class="help-card">
           <strong>Как подключить?</strong>
-          <p>Подтвердите найденное устройство — мы сразу откроем пошаговую инструкцию для HAPP.</p>
+          <p>Откройте «Подключить через Happ» в карточке подписки на нужном устройстве. Название и ОС обновятся автоматически после загрузки подписки в Happ.</p>
         </div>
       </section>
 
@@ -280,35 +280,13 @@
     </div>
   </div>
 
-  <div id="device-setup-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="device-setup-title">
+  <div id="slot-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="slot-title">
     <div class="sheet sheet-small">
       <div class="sheet-handle" aria-hidden="true"></div>
-      <div class="sheet-head">
-        <div>
-          <p class="eyebrow">Новое устройство</p>
-          <h2 id="device-setup-title">Подтвердите подключение</h2>
-        </div>
-        <button id="close-device-setup" class="icon-button" type="button" aria-label="Закрыть">×</button>
-      </div>
-
-      <div class="detected-device-card">
-        <span id="detected-device-icon" class="detected-device-icon" aria-hidden="true">📱</span>
-        <div>
-          <span>Определено автоматически</span>
-          <strong id="detected-device-name">Устройство</strong>
-          <small id="detected-device-platform">Операционная система</small>
-        </div>
-      </div>
-
-      <label class="device-model-label" for="device-model-input">Модель устройства</label>
-      <input id="device-model-input" class="device-model-input" type="text" maxlength="65" autocomplete="off" placeholder="Например, iPhone 17 Pro Max">
-      <p class="device-model-hint">Проверьте модель: iOS не передаёт её мини-приложению автоматически.</p>
-
-      <p class="setup-note">После подключения мы сразу откроем пошаговую инструкцию для HAPP.</p>
-
-      <div class="setup-actions">
-        <button id="confirm-device-setup" class="button button-primary" type="button">Подключить устройство</button>
-      </div>
+      <div class="sheet-head"><div><p class="eyebrow">Общие для Basic и Mobile</p><h2 id="slot-title">Добавить лимит</h2></div><button id="close-slot-sheet" class="icon-button" type="button" aria-label="Закрыть">×</button></div>
+      <p id="slot-limit" class="setup-note"></p>
+      <div id="slot-offers" class="device-connect-list"></div>
+      <p class="setup-note">Разовая покупка. Слоты сохраняются при продлении Basic и Mobile. Для подключения нужна действующая подписка. Лимит увеличится после подтверждения оплаты.</p>
     </div>
   </div>
 
