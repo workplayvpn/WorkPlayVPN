@@ -16,6 +16,7 @@ from app.api.support import router, TicketCreate, NotificationAck, ack
 from app.api.telegram_webapp_auth import require_telegram_webapp_auth
 from app.db.dependencies import get_db
 from app.services import support
+from app.api.help_access import require_mini_help_access
 
 class SupportTests(unittest.TestCase):
     def setUp(self):
@@ -30,6 +31,7 @@ class SupportTests(unittest.TestCase):
         self.app=FastAPI();self.app.include_router(router)
         self.app.dependency_overrides[get_db]=lambda:self.db
         self.app.dependency_overrides[require_telegram_webapp_auth]=lambda:SimpleNamespace(user=SimpleNamespace(id=101))
+        self.app.dependency_overrides[require_mini_help_access]=lambda:None
         self.client=TestClient(self.app)
     def tearDown(self):self.db.close();self.engine.dispose()
     def payload(self,key="support-test-key-001",**kwargs):

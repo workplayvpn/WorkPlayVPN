@@ -11,6 +11,7 @@ from app.services.telegram_webapp_auth import TelegramWebAppAuthResult
 from app.models.user import User
 from app.models.support_ticket import SupportTicket
 from app.services import support
+from app.api.help_access import require_mini_help_access
 
 router = APIRouter(tags=["support"])
 Auth = Annotated[TelegramWebAppAuthResult, Depends(require_telegram_webapp_auth)]
@@ -43,12 +44,12 @@ def user(db, auth):
     if row is None: raise HTTPException(404, "Пользователь не найден")
     return row
 
-@router.get("/mini-app/support/tickets")
+@router.get("/mini-app/support/tickets", dependencies=[Depends(require_mini_help_access)])
 def list_own(auth: Auth, db: Db):
     uid = user(db, auth).id
     return [support.public(x) for x in db.scalars(select(SupportTicket).where(SupportTicket.user_id == uid).order_by(SupportTicket.created_at.desc()).limit(50))]
 
-@router.post("/mini-app/support/tickets", status_code=201)
+@router.post("/mini-app/support/tickets", status_code=201, dependencies=[Depends(require_mini_help_access)])
 def create_ticket(payload: TicketCreate, auth: Auth, db: Db):
     row = support.create(db, user(db, auth), payload); db.commit(); return support.public(row)
 

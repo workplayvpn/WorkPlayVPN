@@ -7,22 +7,25 @@ const supportNode=(tag,text,cls)=>window.WorkPlayKnowledge.node(tag,text,cls);
 const supportEl=id=>document.getElementById(id);
 function renderKnowledge(){supportState.renderer?.render();}
 async function loadKnowledge(){
+ if(!await window.WorkPlayHelpAccess.ensure())return;
  if(supportState.articles){renderKnowledge();return;}if(supportState.knowledgeLoading)return;supportState.knowledgeLoading=true;
  const error=supportEl('knowledge-error');error.textContent='Загружаем инструкции…';
- try{const r=await fetch('/app/assets/knowledge.json?v=20261003-3');if(!r.ok)throw Error();supportState.articles=await r.json();supportState.renderer=window.WorkPlayKnowledge.mount(supportState.articles,'/app/assets');error.textContent='';}
- catch{error.textContent='Не удалось загрузить инструкции. Открой раздел повторно или напиши в поддержку.';}finally{supportState.knowledgeLoading=false;}
+ try{supportState.articles=await window.WorkPlayHelpAccess.request('/mini-app/support/knowledge');supportState.renderer=window.WorkPlayKnowledge.mount(supportState.articles,'/app/assets');error.textContent='';}
+ catch(e){if(e.status===403)window.WorkPlayHelpAccess.lock();error.textContent='Не удалось загрузить инструкции. Открой раздел повторно или напиши в поддержку.';}finally{supportState.knowledgeLoading=false;}
 }
 function prepareSupportForm(){
+ window.WorkPlayHelpAccess.ensure();
  const select=supportEl('support-device'),previous=select.value;select.replaceChildren(supportNode('option','Не выбирать устройство'));select.firstChild.value='';
  for(const d of state.devices){const o=supportNode('option',`${d.device_name} · ${d.public_id}`);o.value=d.id;select.append(o);}if([...select.options].some(o=>o.value===previous))select.value=previous;
  if(!supportState.started){supportState.started=true;supportEl('support-platform').value=supportPlatform();supportStage('topic',false);}
 }
 async function loadSupportTickets(){
+ if(!await window.WorkPlayHelpAccess.ensure())return;
  if(supportState.ticketsLoading)return;supportState.ticketsLoading=true;const list=supportEl('support-history'),error=supportEl('support-history-error');error.textContent='Загружаем обращения…';
  try{const tickets=await api('/mini-app/support/tickets');list.replaceChildren();error.textContent='';
  if(!tickets.length){const empty=supportNode('div',null,'kb-empty-ticket');empty.append(supportNode('div','💬','kb-callout-icon'),supportNode('strong','Пока всё спокойно'),supportNode('p','Твои обращения появятся здесь после отправки.'));list.append(empty);}
  for(const t of tickets){const row=supportNode('article',null,'kb-ticket');row.dataset.status=t.status;row.append(supportNode('span',supportStatuses[t.status]||t.status,'kb-ticket-status'),supportNode('strong',supportCategories[t.category]||'Обращение'),supportNode('span',`№ ${t.id}`),supportNode('span',new Date(t.created_at).toLocaleString('ru-RU')),supportNode('p',t.description));if(t.response)row.append(supportNode('strong','🎧 Ответ поддержки'),supportNode('p',t.response));const b=supportNode('button','Скопировать номер','kb-text-link');b.type='button';b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(t.id);showToast('Номер скопирован.');}catch{showToast('Не удалось скопировать номер.','error');}});row.append(b);list.append(row);}
- }catch(e){error.textContent=humanError(e);}finally{supportState.ticketsLoading=false;}
+ }catch(e){if(e.status===403&&e.detail==='HELP_KEY_REQUIRED')window.WorkPlayHelpAccess.lock();error.textContent=humanError(e);}finally{supportState.ticketsLoading=false;}
 }
 function supportPlatform(){const p=detectDevice().platform.toLowerCase();return ({ios:'ios',ipados:'ios',android:'android',windows:'windows',macos:'macos',linux:'linux'})[p]||'unknown';}
 function supportChecks(){
@@ -61,7 +64,10 @@ supportEl('support-form').addEventListener('submit',async event=>{
  event.preventDefault();if(supportState.stage!=='review'||supportState.busy)return;const payload=supportPayload();const result=supportEl('support-result');if(payload.description.length<20||payload.description.length>3000){supportStage('describe');result.textContent='Опиши проблему: от 20 до 3000 символов.';return;}
  const fingerprint=JSON.stringify(payload);if(supportState.fingerprint!==fingerprint){supportState.key=makeIdempotencyKey();supportState.fingerprint=fingerprint;}payload.idempotency_key=supportState.key;supportState.busy=true;supportEl('support-submit').disabled=true;supportEl('support-back').disabled=true;result.textContent='Отправляем обращение…';
  try{const ticket=await api('/mini-app/support/tickets',{method:'POST',body:JSON.stringify(payload)});supportEl('support-ticket-number').textContent=`Номер обращения: ${ticket.id}`;supportEl('support-description').value='';supportState.key=null;supportState.fingerprint=null;supportStage('success');}
- catch(error){result.textContent=humanError(error);if(error instanceof ApiError&&error.status>=400&&error.status<500){supportState.key=null;supportState.fingerprint=null;}}
+ catch(error){if(error.status===403&&error.detail==='HELP_KEY_REQUIRED')window.WorkPlayHelpAccess.lock();result.textContent=humanError(error);if(error instanceof ApiError&&error.status>=400&&error.status<500){supportState.key=null;supportState.fingerprint=null;}}
  finally{supportState.busy=false;supportEl('support-submit').disabled=false;supportEl('support-back').disabled=false;}
 });
 supportStage('topic',false);
+
+document.addEventListener('help-access-unlocked',()=>{if(state.view==='help'){loadKnowledge();loadSupportTickets();}else if(state.view==='support')prepareSupportForm();});
+document.addEventListener('help-access-locked',()=>{supportState.articles=null;supportState.renderer=null;supportEl('knowledge-list').replaceChildren();supportEl('support-history').replaceChildren();});

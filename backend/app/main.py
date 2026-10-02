@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from app.api.help_access import router as help_access_router
 from app.api.referrals import router as referrals_router
 from app.api.support import router as support_router
 from sqlalchemy import text
@@ -32,6 +33,7 @@ app = FastAPI(
 
 app.include_router(referrals_router)
 app.include_router(support_router)
+app.include_router(help_access_router)
 app.include_router(catalog_router)
 app.include_router(users_router)
 app.include_router(subscriptions_router)
