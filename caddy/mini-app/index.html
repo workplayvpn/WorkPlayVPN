@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20261002-5">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261002-6">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <script src="/app/assets/app.js?v=20261002-5" defer></script>
 </head>
@@ -145,8 +145,8 @@
         <div class="referral-actions"><button id="referral-copy" class="button button-secondary" type="button" disabled>Скопировать</button><button id="referral-share" class="button" type="button" disabled>Пригласить друзей</button></div>
         <article class="referral-rules"><h2>Как это работает</h2><ol><li>Друг впервые запускает бота по твоей ссылке.</li><li>За каждую его подтверждённую оплату подписки начисляется 15%. Продления тоже учитываются.</li><li>От 500 ₽ можно подать заявку на вывод на свою банковскую карту.</li></ol><p>Начисления — за Basic и Mobile. Пробный период, тестовые платежи и дополнительные слоты не учитываются. При возврате покупки комиссия корректируется.</p><p>Заявки обрабатываются вручную. Реквизиты согласуются с поддержкой после подачи заявки; номера карт, CVV и коды из SMS сюда не вводи.</p></article>
         <form id="referral-withdraw-form" class="referral-rules"><h2>Вывести деньги</h2><label for="referral-amount">Сумма в рублях — от 500 ₽</label><input id="referral-amount" class="referral-input" type="text" inputmode="decimal" autocomplete="off" placeholder="500,00" required><button id="referral-withdraw" class="button button-wide" type="submit" disabled>Подать заявку</button><p>Сумма резервируется на время обработки. Заявку можно отменить до начала обработки.</p></form>
-        <h2>Заявки на вывод</h2><div id="referral-withdrawals" class="referral-history"></div>
-        <h2>Последние начисления</h2><div id="referral-commissions" class="referral-history"></div><p class="muted">В истории показываются последние 100 записей.</p>
+        <article class="referral-history-card" aria-labelledby="referral-withdrawals-title"><h2 id="referral-withdrawals-title">Заявки на вывод</h2><div id="referral-withdrawals" class="referral-history"></div></article>
+        <article class="referral-history-card" aria-labelledby="referral-commissions-title"><h2 id="referral-commissions-title">Последние начисления</h2><div id="referral-commissions" class="referral-history"></div><p class="muted">В истории показываются последние 100 записей.</p></article>
         <button id="referral-refresh" class="button button-secondary button-wide" type="button">Обновить баланс</button>
         <a class="button button-secondary button-wide" href="https://t.me/workplayvpnteam">Связаться с поддержкой</a>
         <a class="muted" href="https://workplayvpn.ru/referrals.html" target="_blank" rel="noopener">Условия реферальной программы</a>
