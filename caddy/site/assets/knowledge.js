@@ -1,3 +1,2 @@
 "use strict";
-const knowledgeSearch=document.querySelector("#knowledge-search");
-knowledgeSearch.addEventListener("input",()=>{const query=knowledgeSearch.value.trim().toLocaleLowerCase("ru");let visible=0;document.querySelectorAll(".knowledge-article").forEach(article=>{const match=article.textContent.toLocaleLowerCase("ru").includes(query);article.hidden=!match;if(match)visible++;});document.querySelector("#knowledge-empty").hidden=visible>0;});
+(async()=>{const error=document.querySelector('#knowledge-error');try{const r=await fetch('/assets/knowledge.json?v=20261003-3');if(!r.ok)throw Error();window.WorkPlayKnowledge.mount(await r.json(),'/assets');}catch{error.textContent='Не удалось загрузить инструкции. Обнови страницу или напиши в @workplayvpnteam.';}})();

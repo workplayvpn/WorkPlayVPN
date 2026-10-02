@@ -9,8 +9,10 @@
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app/assets/app.css?v=20261003-2">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/support.js?v=20261003-2" defer></script>
+  <script src="/app/assets/knowledge-ui.js?v=20261003-3" defer></script>
+  <script src="/app/assets/support.js?v=20261003-3" defer></script>
   <script src="/app/assets/app.js?v=20261003-2" defer></script>
+  <link rel="stylesheet" href="/app/assets/knowledge.css?v=20261003-3">
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -154,30 +156,22 @@
       </section>
 
 
-      <section id="view-help" class="view" aria-labelledby="help-title">
-        <div class="section-head"><p class="eyebrow">На связи с тобой</p><h1 id="help-title">База знаний</h1><p>Подключение, подписки и помощь при сбоях.</p></div>
-        <label for="knowledge-search">Найти ответ</label><input id="knowledge-search" class="referral-input" type="search" placeholder="Например: Happ, скорость, устройства">
-        <p id="knowledge-error" role="status"></p><div id="knowledge-list" class="knowledge-list"></div>
-        <button class="button button-wide" type="button" data-view-link="support">Сообщить о проблеме</button>
-        <article class="support-card"><h2>Мои обращения</h2><p>Ответы и статусы последних 50 обращений.</p><button id="support-refresh" class="button button-secondary button-wide" type="button">Обновить обращения</button><p id="support-history-error" role="status"></p><div id="support-history" class="referral-history"></div></article>
-        <a class="button button-secondary button-wide" href="https://t.me/workplayvpnteam">Написать в поддержку</a>
-      </section>
-      <section id="view-support" class="view" aria-labelledby="support-title">
-        <button class="text-button detail-back" type="button" data-view-link="help">← В базу знаний</button>
-        <div class="section-head"><p class="eyebrow">Поможем разобраться</p><h1 id="support-title">Сообщить о проблеме</h1><p>Опиши ситуацию — обращение сохранится, а поддержка получит уведомление.</p></div>
-        <form id="support-form" class="support-card">
-          <label for="support-category">Тема</label><select id="support-category" class="referral-input" required><option value="connection">Не подключается</option><option value="speed">Скорость, видео или игры</option><option value="device">Устройства и слоты</option><option value="payment">Оплата или продление</option><option value="referral">Реферальная программа</option><option value="other">Другой вопрос</option></select>
-          <label for="support-tier">Подписка</label><select id="support-tier" class="referral-input"><option value="unknown">Не относится к подписке / не знаю</option><option value="mobile">Mobile</option><option value="basic">Basic</option></select>
-          <label for="support-network">Тип сети</label><select id="support-network" class="referral-input"><option value="unknown">Не знаю / не относится к вопросу</option><option value="wifi">Wi-Fi</option><option value="mobile">Мобильная сеть</option><option value="both">Wi-Fi и мобильная сеть</option></select>
-          <label for="support-device">Устройство</label><select id="support-device" class="referral-input"><option value="">Это устройство / не относится к вопросу</option></select>
-          <label for="support-description">Что произошло?</label><textarea id="support-description" class="referral-input" rows="6" minlength="20" maxlength="3000" placeholder="Что не работает, когда началось, какой текст ошибки и что уже попробовали?" required></textarea>
-          <p class="muted">От 20 до 3000 символов. Не отправляй ключ подписки, пароли, номера карт, CVV или коды из SMS.</p>
-          <details class="knowledge-article"><summary>Какие данные передаются?</summary><p>Твой Telegram ID, версия Mini App, тип платформы, выбранная сеть и подписка, а также ID и название устройства, если ты выбрал его в списке. IP-адреса, ключи доступа и история посещений в диагностику не включаются.</p></details>
-          <p>Отправляя обращение, ты передаёшь эти данные поддержке для решения вопроса. <a href="https://workplayvpn.ru/privacy.html" target="_blank" rel="noopener">Обработка персональных данных</a>.</p>
-          <button id="support-submit" class="button button-wide" type="submit">Отправить обращение</button><p id="support-result" role="status" aria-live="polite"></p>
-        </form>
-        <button class="button button-secondary button-wide" type="button" data-view-link="help">Посмотреть мои обращения</button>
-      </section>
+<section id="view-help" class="view kb-root" aria-labelledby="help-title"><div class="kb-hero"><div class="kb-hero-copy"><span class="kb-badge">✦ Центр помощи</span><h1 id="help-title">На связи.<br>На твоей стороне.</h1><p>Всё о подключении, подписках и спокойной работе VPN.</p></div><img class="kb-hero-art" src="/app/assets/help/help.svg" alt="" width="160" height="160"></div>
+<div class="kb-callout"><span class="kb-callout-icon" aria-hidden="true">🛟</span><div><h2>Что-то не работает?</h2><p>Пройдём несколько проверок и найдём решение.</p></div><button class="button button-wide" type="button" data-view-link="support">Сообщить о проблеме <span aria-hidden="true">→</span></button></div><div class="kb-search"><span aria-hidden="true">⌕</span><label class="kb-sr" for="knowledge-search">Найти ответ</label><input id="knowledge-search" type="search" placeholder="Как подключиться? Где мой ключ?"></div><div id="knowledge-filters" class="kb-filters" aria-label="Разделы базы знаний"></div><div class="kb-list-heading"><h2>Полезные инструкции</h2><span id="knowledge-count" aria-live="polite"></span></div><p id="knowledge-error" role="status"></p><div id="knowledge-list" class="kb-grid"></div>
+<article class="kb-history"><div class="kb-list-heading"><h2>💬 Мои обращения</h2><button id="support-refresh" class="kb-icon-button" type="button" aria-label="Обновить обращения">↻</button></div><p class="kb-muted">Здесь появятся статус и ответ поддержки.</p><p id="support-history-error" role="status"></p><div id="support-history" class="referral-history"></div></article><a class="kb-direct" href="https://t.me/workplayvpnteam">🎧 Написать в @workplayvpnteam <span aria-hidden="true">↗</span></a></section>
+<section id="view-support" class="view kb-root" aria-labelledby="support-title"><button class="text-button detail-back" type="button" data-view-link="help">← В центр помощи</button><div class="kb-wizard-shell"><div class="kb-wizard-brand"><span class="kb-badge">✦ Work&amp;PlayVPN</span><a href="https://t.me/workplayvpnteam" aria-label="Написать в поддержку">🎧</a></div><img class="kb-wizard-art" src="/app/assets/help/help.svg" alt="" width="112" height="112"><h1 id="support-title">Сообщить о проблеме</h1><p class="kb-muted">Поможем разобраться. Начнём с пары вопросов.</p><div id="support-progress" class="kb-progress" aria-label="Этап обращения"><span></span><span></span><span></span><span></span><span></span></div>
+<form id="support-form" novalidate><input id="support-category" type="hidden" value="connection"><div id="support-stage" tabindex="-1"><p id="support-step-label" class="kb-step"></p><h2 id="support-step-title"></h2><p id="support-step-intro" class="kb-muted"></p>
+<div data-support-stage="topic"><div id="support-topics" class="kb-topic-list"></div></div>
+<div data-support-stage="context" hidden><label for="support-platform">На каком устройстве возник вопрос?</label><select id="support-platform" class="referral-input"><option value="ios">🍎 iPhone / iPad</option><option value="android">🤖 Android</option><option value="windows">💻 Windows</option><option value="macos">💻 macOS</option><option value="linux">🐧 Linux</option><option value="other">📺 Телевизор / другое</option><option value="unknown">Не относится к устройству / не знаю</option></select>
+<label for="support-tier">С какой подпиской?</label><select id="support-tier" class="referral-input"><option value="unknown">Не знаю / не относится к вопросу</option><option value="mobile">Mobile</option><option value="basic">Basic</option></select>
+<label for="support-network">В какой сети?</label><select id="support-network" class="referral-input"><option value="unknown">Не знаю / не относится к вопросу</option><option value="wifi">📶 Wi-Fi</option><option value="mobile">📡 Мобильная сеть</option><option value="both">Wi-Fi и мобильная сеть</option></select>
+<label for="support-device">Устройство из аккаунта <span class="kb-muted">· необязательно</span></label><select id="support-device" class="referral-input"><option value="">Не выбирать устройство</option></select><button class="button button-wide" type="button" data-support-next="checks">Дальше →</button></div>
+<div data-support-stage="checks" hidden><div id="support-check" class="kb-check"></div><div class="kb-wizard-actions"><button class="button button-wide" type="button" id="support-solved">✅ Помогло, всё работает</button><button class="button button-secondary button-wide" type="button" id="support-check-next">Не помогло, дальше →</button><button class="kb-text-link" type="button" data-support-next="describe">Сразу перейти к обращению</button></div></div>
+<div data-support-stage="describe" hidden><label for="support-description">Что произошло?</label><textarea id="support-description" class="referral-input" rows="6" minlength="20" maxlength="3000" placeholder="Что не работает? Когда началось? Какой текст ошибки?" required></textarea><div class="kb-field-foot"><span>От 20 до 3000 символов</span><span id="support-char-count">0 / 3000</span></div><div class="kb-note">📎 Есть скриншот? После отправки напиши в @workplayvpnteam и приложи его с номером обращения.</div><button class="button button-wide" type="button" id="support-review-button">Проверить ответы →</button></div>
+<div data-support-stage="review" hidden><div id="support-review" class="kb-review"></div><details class="kb-privacy"><summary>🔒 Какие данные передаются?</summary><p>Telegram ID, версия Mini App, выбранные тема, подписка, сеть и платформа. Если выбрано устройство — его публичный ID и название. Ключи, IP-адреса и история посещений автоматически не собираются.</p></details><p class="kb-muted">Отправляя обращение, ты передаёшь эти данные поддержке для решения вопроса. <a class="kb-text-link" href="https://workplayvpn.ru/privacy.html" target="_blank" rel="noopener">Обработка персональных данных</a>.</p><button id="support-submit" class="button button-wide" type="submit">Отправить обращение</button></div>
+<div data-support-stage="success" hidden><div class="kb-success-icon">✓</div><p>Обращение сохранено. Уведомление об ответе придёт в бот.</p><div id="support-ticket-number" class="kb-note"></div><button class="button button-wide" type="button" data-view-link="help">Посмотреть мои обращения</button><button class="kb-text-link" type="button" id="support-new">Новое обращение</button></div>
+<div data-support-stage="solved" hidden><div class="kb-success-icon">✓</div><p>Отлично! Инструкции всегда рядом, если понадобятся снова.</p><button class="button button-wide" type="button" data-view-link="help">Вернуться в базу знаний</button><button class="kb-text-link" type="button" id="support-restart">Начать заново</button></div>
+</div><p id="support-result" role="status" aria-live="polite"></p><div class="kb-note kb-safety">🔐 Не отправляй ключ подписки, пароли, номера карт и коды из SMS.</div><button id="support-back" class="kb-text-link" type="button" hidden>← Назад</button></form></div></section>
 
       <section id="view-plans" class="view" aria-labelledby="plans-title">
         <div class="section-head">

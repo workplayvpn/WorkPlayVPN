@@ -1,61 +1,67 @@
 "use strict";
-const supportState = { articles: null, knowledgeLoading: false, ticketsLoading: false, key: null, fingerprint: null };
-const supportStatuses = {new:"Новое",in_progress:"В работе",resolved:"Решено",closed:"Закрыто"};
-const supportCategories = {connection:"Подключение",speed:"Скорость, видео или игры",device:"Устройства",payment:"Оплата",referral:"Рефералы",other:"Другой вопрос"};
-function supportNode(tag, text, className) { const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;return node; }
-function renderKnowledge() {
-  const list=document.querySelector("#knowledge-list");list.replaceChildren();
-  const query=document.querySelector("#knowledge-search").value.trim().toLocaleLowerCase("ru");
-  const matches=(supportState.articles||[]).filter(x=>[x.title,x.group,...x.paragraphs].join(" ").toLocaleLowerCase("ru").includes(query));
-  for(const article of matches) {
-    const details=document.createElement("details");details.className="knowledge-article";
-    details.append(supportNode("summary",article.title),supportNode("span",article.group,"eyebrow"));
-    for(const paragraph of article.paragraphs) details.append(supportNode("p",paragraph));
-    list.append(details);
-  }
-  if(!matches.length) list.append(supportNode("p","Ответ не найден. Попробуй другой запрос или сообщи о проблеме."));
+const supportState = {articles:null,knowledgeLoading:false,ticketsLoading:false,key:null,fingerprint:null,renderer:null,stage:'topic',checkIndex:0,checks:[],tried:[],busy:false,started:false};
+const supportStatuses={new:'Новое',in_progress:'В работе',resolved:'Решено',closed:'Закрыто'};
+const supportCategories={connection:'Подключение',speed:'Скорость, видео или игры',device:'Устройства и слоты',payment:'Оплата и продление',referral:'Рефералы',other:'Другой вопрос'};
+const supportTopics=[['connection','🔌','Не работает подключение','VPN не подключается или сайты не открываются'],['speed','🐢','Скорость или обрывы','Медленно работает, зависает видео или растёт пинг'],['device','📱','Ключ и устройства','Импорт, QR-код, слоты и смена региона'],['payment','💳','Оплата и продление','Статус покупки, списание или срок подписки'],['referral','🤝','Реферальная программа','Начисления, приглашения и вывод денег'],['other','💬','Другой вопрос','Идея, предложение или помощь с другим вопросом']];
+const supportNode=(tag,text,cls)=>window.WorkPlayKnowledge.node(tag,text,cls);
+const supportEl=id=>document.getElementById(id);
+function renderKnowledge(){supportState.renderer?.render();}
+async function loadKnowledge(){
+ if(supportState.articles){renderKnowledge();return;}if(supportState.knowledgeLoading)return;supportState.knowledgeLoading=true;
+ const error=supportEl('knowledge-error');error.textContent='Загружаем инструкции…';
+ try{const r=await fetch('/app/assets/knowledge.json?v=20261003-3');if(!r.ok)throw Error();supportState.articles=await r.json();supportState.renderer=window.WorkPlayKnowledge.mount(supportState.articles,'/app/assets');error.textContent='';}
+ catch{error.textContent='Не удалось загрузить инструкции. Открой раздел повторно или напиши в поддержку.';}finally{supportState.knowledgeLoading=false;}
 }
-async function loadKnowledge() {
-  if(supportState.articles){renderKnowledge();return;}
-  if(supportState.knowledgeLoading)return;supportState.knowledgeLoading=true;
-  const error=document.querySelector("#knowledge-error");error.textContent="Загружаем инструкции…";
-  try {const response=await fetch("/app/assets/knowledge.json?v=20261003-2");if(!response.ok)throw new Error();supportState.articles=await response.json();error.textContent="";renderKnowledge();}
-  catch {error.textContent="Не удалось загрузить инструкции. Открой раздел повторно или напиши в поддержку.";}
-  finally {supportState.knowledgeLoading=false;}
+function prepareSupportForm(){
+ const select=supportEl('support-device'),previous=select.value;select.replaceChildren(supportNode('option','Не выбирать устройство'));select.firstChild.value='';
+ for(const d of state.devices){const o=supportNode('option',`${d.device_name} · ${d.public_id}`);o.value=d.id;select.append(o);}if([...select.options].some(o=>o.value===previous))select.value=previous;
+ if(!supportState.started){supportState.started=true;supportEl('support-platform').value=supportPlatform();supportStage('topic',false);}
 }
-function prepareSupportForm() {
-  const select=document.querySelector("#support-device");const previous=select.value;
-  select.replaceChildren(supportNode("option","Это устройство / не относится к вопросу"));select.firstChild.value="";
-  for(const device of state.devices) {const option=supportNode("option",`${device.device_name} · ${device.public_id}`);option.value=device.id;select.append(option);}
-  if([...select.options].some(x=>x.value===previous))select.value=previous;
+async function loadSupportTickets(){
+ if(supportState.ticketsLoading)return;supportState.ticketsLoading=true;const list=supportEl('support-history'),error=supportEl('support-history-error');error.textContent='Загружаем обращения…';
+ try{const tickets=await api('/mini-app/support/tickets');list.replaceChildren();error.textContent='';
+ if(!tickets.length){const empty=supportNode('div',null,'kb-empty-ticket');empty.append(supportNode('div','💬','kb-callout-icon'),supportNode('strong','Пока всё спокойно'),supportNode('p','Твои обращения появятся здесь после отправки.'));list.append(empty);}
+ for(const t of tickets){const row=supportNode('article',null,'kb-ticket');row.dataset.status=t.status;row.append(supportNode('span',supportStatuses[t.status]||t.status,'kb-ticket-status'),supportNode('strong',supportCategories[t.category]||'Обращение'),supportNode('span',`№ ${t.id}`),supportNode('span',new Date(t.created_at).toLocaleString('ru-RU')),supportNode('p',t.description));if(t.response)row.append(supportNode('strong','🎧 Ответ поддержки'),supportNode('p',t.response));const b=supportNode('button','Скопировать номер','kb-text-link');b.type='button';b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(t.id);showToast('Номер скопирован.');}catch{showToast('Не удалось скопировать номер.','error');}});row.append(b);list.append(row);}
+ }catch(e){error.textContent=humanError(e);}finally{supportState.ticketsLoading=false;}
 }
-async function loadSupportTickets() {
-  if(supportState.ticketsLoading)return;supportState.ticketsLoading=true;
-  const list=document.querySelector("#support-history"),error=document.querySelector("#support-history-error");error.textContent="Загружаем обращения…";
-  try {
-    const tickets=await api("/mini-app/support/tickets");list.replaceChildren();error.textContent="";
-    if(!tickets.length)list.append(supportNode("p","Обращений пока нет. Если что-то не работает, заполни форму выше."));
-    for(const ticket of tickets){
-      const row=document.createElement("article");row.className="referral-history-row";
-      row.append(supportNode("strong",`${supportCategories[ticket.category]||"Обращение"} · ${supportStatuses[ticket.status]||ticket.status}`),supportNode("span",`№ ${ticket.id}`),supportNode("span",new Date(ticket.created_at).toLocaleString("ru-RU")),supportNode("p",ticket.description));
-      if(ticket.response)row.append(supportNode("strong","Ответ поддержки"),supportNode("p",ticket.response));
-      const button=supportNode("button","Скопировать номер","button button-secondary");button.type="button";button.addEventListener("click",async()=>{try{await navigator.clipboard.writeText(ticket.id);showToast("Номер скопирован.");}catch{showToast("Не удалось скопировать номер.","error");}});row.append(button);list.append(row);
-    }
-  }catch(errorValue){error.textContent=humanError(errorValue);}
-  finally{supportState.ticketsLoading=false;}
+function supportPlatform(){const p=detectDevice().platform.toLowerCase();return ({ios:'ios',ipados:'ios',android:'android',windows:'windows',macos:'macos',linux:'linux'})[p]||'unknown';}
+function supportChecks(){
+ const category=supportEl('support-category').value,platform=supportEl('support-platform').value,tier=supportEl('support-tier').value;
+ const permissions=platform==='ios'?'На iPhone или iPad разреши Happ добавить VPN-профиль при первом подключении. Проверь профиль в настройках VPN устройства.':platform==='android'?'На Android разреши Happ установить VPN-подключение. Если соединение обрывается в фоне, проверь ограничения батареи для Happ.':'Используй Happ и разреши системе создать VPN-подключение. Выключи другие VPN-приложения, чтобы они не перехватывали соединение.';
+ const sets={
+ connection:[['connect','Подписка и интернет','Проверь срок выбранной подписки в «Мои подписки». Затем выключи VPN и проверь, открываются ли обычные сайты. Если интернет не работает и без VPN, сначала восстанови соединение.'],['shield','Happ и разрешение VPN',permissions],['connect','Обновление и другая сеть',`Выключи VPN, обнови выбранную подписку в Happ и переподключись. Сравни работу через Wi-Fi и мобильную сеть. ${tier==='mobile'?'Для Mobile используй именно ключ Mobile: старый ключ Basic не меняется после покупки второй подписки.':'Не удаляй ключи и устройства подряд. Если есть другой доступный регион, попробуй его и обнови подписку в Happ.'}`]],
+ speed:[['speed','Один сервис или всё соединение?','Проверь другой сайт или видео. Сравни работу одного и того же сервиса с VPN и без него, чтобы понять, где появляется замедление.'],['devices','Сеть и фоновые загрузки','Приостанови загрузки, попробуй Wi-Fi и мобильную сеть. Для обрывов в фоне проверь ограничения батареи для Happ.'],['speed','Регион и время','Если доступно, попробуй другой регион, затем обнови подписку в Happ. Запиши время, название сервиса и наблюдаемую скорость или пинг — это поможет поддержке.']],
+ device:[['shield','Нужный ключ подписки','Открой «Мои подписки», выбери нужную карточку и нажми «Подключить через Happ». QR-код и ссылка относятся к выбранной подписке. Не передавай их посторонним.'],['devices','Слоты устройств','Посмотри раздел «Устройства». Пустой слот — свободное место. Лимит устройств общий для всех подписок аккаунта; дополнительная подписка не добавляет ещё три устройства.'],['devices','Импорт и регион','Обнови подписку в Happ после смены региона. Удаляй только своё устройство, которым больше не пользуешься: удаление отзывает его доступ. Если импорт выдаёт ошибку, запиши её текст.']],
+ payment:[['subscription','Статус покупки','Обнови Mini App и проверь покупку. Пока реальные платежи не включены, тестовый статус не подтверждает списание денег. Если деньги уже списались, не оплачивай заказ повторно.'],['subscription','Продление выбранной подписки','Проверь срок в карточке подписки, которую продлевал. Basic и Mobile имеют независимые сроки. Продление оформляется отдельно; автосписаний нет.'],['help','Что поможет проверить платёж','В описании укажи номер заказа, сумму и примерное время, если они известны. Чек можно отправить отдельно в поддержку с номером обращения. Номер карты, CVV и банковские коды не нужны.']],
+ referral:[['referrals','Приглашение нового пользователя','Начисление связано с первой регистрацией приглашённого по твоей персональной ссылке. Уже существующий аккаунт нельзя привязать задним числом.'],['referrals','Какие покупки учитываются','15% начисляются с подтверждённых реальных покупок подписки и продлений. Пробный период, тестовые платежи и дополнительные слоты не дают вознаграждения.'],['referrals','Вывод от 500 ₽','Заявка на вывод резервирует сумму до результата. Вывод обрабатывается вручную, реквизиты согласуются отдельно с поддержкой. Проверь историю заявок в разделе «Рефералы».']],
+ other:[['help','Расскажи подробнее','Опиши, что хочешь узнать или предложить. Если речь об ошибке, укажи, что ожидал увидеть и что произошло. Мы увидим обращение и ответим в Mini App и боте.']]
+ };return sets[category];
 }
-function supportPlatform() {
-  const p=detectDevice().platform.toLowerCase();return ({ios:"ios",ipados:"ios",android:"android",windows:"windows",macos:"macos",linux:"linux"})[p]||"unknown";
+function supportStage(stage,focus=true){
+ supportState.stage=stage;const names={topic:['1','С чем возникла проблема?','Выбери тему — покажем подходящие подсказки.'],context:['2','Где нужна помощь?','Укажи устройство, подписку и сеть. Если вопрос о другом, выбери «Не относится».'],checks:['3','Попробуем решить сразу','После каждой проверки попробуй снова. Можно сразу перейти к обращению.'],describe:['4','Расскажи, что произошло','Тема и выбранные данные уже сохранятся в обращении.'],review:['5','Всё верно?','Проверь ответы. Обращение отправится только после нажатия кнопки.'],success:['5','Мы получили обращение','Номер и ответ будут в разделе «Мои обращения».'],solved:['3','Рады, что получилось!','Обращение создавать не понадобилось.']};
+ const [n,title,intro]=names[stage];supportEl('support-step-label').textContent=`Шаг ${n} из 5`;supportEl('support-step-title').textContent=title;supportEl('support-step-intro').textContent=intro;
+ document.querySelectorAll('[data-support-stage]').forEach(el=>{el.hidden=el.dataset.supportStage!==stage;});supportEl('support-back').hidden=['topic','success','solved'].includes(stage);supportEl('support-result').textContent='';
+ [...supportEl('support-progress').children].forEach((el,i)=>{el.classList.toggle('is-done',i<Number(n)-1||stage==='success');el.classList.toggle('is-current',i===Number(n)-1&&stage!=='success');});
+ if(stage==='checks')supportRenderCheck();if(stage==='review')supportRenderReview();
+ if(focus){supportEl('support-stage').focus({preventScroll:true});supportEl('support-stage').scrollIntoView({block:'start',behavior:'instant'});}
 }
-document.querySelector("#knowledge-search").addEventListener("input",renderKnowledge);
-document.querySelector("#support-refresh").addEventListener("click",loadSupportTickets);
-document.querySelector("#support-form").addEventListener("submit",async(event)=>{
-  event.preventDefault();const description=document.querySelector("#support-description").value.trim();
-  const result=document.querySelector("#support-result");if(description.length<20||description.length>3000){result.textContent="Опиши проблему: от 20 до 3000 символов.";return;}
-  const payload={category:document.querySelector("#support-category").value,tier:document.querySelector("#support-tier").value,network:document.querySelector("#support-network").value,description,platform:supportPlatform(),device_id:document.querySelector("#support-device").value?Number(document.querySelector("#support-device").value):null};
-  const fingerprint=JSON.stringify(payload);if(supportState.fingerprint!==fingerprint){supportState.key=makeIdempotencyKey();supportState.fingerprint=fingerprint;}
-  payload.idempotency_key=supportState.key;const button=document.querySelector("#support-submit");button.disabled=true;result.textContent="Отправляем обращение…";
-  try {const ticket=await api("/mini-app/support/tickets",{method:"POST",body:JSON.stringify(payload)});result.textContent=`Обращение сохранено. Номер: ${ticket.id}. Статус и ответ — в базе знаний, раздел «Мои обращения».`;document.querySelector("#support-description").value="";supportState.key=null;supportState.fingerprint=null;}
-  catch(error){result.textContent=humanError(error);if(error instanceof ApiError&&error.status>=400&&error.status<500){supportState.key=null;supportState.fingerprint=null;}}
-  finally{button.disabled=false;}
+function supportRenderCheck(){const check=supportState.checks[supportState.checkIndex];if(!check){supportStage('describe');return;}const [art,title,text]=check,box=supportEl('support-check');box.replaceChildren();const img=document.createElement('img');img.src=`/app/assets/help/${art}.svg`;img.alt='';box.append(img,supportNode('span',`Проверка ${supportState.checkIndex+1} из ${supportState.checks.length}`,'kb-badge'),supportNode('h3',title),supportNode('p',text));supportEl('support-check-next').textContent=supportState.checkIndex===supportState.checks.length-1?'Не помогло — описать проблему →':'Не помогло, дальше →';}
+function supportPayload(){let description=supportEl('support-description').value.trim();const checked=supportState.tried.length?'\n\nПройденные проверки (не помогли): '+supportState.tried.join('; '):'';if(description.length+checked.length<=3000)description+=checked;return {category:supportEl('support-category').value,tier:supportEl('support-tier').value,network:supportEl('support-network').value,platform:supportEl('support-platform').value,device_id:supportEl('support-device').value?Number(supportEl('support-device').value):null,description};}
+function supportRenderReview(){const review=supportEl('support-review');review.replaceChildren();const p=supportPayload();for(const [label,value]of [['Тема',supportCategories[p.category]],['Устройство / платформа',supportEl('support-platform').selectedOptions[0].textContent],['Подписка и сеть',`${supportEl('support-tier').selectedOptions[0].textContent} · ${supportEl('support-network').selectedOptions[0].textContent}`],['Устройство из аккаунта',supportEl('support-device').selectedOptions[0].textContent],['Описание',p.description]]){const row=supportNode('div',null,'kb-review-item');row.append(supportNode('span',label),supportNode('p',value));review.append(row);}}
+function supportReset(){supportEl('support-form').reset();supportState.key=null;supportState.fingerprint=null;supportState.checkIndex=0;supportState.tried=[];supportEl('support-platform').value=supportPlatform();supportEl('support-char-count').textContent='0 / 3000';supportStage('topic');}
+for(const [id,icon,title,subtitle]of supportTopics){const b=supportNode('button',null,'kb-topic');b.type='button';b.dataset.category=id;const copy=supportNode('span',null);copy.append(supportNode('strong',title),supportNode('small',subtitle));b.append(supportNode('span',icon,'kb-topic-icon'),copy,supportNode('span','›','kb-topic-arrow'));b.addEventListener('click',()=>{supportEl('support-category').value=id;supportState.checkIndex=0;supportState.tried=[];supportStage('context');});supportEl('support-topics').append(b);}
+document.querySelectorAll('[data-support-next]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.supportNext==='checks'){supportState.checks=supportChecks();supportState.checkIndex=0;supportState.tried=[];}supportStage(b.dataset.supportNext);}));
+supportEl('support-check-next').addEventListener('click',()=>{supportState.tried.push(supportState.checks[supportState.checkIndex][1]);supportState.checkIndex++;if(supportState.checkIndex>=supportState.checks.length)supportStage('describe');else supportRenderCheck();});
+supportEl('support-solved').addEventListener('click',()=>supportStage('solved'));
+supportEl('support-back').addEventListener('click',()=>{if(supportState.busy)return;const previous={context:'topic',checks:'context',describe:'checks',review:'describe'};if(supportState.stage==='checks'&&supportState.checkIndex>0){supportState.checkIndex--;supportState.tried.pop();supportRenderCheck();return;}if(supportState.stage==='describe')supportState.checkIndex=Math.max(0,supportState.checks.length-1);supportStage(previous[supportState.stage]||'topic');});
+supportEl('support-description').addEventListener('input',()=>{supportEl('support-char-count').textContent=`${supportEl('support-description').value.length} / 3000`;supportEl('support-description').setCustomValidity('');});
+supportEl('support-review-button').addEventListener('click',()=>{const field=supportEl('support-description'),n=field.value.trim().length;if(n<20||n>3000){supportEl('support-result').textContent='Опиши проблему: от 20 до 3000 символов.';field.focus();return;}supportStage('review');});
+supportEl('support-new').addEventListener('click',supportReset);supportEl('support-restart').addEventListener('click',supportReset);supportEl('support-refresh').addEventListener('click',loadSupportTickets);
+supportEl('support-form').addEventListener('submit',async event=>{
+ event.preventDefault();if(supportState.stage!=='review'||supportState.busy)return;const payload=supportPayload();const result=supportEl('support-result');if(payload.description.length<20||payload.description.length>3000){supportStage('describe');result.textContent='Опиши проблему: от 20 до 3000 символов.';return;}
+ const fingerprint=JSON.stringify(payload);if(supportState.fingerprint!==fingerprint){supportState.key=makeIdempotencyKey();supportState.fingerprint=fingerprint;}payload.idempotency_key=supportState.key;supportState.busy=true;supportEl('support-submit').disabled=true;supportEl('support-back').disabled=true;result.textContent='Отправляем обращение…';
+ try{const ticket=await api('/mini-app/support/tickets',{method:'POST',body:JSON.stringify(payload)});supportEl('support-ticket-number').textContent=`Номер обращения: ${ticket.id}`;supportEl('support-description').value='';supportState.key=null;supportState.fingerprint=null;supportStage('success');}
+ catch(error){result.textContent=humanError(error);if(error instanceof ApiError&&error.status>=400&&error.status<500){supportState.key=null;supportState.fingerprint=null;}}
+ finally{supportState.busy=false;supportEl('support-submit').disabled=false;supportEl('support-back').disabled=false;}
 });
+supportStage('topic',false);
