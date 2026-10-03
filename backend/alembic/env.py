@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.db.session import Base
 from app.models.referral import ReferralAccount, ReferralInvite, ReferralCommission, ReferralWithdrawal  # noqa: F401
 from app.models.support_ticket import SupportTicket  # noqa: F401
+from app.models.informer_notification import InformerNotification  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.plan import Plan  # noqa: F401
 from app.models.subscription import Subscription  # noqa: F401

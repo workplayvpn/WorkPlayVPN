@@ -221,6 +221,9 @@ class PaymentFulfillmentService:
         database: Session,
         fulfillment: PaymentFulfillment,
     ) -> None:
+        from app.services.informer import enqueue_purchase
+        payment = database.get(Payment, fulfillment.payment_id)
+        enqueue_purchase(database, payment)
         fulfillment.status = "delivered"
         fulfillment.delivered_at = datetime.now(UTC)
         fulfillment.processing_started_at = None

@@ -8,6 +8,7 @@ from app.models.user import User
 from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.payment_fulfillment import PaymentFulfillment
+from app.models.informer_notification import InformerNotification
 from app.models.vpn_device import VpnDevice
 from app.services.payment_service import payment_service
 from app.services.device_slots import device_slot_offers
@@ -55,6 +56,10 @@ def test_slots_apply_once_preserve_expiry_and_do_not_create_device(db,count,pric
     assert db.scalar(select(VpnDevice.id).where(VpnDevice.user_id == user.id)) is None
     fulfillment = db.scalar(select(PaymentFulfillment).where(PaymentFulfillment.payment_id == payment.id))
     assert fulfillment.status == "delivered"
+    notices = db.scalars(select(InformerNotification).where(InformerNotification.payment_id == payment.id)).all()
+    assert len(notices) == 1
+    assert f"Куплено устройств: +{count}" in notices[0].text
+    assert f"Новый общий лимит: {3+count}" in notices[0].text
 
 
 def test_slot_purchase_requires_live_subscription(db):

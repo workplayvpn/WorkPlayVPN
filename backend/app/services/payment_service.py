@@ -18,6 +18,7 @@ from app.services.device_slots import slot_count
 from app.services.entitlements import active_entitlements
 from app.services.subscription_service import subscription_service
 from app.services.referrals import credit_payment
+from app.services.informer import enqueue_purchase
 
 logger = logging.getLogger(__name__)
 
@@ -398,6 +399,7 @@ class PaymentService:
             subscription.status = "completed"
             database.add(PaymentFulfillment(payment_id=payment.id, user_id=user.id,
                 status="delivered", delivered_at=datetime.now(UTC)))
+            enqueue_purchase(database, payment, user=user, subscription=subscription, plan=plan)
             database.commit()
             database.refresh(payment)
             self._cancel_other_pending_payments(database=database, succeeded_payment=payment)
