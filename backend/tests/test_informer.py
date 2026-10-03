@@ -96,6 +96,72 @@ def test_delivery_and_no_repeat(db, monkeypatch):
     assert db.scalar(select(InformerNotification)).sent_at
 
 
+def test_old_queue_profile_link_is_repaired(db, monkeypatch):
+    event = queue(db)
+    event.text = event.text.replace('https://t.me/customer', 'tg://user?id=555')
+    db.commit()
+    sender = Mock()
+    monkeypatch.setattr(informer, 'send_message', sender)
+    assert informer.process_once()
+    assert 'Профиль: https://t.me/customer' in sender.call_args.args[0]
+    assert 'tg://user' not in sender.call_args.args[0]
+
+
+def test_no_username_does_not_invent_profile_link(db, monkeypatch):
+    queue(db)
+    db.get(User, 1).username = None
+    db.commit()
+    sender = Mock()
+    monkeypatch.setattr(informer, 'send_message', sender)
+    assert informer.process_once()
+    assert 'Профиль: публичный @username не указан' in sender.call_args.args[0]
+
+
+def test_commit_failure_does_not_resend_in_same_process(db, monkeypatch):
+    queue(db)
+    factory = informer.SessionLocal
+    def failing_factory():
+        session = factory()
+        session.commit = Mock(side_effect=RuntimeError('commit unavailable'))
+        return session
+    sender = Mock()
+    monkeypatch.setattr(informer, 'send_message', sender)
+    monkeypatch.setattr(informer, 'SessionLocal', failing_factory)
+    with pytest.raises(RuntimeError, match='commit unavailable'):
+        informer.process_once()
+    monkeypatch.setattr(informer, 'SessionLocal', factory)
+    assert informer.process_once()
+    assert sender.call_count == 1
+    db.expire_all()
+    assert db.scalar(select(InformerNotification)).sent_at
+
+
+def test_standalone_worker_can_commit_queue_without_test_model_imports():
+    import subprocess
+    import sys
+    import os
+    from pathlib import Path
+    env = dict(os.environ, DATABASE_URL='sqlite://')
+    backend = str(Path(__file__).resolve().parents[1])
+    env['PYTHONPATH'] = backend + os.pathsep + env.get('PYTHONPATH', '')
+    script = '''
+from app.workers import informer
+from app.db.session import engine
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from datetime import datetime, UTC
+with engine.begin() as c:
+    c.execute(text('CREATE TABLE informer_notifications (id VARCHAR PRIMARY KEY, payment_id BIGINT, user_id BIGINT, text TEXT, attempts INTEGER, next_attempt_at DATETIME, created_at DATETIME, sent_at DATETIME)'))
+    c.execute(text("INSERT INTO informer_notifications VALUES ('x',1,1,'test',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,NULL)"))
+with Session(engine) as s:
+    event = s.get(informer.InformerNotification, 'x')
+    event.sent_at = datetime.now(UTC)
+    s.commit()
+'''
+    result = subprocess.run([sys.executable, '-c', script], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
 def test_failure_is_retained_and_retried(db, monkeypatch):
     event = queue(db)
     sender = Mock(side_effect=RuntimeError('offline'))

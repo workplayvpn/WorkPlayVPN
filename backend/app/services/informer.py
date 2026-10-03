@@ -29,7 +29,7 @@ def enqueue_purchase(database, payment, *, user=None, subscription=None, plan=No
     lines = [title, "🧪 ТЕСТОВАЯ ОПЛАТА" if test else "💳 Подтверждённая оплата", "",
              f"Telegram ID: {user.telegram_id}",
              f"Username: @{user.username}" if user.username else "Username: не указан",
-             f"Профиль: tg://user?id={user.telegram_id}",
+             f"Профиль: https://t.me/{user.username.lstrip('@')}" if user.username else "Профиль: публичный @username не указан",
              f"Платёж: #{payment.id}", f"Сумма: {payment.amount} {payment.currency}"]
     if slots:
         limit = shared_device_limit(active_entitlements(database, user.id), user.extra_device_slots)

@@ -10,9 +10,21 @@ from app.db.session import SessionLocal
 from app.models.informer_notification import InformerNotification
 from app.models.user import User
 from app.models.subscription_token import SubscriptionToken
+from app.models.payment import Payment  # noqa: F401 — resolve queue FK in standalone worker
+from app.models.location import Location  # noqa: F401 — resolve user FK when creating a token
 from app.services.help_access import key_for
 
 logger = logging.getLogger("informer-worker")
+_accepted_events = set()
+
+
+def render_message(event, user, token):
+    # Repair old queued snapshots too; numeric tg:// links are unreliable in plain text.
+    username = (user.username or "").lstrip("@")
+    profile = "https://t.me/" + username if username else "публичный @username не указан"
+    lines = ["Профиль: " + profile if line.startswith("Профиль: ") else line
+             for line in event.text.splitlines()]
+    return "\n".join(lines) + "\n\n🔑 Ключ помощи: " + key_for(user, token)
 
 
 def send_message(text):
@@ -50,14 +62,20 @@ def process_once():
             database.flush()
         event.attempts += 1
         try:
-            send_message(event.text + "\n\n🔑 Ключ помощи: " + key_for(user, token))
+            if event.id not in _accepted_events:
+                send_message(render_message(event, user, token))
+                # A transient commit failure must not resend in the same process.
+                _accepted_events.add(event.id)
         except RuntimeError:
             event.next_attempt_at = datetime.now(UTC) + timedelta(seconds=min(3600, 10 * 2 ** min(event.attempts, 9)))
             logger.warning("Informer delivery retained for retry: payment_id=%s", event.payment_id)
         else:
             event.sent_at = datetime.now(UTC)
-            logger.info("Informer delivered: payment_id=%s", event.payment_id)
+        event_id, payment_id, delivered = event.id, event.payment_id, event.sent_at is not None
         database.commit()
+        _accepted_events.discard(event_id)
+        if delivered:
+            logger.info("Informer delivered: payment_id=%s", payment_id)
         return True
 
 
