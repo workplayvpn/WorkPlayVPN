@@ -139,7 +139,9 @@ def test_happ_connect_returns_instruction_mini_app() -> None:
             "/connect/happ/assets/happ-connect.js"
             in body
         )
-        assert "happ-connect.js?v=5" in body
+        assert "happ-connect.js?v=20261003-1" in body
+        assert "data-connect-back" in body
+        assert "← Назад" in body
         assert (
             "https://telegram.org/js/telegram-web-app.js"
             in body

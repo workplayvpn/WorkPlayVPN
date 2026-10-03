@@ -430,6 +430,13 @@ button {
     border-color: var(--border-active);
 }
 
+.connect-back {
+    width: auto;
+    min-height: 44px;
+    margin-bottom: 16px;
+    padding: 10px 16px;
+}
+
 .button-primary {
     border-color: transparent;
     background:

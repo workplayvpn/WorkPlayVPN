@@ -283,7 +283,7 @@ def _connect_happ_page(
 
     <link
         rel="stylesheet"
-        href="/connect/happ/assets/happ-connect.css?v=20261002-1"
+        href="/connect/happ/assets/happ-connect.css?v=20261003-1"
     >
 
     <script
@@ -291,7 +291,7 @@ def _connect_happ_page(
     ></script>
 
     <script
-        src="/connect/happ/assets/happ-connect.js?v=5"
+        src="/connect/happ/assets/happ-connect.js?v=20261003-1"
         defer
     ></script>
 </head>
@@ -318,6 +318,12 @@ def _connect_happ_page(
                 </div>
             </div>
         </header>
+
+        <button
+            class="button button-secondary connect-back"
+            type="button"
+            data-connect-back
+        >← Назад</button>
 
         <section class="hero">
             <p class="eyebrow">

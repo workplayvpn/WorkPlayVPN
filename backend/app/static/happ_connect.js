@@ -15,6 +15,26 @@ if (telegramApp) {
     }
 }
 
+function navigateBack() {
+    try {
+        telegramApp?.BackButton?.hide();
+    } catch {
+        // Older Telegram clients may not support hiding the button.
+    }
+
+    if (window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    if (telegramApp?.initData) {
+        telegramApp.close();
+        return;
+    }
+
+    window.location.assign("/app/");
+}
+
 function initializeBackNavigation() {
     const backButton = telegramApp?.BackButton;
 
@@ -22,20 +42,7 @@ function initializeBackNavigation() {
         return;
     }
 
-    telegramBackHandler = () => {
-        try {
-            backButton.hide();
-        } catch {
-            // Older Telegram clients may not support hiding the button.
-        }
-
-        if (window.history.length > 1) {
-            window.history.back();
-            return;
-        }
-
-        telegramApp.close();
-    };
+    telegramBackHandler = navigateBack;
 
     backButton.onClick(telegramBackHandler);
     backButton.show();
@@ -235,6 +242,9 @@ function initializeHappLinks() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    document.querySelector("[data-connect-back]")?.addEventListener(
+        "click", navigateBack
+    );
     initializeBackNavigation();
     initializePlatformSwitcher();
     initializeHappLinks();
