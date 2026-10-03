@@ -13,9 +13,51 @@ from app.models.subscription_token import SubscriptionToken
 from app.models.payment import Payment  # noqa: F401 — resolve queue FK in standalone worker
 from app.models.location import Location  # noqa: F401 — resolve user FK when creating a token
 from app.services.help_access import key_for
+from app.models.abuse_alert import AbuseAlert
+from app.services.abuse_observation import scan
 
 logger = logging.getLogger("informer-worker")
 _accepted_events = set()
+_accepted_alerts = set()
+
+
+def scan_abuse_once():
+    if not settings.antifraud_observe_enabled or not settings.informer_bot_token:
+        return 0
+    with SessionLocal() as database:
+        count = scan(database)
+        database.commit()
+        return count
+
+
+def process_alert_once():
+    if (not settings.antifraud_observe_enabled or not settings.informer_bot_token
+            or settings.informer_owner_telegram_id <= 0):
+        return False
+    with SessionLocal() as database:
+        event = database.scalar(select(AbuseAlert).where(
+            AbuseAlert.sent_at.is_(None),
+            AbuseAlert.next_attempt_at <= datetime.now(UTC)).order_by(
+            AbuseAlert.created_at, AbuseAlert.id).with_for_update(skip_locked=True).limit(1))
+        if event is None:
+            return False
+        event.attempts += 1
+        try:
+            if event.id not in _accepted_alerts:
+                send_message(event.text)
+                _accepted_alerts.add(event.id)
+        except RuntimeError:
+            event.next_attempt_at = datetime.now(UTC) + timedelta(
+                seconds=min(3600, 10 * 2 ** min(event.attempts, 9)))
+            logger.warning("Observation alert retained for retry: rule=%s", event.rule)
+        else:
+            event.sent_at = datetime.now(UTC)
+        event_id, delivered = event.id, event.sent_at is not None
+        database.commit()
+        _accepted_alerts.discard(event_id)
+        if delivered:
+            logger.info("Observation alert delivered: id=%s", event_id)
+        return True
 
 
 def render_message(event, user, token):
@@ -90,13 +132,25 @@ def main():
         send_message("✅ Work&PlayVPN Informer подключён. Уведомления о покупках будут приходить сюда.")
         print("Informer test delivered")
         return
+    next_scan = 0.0
     while True:
+        if time.monotonic() >= next_scan:
+            next_scan = time.monotonic() + 60
+            try:
+                scan_abuse_once()
+            except Exception as exc:
+                logger.error("Observation scan unavailable: %s", type(exc).__name__)
+        worked = False
         try:
-            if process_once():
-                continue
-        except Exception:
-            logger.error("Informer queue unavailable; retrying")
-        time.sleep(10)
+            worked = process_once()
+        except Exception as exc:
+            logger.error("Informer queue unavailable: %s; retrying", type(exc).__name__)
+        try:
+            worked = process_alert_once() or worked
+        except Exception as exc:
+            logger.error("Observation queue unavailable: %s", type(exc).__name__)
+        if not worked:
+            time.sleep(10)
 
 
 if __name__ == "__main__":

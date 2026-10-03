@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     telegram_proxy_url: str | None = None
     informer_bot_token: str | None = None
     informer_owner_telegram_id: int = 2027613435
+    antifraud_observe_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
