@@ -211,7 +211,8 @@ async def select_plan(
         f"Подписка: {tier_name(plan.get('access_tier', 'basic'))}\n"
         f"Срок: {plan['duration_days']} дней\n"
         f"К оплате: {price} ₽\n"
-        f"Устройств: до {plan['device_limit']}\n\n"
+        f"В тариф включено устройств: {plan['device_limit']}\n"
+        "Купленные дополнительные слоты сохраняются.\n\n"
         "После оплаты подписка активируется "
         "автоматически.",
         build_payment_confirmation_keyboard(

@@ -45,7 +45,7 @@ def get_screen_photo(callback_data: str | None, text: str) -> FSInputFile:
         name = "payment"
     elif data == "profile":
         name = "profile"
-    elif "location" in data or data == "change_region":
+    elif "location" in data or data.startswith(("change_region", "account_region:")):
         name = "region"
     elif "device" in data:
         name = "devices"

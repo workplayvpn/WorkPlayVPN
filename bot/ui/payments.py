@@ -52,9 +52,9 @@ def build_payment_keyboard(
             ],
             [
                 InlineKeyboardButton(
-                    text="← К лимиту" if source == "slots" else "← К тарифам",
+                    text="← К лимиту" if source in ("slots", "slots_basic", "slots_mobile") else "← К тарифам",
                     callback_data=(
-                        "device_slots" if source == "slots" else f"plans_tier:{source[6:]}:renew" if source in ("renew_basic", "renew_mobile") else "subscription_plans"
+                        f"device_slots:{source[6:]}" if source in ("slots_basic", "slots_mobile") else "device_slots" if source == "slots" else f"plans_tier:{source[6:]}:renew" if source in ("renew_basic", "renew_mobile") else "subscription_plans"
                         if source == "subscription"
                         else "plans"
                     ),
