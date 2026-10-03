@@ -25,7 +25,7 @@ class Login(BaseModel):
 
 def _no_cache(response: Response):
     response.headers["Cache-Control"] = "no-store, private"
-    response.headers["Vary"] = "Cookie"
+    response.headers["Vary"] = "Cookie, X-Help-Session, X-Telegram-Init-Data"
 
 
 def _origin(request: Request):
@@ -39,7 +39,10 @@ def require_help_user(request: Request, db: Db) -> User:
     return help_access.resolve_session(db, request.cookies.get(help_access.COOKIE))
 
 
-def require_mini_help_access(auth: Auth, owner: Annotated[User, Depends(require_help_user)]):
+def require_mini_help_access(request: Request, auth: Auth, db: Db):
+    # Telegram Web may block cookies in its embedded Mini App.
+    session_header = request.headers.get("X-Help-Session")
+    owner = help_access.resolve_session(db, session_header, mini=True) if session_header else help_access.resolve_session(db, request.cookies.get(help_access.COOKIE))
     if owner.telegram_id != auth.user.id:
         raise HTTPException(403, "HELP_KEY_REQUIRED")
     return owner
@@ -71,7 +74,7 @@ def mini_login(payload: Login, request: Request, response: Response, auth: Auth,
         raise HTTPException(403, "Используй ключ помощи своего Telegram-аккаунта")
     response.set_cookie(help_access.COOKIE, help_access.session_for(user, token), max_age=help_access.SESSION_SECONDS, secure=True, httponly=True, samesite="strict", path="/")
     _no_cache(response)
-    return {"ok": True}
+    return {"ok": True, "session": help_access.session_for(user, token, mini=True)}
 
 
 @router.post("/help-access/logout")

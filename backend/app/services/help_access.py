@@ -45,13 +45,14 @@ def resolve_key(db: Session, key: str) -> tuple[User, SubscriptionToken]:
     raise HTTPException(401, "Ключ не найден. Скопируй ключ помощи в боте → «Помощь».")
 
 
-def session_for(user: User, token: SubscriptionToken) -> str:
+def session_for(user: User, token: SubscriptionToken, *, mini: bool = False) -> str:
     # Domain-separated signature; no VPN token or help key in the cookie.
     body = f"{user.id}.{token.version}.{int(time.time()) + SESSION_SECONDS}.{secrets.token_hex(8)}"
-    return f"{body}.{_sign('help-session:v1:' + body)}"
+    purpose = 'mini-help-session:v1:' if mini else 'help-session:v1:'
+    return f"{body}.{_sign(purpose + body)}"
 
 
-def resolve_session(db: Session, value: str | None) -> User:
+def resolve_session(db: Session, value: str | None, *, mini: bool = False) -> User:
     denied = HTTPException(403, "HELP_KEY_REQUIRED")
     if not value or len(value) > 220:
         raise denied
@@ -61,7 +62,8 @@ def resolve_session(db: Session, value: str | None) -> User:
     uid, version, expiry, nonce, signature = parts
     if not all(x.isdecimal() for x in (uid, version, expiry)) or not re.fullmatch(r"[a-f0-9]{16}", nonce):
         raise denied
-    expected = _sign('help-session:v1:' + '.'.join(parts[:-1]))
+    purpose = 'mini-help-session:v1:' if mini else 'help-session:v1:'
+    expected = _sign(purpose + '.'.join(parts[:-1]))
     if not hmac.compare_digest(expected, signature) or not int(time.time()) < int(expiry) <= int(time.time()) + SESSION_SECONDS:
         raise denied
     user = db.get(User, int(uid))

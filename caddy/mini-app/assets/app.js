@@ -202,6 +202,7 @@ function initDataIsStale() {
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set("X-Telegram-Init-Data", telegram.initData);
+  window.WorkPlayHelpAccess?.applySession(headers, path);
 
   if (options.body) {
     headers.set("Content-Type", "application/json");

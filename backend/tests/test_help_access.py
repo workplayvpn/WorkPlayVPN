@@ -132,3 +132,41 @@ class HelpAccessTests(unittest.TestCase):
         self.client.cookies.clear()
         self.client.cookies.set(help_access.COOKIE, '.'.join(parts), domain='testserver.local', path='/')
         self.assertEqual(self.client.get('/help-access/knowledge').status_code, 403)
+
+    def test_mini_header_session_works_without_cookies(self):
+        value = self.login(mini=True).json()['session']
+        self.assertNotIn(self.key, value)
+        self.client.cookies.clear()
+        headers = {'X-Help-Session': value}
+        for path in ('/mini-app/support/session', '/mini-app/support/knowledge', '/mini-app/support/tickets'):
+            self.assertEqual(self.client.get(path, headers=headers).status_code, 200, path)
+        self.assertEqual(self.client.get('/mini-app/support/session').status_code, 403)
+        self.assertEqual(self.client.get('/help-access/knowledge', headers=headers).status_code, 403)
+        self.client.cookies.set(help_access.COOKIE, value)
+        self.assertEqual(self.client.get('/help-access/session').status_code, 403)
+        self.client.cookies.clear()
+        self.app.dependency_overrides.pop(require_telegram_webapp_auth)
+        self.assertEqual(self.client.get('/mini-app/support/session', headers=headers).status_code, 401)
+
+    def test_mini_header_session_cannot_cross_accounts(self):
+        value = self.login(mini=True).json()['session']
+        self.client.cookies.clear()
+        self.app.dependency_overrides[require_telegram_webapp_auth] = lambda: SimpleNamespace(user=SimpleNamespace(id=102))
+        self.assertEqual(self.client.get('/mini-app/support/session', headers={'X-Help-Session': value}).status_code, 403)
+
+    def test_mini_header_session_rejects_forgery_expiry_and_rotation(self):
+        value = self.login(mini=True).json()['session']
+        self.client.cookies.clear()
+        headers = {'X-Help-Session': value}
+        forged = value[:-1] + ('a' if value[-1] != 'a' else 'b')
+        self.assertEqual(self.client.get('/mini-app/support/session', headers={'X-Help-Session': forged}).status_code, 403)
+        with patch.object(help_access.time, 'time', return_value=help_access.time.time()+3601):
+            self.assertEqual(self.client.get('/mini-app/support/session', headers=headers).status_code, 403)
+        token = self.db.get(SubscriptionToken, 1)
+        token.version = 2
+        self.db.commit()
+        self.assertEqual(self.client.get('/mini-app/support/session', headers=headers).status_code, 403)
+
+    def test_invalid_header_does_not_fall_back_to_cookie(self):
+        self.login(mini=True)
+        self.assertEqual(self.client.get('/mini-app/support/session', headers={'X-Help-Session': 'invalid'}).status_code, 403)
