@@ -1706,3 +1706,46 @@ button.referral-teaser { cursor: pointer; }
 .support-card textarea{resize:vertical;min-height:160px;}
 .support-card .referral-history-row p{margin:4px 0;white-space:pre-wrap;line-height:1.6;}
 #support-result{overflow-wrap:anywhere;line-height:1.6;}
+
+/* Work&PlayVPN: key actions and illustrated devices. */
+.detail-hero { border-color: color-mix(in srgb, var(--cyan) 35%, var(--border)); box-shadow: 0 12px 35px #00000018; }
+.detail-hero h1 { letter-spacing: -.04em; }
+.detail-row { padding: 13px 0; border-top: 1px solid var(--border); }
+.key-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.key-action { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 49px; padding: 10px; color: var(--text); font: inherit; font-size: 12px; border: 1px solid var(--border-strong); border-radius: 14px; background: var(--bg-soft); cursor: pointer; transition: border-color .18s, background .18s, transform .18s; }
+.key-action span { font-size: 20px; color: var(--cyan); }
+.key-action-wide { grid-column: 1 / -1; }
+.key-action:hover { border-color: var(--cyan); background: var(--surface-light); }
+.key-action:active { transform: scale(.98); }
+.key-action:disabled { opacity: .45; cursor: default; }
+.key-context-note { color: var(--text-soft); font-size: 12px; line-height: 1.6; margin: 12px 0 16px; }
+.device-card { grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 15px 12px; border: 1px solid var(--border); background: linear-gradient(115deg, #32d4c509, transparent 65%), var(--surface); }
+.device-illustration { width: 64px; height: 64px; flex: 0 0 64px; object-fit: contain; }
+.device-info { min-width: 0; }
+.device-info strong { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.device-id { font-size: 11px; overflow-wrap: anywhere; color: var(--text-soft); }
+.vacant-slot { opacity: .65; border-style: dashed; }
+.key-sheet-panel { max-height: min(88dvh, 850px); overflow-y: auto; }
+#key-sheet-status { color: var(--text-soft); font-size: 13px; line-height: 1.6; }
+.key-device-choice { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 16px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.key-device-choice > span { min-width: 0; }
+.key-device-choice strong, .key-device-choice small { display: block; overflow-wrap: anywhere; }
+.key-device-choice strong { font-size: 14px; }
+.key-device-choice small { font-size: 12px; margin-top: 4px; color: var(--text-soft); }
+.key-device-choice:hover { border-color: var(--cyan); }
+.key-qr { display: block; width: min(100%, 300px); height: auto; aspect-ratio: 1; margin: 18px auto; border-radius: 16px; background: white; padding: 10px; }
+.key-full-value { width: 100%; min-height: 145px; resize: vertical; border: 1px solid var(--border-strong); border-radius: 14px; padding: 15px; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--text); background: var(--bg-soft); overflow-wrap: anywhere; }
+.key-private-note { border-left: 2px solid var(--cyan); padding: 10px 12px; border-radius: 0 10px 10px 0; background: #32d4c508; color: var(--text-soft); font-size: 12px; line-height: 1.6; }
+#key-sheet-context { overflow-wrap: anywhere; }
+#key-sheet-back { margin: 14px 0; }
+#key-output .button { margin-top: 10px; }
+#key-sheet-done { margin-top: 12px; }
+.sheet-backdrop:not(.hidden) { animation: key-backdrop-in .18s ease-out; backdrop-filter: blur(8px); }
+.sheet-backdrop:not(.hidden) > .sheet { animation: key-sheet-in .24s cubic-bezier(.2,.8,.2,1); }
+.subscription-tile { transition: transform .18s, border-color .18s; }
+.subscription-tile:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.key-action:focus-visible, .key-device-choice:focus-visible, .icon-button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+@keyframes key-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes key-sheet-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 370px) { .device-card { grid-template-columns: 48px minmax(0,1fr); } .device-card .device-illustration { width: 48px; height: 48px; } .device-card .delete-button { grid-column: 2; justify-self: start; } }
+@media (prefers-reduced-motion: reduce) { .sheet-backdrop:not(.hidden), .sheet-backdrop:not(.hidden) > .sheet { animation: none; } .key-action, .subscription-tile { transition: none; } .subscription-tile:hover { transform: none; } }

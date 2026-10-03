@@ -409,6 +409,7 @@ function renderSubscriptionDetail() {
   document.querySelector("#detail-description").textContent = state.detailTier === "mobile"
     ? "Подключение для Wi-Fi и мобильной сети." : "Подключение для работы и любимого досуга.";
   document.querySelector("#detail-connect").disabled = !entry;
+  document.querySelectorAll("[data-key-action]").forEach((button) => { button.disabled = !entry; });
   document.querySelector("#header-avatar").textContent = (state.me?.user?.first_name || "W").slice(0, 1).toUpperCase();
 }
 
@@ -712,6 +713,27 @@ function renderPlans() {
   }
 }
 
+function deviceKind(device) {
+  const label = `${device.happ_device_model || ""} ${device.happ_device_os || ""} ${device.device_name || ""}`.toLowerCase();
+  if (/android.?tv|apple.?tv|smart.?tv|телевизор|tv\b/.test(label)) return "tv";
+  if (/ipad|tablet|планшет|galaxy tab/.test(label)) return "tablet";
+  if (/macbook|laptop|ноутбук|magicbook|thinkpad|notebook/.test(label)) return "laptop";
+  if (/windows|macos|linux|desktop|компьютер|imac/.test(label)) return "desktop";
+  if (/iphone|ios|android|phone|телефон|samsung|pixel/.test(label)) return "phone";
+  return "unknown";
+}
+
+function deviceIllustration(device) {
+  const image = document.createElement("img");
+  image.className = "device-illustration";
+  image.alt = "";
+  image.setAttribute("aria-hidden", "true");
+  image.width = 64;
+  image.height = 64;
+  image.src = `/app/assets/devices/${deviceKind(device)}.svg`;
+  return image;
+}
+
 function renderDevices() {
   elements.devicesList.replaceChildren();
   const deviceLimit = state.me.devices.total_limit;
@@ -725,9 +747,7 @@ function renderDevices() {
     const card = document.createElement("article");
     card.className = "device-card";
 
-    const icon = createIcon(
-      '<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 18h4"/>'
-    );
+    const icon = deviceIllustration(device);
 
     const info = document.createElement("div");
     info.className = "device-info";
@@ -763,7 +783,7 @@ function renderDevices() {
   for (let index = state.devices.length; index < deviceLimit; index += 1) {
     const card = document.createElement("article");
     card.className = "device-card vacant-slot";
-    const icon = createIcon('<rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 18h4"/>');
+    const icon = deviceIllustration({ device_name: "unknown" });
     const info = document.createElement("div");
     info.className = "device-info";
     const name = document.createElement("strong");
@@ -823,6 +843,128 @@ function showDeviceConnections() {
   } else {
     openSheet(elements.deviceConnectSheet);
   }
+}
+
+const keySheet = document.querySelector("#key-sheet");
+const keyOutput = document.querySelector("#key-output");
+const keyOptions = document.querySelector("#key-device-options");
+const keyStatus = document.querySelector("#key-sheet-status");
+const keyValue = document.querySelector("#key-full-value");
+const keyQR = document.querySelector("#key-qr-image");
+let keyMode = "full";
+let keyData = null;
+let keyRequest = 0;
+let keyReturnFocus = null;
+
+function clearKeyOutput() {
+  keyRequest += 1;
+  keyData = null;
+  keyValue.value = "";
+  keyQR.removeAttribute("src");
+  keyOutput.classList.add("hidden");
+  document.querySelector("#key-sheet-copy").textContent = "Скопировать ключ";
+}
+
+function closeKeySheet() {
+  closeSheet(keySheet);
+}
+
+async function copyDisplayedKey() {
+  if (!keyData) return;
+  try {
+    await navigator.clipboard.writeText(keyData.url);
+    document.querySelector("#key-sheet-copy").textContent = "Скопировано ✓";
+    showToast("Ключ подключения скопирован.");
+    haptic("light");
+  } catch {
+    keyValue.classList.remove("hidden");
+    keyValue.focus();
+    keyValue.select();
+    keyStatus.textContent = "Буфер обмена недоступен. Выделите ключ и скопируйте вручную.";
+  }
+}
+
+async function loadDeviceKey(deviceId, label) {
+  clearKeyOutput();
+  const request = keyRequest;
+  const tier = state.detailTier;
+  keyOptions.replaceChildren();
+  document.querySelector("#key-sheet-back").classList.remove("hidden");
+  keyStatus.textContent = "Получаем ваш ключ…";
+  document.querySelector("#key-sheet-context").textContent = `${tierLabel(tier)} · ${label}`;
+  try {
+    const query = deviceId == null ? "" : `?device_id=${encodeURIComponent(deviceId)}`;
+    const result = await api(`/mini-app/keys/${tier}${query}`, { cache: "no-store" });
+    if (request !== keyRequest || keySheet.classList.contains("hidden")) return;
+    keyData = result;
+    keyValue.value = result.url;
+    keyValue.classList.toggle("hidden", keyMode !== "full");
+    keyQR.classList.toggle("hidden", keyMode !== "qr");
+    if (keyMode === "qr") keyQR.src = result.qr_data_url;
+    keyOutput.classList.remove("hidden");
+    keyStatus.textContent = keyMode === "qr" ? "Отсканируйте код в Happ на выбранном устройстве." : "Ключ готов. Его можно скопировать и добавить в Happ.";
+    if (keyMode === "copy") await copyDisplayedKey();
+  } catch (error) {
+    if (request !== keyRequest) return;
+    keyStatus.textContent = humanError(error);
+  }
+}
+
+function chooseKeyDevice() {
+  clearKeyOutput();
+  keyOptions.replaceChildren();
+  document.querySelector("#key-sheet-context").textContent = `${tierLabel(state.detailTier)} · Ключ подключения`;
+  document.querySelector("#key-sheet-title").textContent = keyMode === "qr" ? "QR-код ключа" : keyMode === "copy" ? "Скопировать ключ" : "Полный ключ";
+  document.querySelector("#key-sheet-back").classList.add("hidden");
+  keyStatus.textContent = "Выберите устройство, для которого нужен ключ.";
+  const map = state.detailTier === "basic" ? state.me.basic_device_connect_urls : state.me.auto_connect_urls;
+  for (const device of state.devices) {
+    if (!map?.[device.id]) continue;
+    const label = device.happ_device_model || device.device_name;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "key-device-choice";
+    const copy = document.createElement("span");
+    const title = document.createElement("strong");
+    title.textContent = label;
+    const hint = document.createElement("small");
+    hint.textContent = device.happ_device_os || `ID: ${device.public_id}`;
+    copy.append(title, hint);
+    button.append(deviceIllustration(device), copy);
+    button.addEventListener("click", () => loadDeviceKey(device.id, label));
+    keyOptions.append(button);
+  }
+  if (!keyOptions.childElementCount && state.detailTier === "mobile" && state.devices.length && !Object.keys(map || {}).length && state.me.connect_urls?.mobile) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button-secondary button-wide";
+    button.textContent = "Ключ подписки Mobile";
+    button.addEventListener("click", () => loadDeviceKey(null, "Подписка"));
+    keyOptions.append(button);
+  }
+  if (!keyOptions.childElementCount) {
+    keyStatus.textContent = "Сначала подключите устройство через Happ. После этого здесь появится его ключ.";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "button button-primary button-wide";
+    button.textContent = "Перейти к подключению";
+    button.addEventListener("click", () => { closeKeySheet(); showDeviceConnections(); });
+    keyOptions.append(button);
+  }
+}
+
+function showKeySheet(mode, trigger) {
+  keyMode = mode;
+  keyReturnFocus = trigger;
+  chooseKeyDevice();
+  openSheet(keySheet);
+  document.querySelector("#key-sheet-close").focus();
+}
+
+function handleMiniAppBack() {
+  const sheet = [keySheet, elements.confirmSheet, elements.regionSuccessSheet, elements.deviceConnectSheet, elements.locationSheet, elements.slotSheet].find((item) => !item.classList.contains("hidden"));
+  if (sheet) { closeSheet(sheet); return; }
+  setView(state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : state.view === "support" ? "help" : "home");
 }
 
 function renderRegion() {
@@ -890,13 +1032,21 @@ function openSheet(sheet) {
 
 function closeSheet(sheet) {
   sheet.classList.add("hidden");
+  if (sheet === keySheet) {
+    clearKeyOutput();
+    keyOptions.replaceChildren();
+    keyStatus.textContent = "";
+    keyReturnFocus?.focus();
+    keyReturnFocus = null;
+  }
 
   if (
     elements.locationSheet.classList.contains("hidden") &&
     elements.slotSheet.classList.contains("hidden") &&
     elements.deviceConnectSheet.classList.contains("hidden") &&
     elements.regionSuccessSheet.classList.contains("hidden") &&
-    elements.confirmSheet.classList.contains("hidden")
+    elements.confirmSheet.classList.contains("hidden") &&
+    keySheet.classList.contains("hidden")
   ) {
     document.body.style.overflow = "";
   }
@@ -1196,7 +1346,7 @@ function initializeTelegram() {
     applyTheme();
 
     if (!state.telegramEventsBound) {
-      telegram.BackButton?.onClick(() => setView(state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : state.view === "support" ? "help" : "home"));
+      telegram.BackButton?.onClick(handleMiniAppBack);
       telegram.onEvent?.("activated", () => loadData());
       telegram.onEvent?.("themeChanged", applyTheme);
       state.telegramEventsBound = true;
@@ -1260,6 +1410,7 @@ elements.confirmCancel.addEventListener("click", () => {
 elements.confirmDelete.addEventListener("click", removeDevice);
 
 for (const sheet of [
+  keySheet,
   elements.locationSheet,
   elements.slotSheet,
   elements.deviceConnectSheet,
@@ -1278,6 +1429,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
+  closeKeySheet();
   closeSheet(elements.locationSheet);
   closeSheet(elements.slotSheet);
   closeSheet(elements.deviceConnectSheet);
@@ -1376,3 +1528,22 @@ document.querySelector("#referral-withdraw-form").addEventListener("submit",asyn
 });
 
 initializeTelegram();
+
+
+// Key values stay in memory and are discarded whenever the dialog closes.
+document.querySelectorAll("[data-key-action]").forEach((button) => {
+  button.addEventListener("click", () => showKeySheet(button.dataset.keyAction, button));
+});
+document.querySelector("#key-sheet-close").addEventListener("click", closeKeySheet);
+document.querySelector("#key-sheet-done").addEventListener("click", closeKeySheet);
+document.querySelector("#key-sheet-copy").addEventListener("click", copyDisplayedKey);
+document.querySelector("#key-sheet-back").addEventListener("click", chooseKeyDevice);
+document.querySelector("#key-sheet-happ").addEventListener("click", () => { if (keyData) openExternal(keyData.url); });
+keySheet.addEventListener("keydown", (event) => {
+  if (event.key !== "Tab") return;
+  const controls = [...keySheet.querySelectorAll("button, textarea")].filter((item) => !item.disabled && item.getClientRects().length);
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});

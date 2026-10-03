@@ -7,12 +7,12 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20261003-2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261003-6">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   <script src="/app/assets/knowledge-ui.js?v=20261003-3" defer></script>
   <script src="/app/assets/help-access.js?v=20261003-5" defer></script>
   <script src="/app/assets/support.js?v=20261003-4" defer></script>
-  <script src="/app/assets/app.js?v=20261003-5" defer></script>
+  <script src="/app/assets/app.js?v=20261003-6" defer></script>
   <link rel="stylesheet" href="/app/assets/knowledge.css?v=20261003-4">
 </head>
 <body>
@@ -195,7 +195,7 @@
 
       <section id="view-devices" class="view" aria-labelledby="devices-title">
         <button class="text-button detail-back" type="button" data-view-link="subscriptions">← Мои подписки</button>
-        <article class="connection-hero detail-hero"><div class="connection-orbit" aria-hidden="true"></div><p class="eyebrow">Work&amp;PlayVPN</p><h1 id="detail-tier-name">Подписка</h1><p id="detail-description"></p><div class="detail-row"><span>Действует до</span><strong id="detail-expiry">—</strong></div><button id="detail-connect" class="button button-primary button-wide" type="button">Подключить через Happ</button><button id="detail-renew" class="button button-secondary button-wide" type="button">Продлить подписку</button></article>
+        <article class="connection-hero detail-hero"><div class="connection-orbit" aria-hidden="true"></div><p class="eyebrow">Work&amp;PlayVPN</p><h1 id="detail-tier-name">Подписка</h1><p id="detail-description"></p><div class="detail-row"><span>Действует до</span><strong id="detail-expiry">—</strong></div><button id="detail-connect" class="button button-primary button-wide" type="button">Подключить через Happ</button><div class="key-actions" aria-label="Действия с ключом"><button class="key-action" type="button" data-key-action="copy"><span aria-hidden="true">⧉</span>Скопировать ключ</button><button class="key-action" type="button" data-key-action="qr"><span aria-hidden="true">▦</span>QR-код</button><button class="key-action key-action-wide" type="button" data-key-action="full"><span aria-hidden="true">⌕</span>Показать полный ключ</button></div><p class="key-context-note">Ключ подключения VPN для выбранной подписки. Это не ключ входа в помощь. Устройства и их лимит общие для Basic и Mobile.</p><button id="detail-renew" class="button button-secondary button-wide" type="button">Продлить подписку</button></article>
         <div class="section-head section-head-row">
           <div>
             <p class="eyebrow">Общие для Basic и Mobile</p>
@@ -335,6 +335,24 @@
       </div>
       <div id="device-connect-list" class="device-connect-list"></div>
       <button id="connect-new-device" class="button button-primary button-wide" type="button">Подключить новое устройство</button>
+    </div>
+  </div>
+
+  <div id="key-sheet" class="sheet-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="key-sheet-title">
+    <div class="sheet sheet-small key-sheet-panel">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head"><div><p id="key-sheet-context" class="eyebrow">Ключ подключения</p><h2 id="key-sheet-title">Ваш ключ</h2></div><button id="key-sheet-close" class="icon-button" type="button" aria-label="Закрыть окно ключа">×</button></div>
+      <p id="key-sheet-status" role="status"></p>
+      <div id="key-device-options" class="device-connect-list"></div>
+      <div id="key-output" class="hidden">
+        <img id="key-qr-image" class="key-qr hidden" alt="QR-код ключа подключения">
+        <textarea id="key-full-value" class="key-full-value hidden" readonly aria-label="Полный ключ подключения" spellcheck="false"></textarea>
+        <p class="key-private-note">🔐 Этот ключ даёт доступ к VPN. Используйте его только на своих устройствах.</p>
+        <button id="key-sheet-copy" class="button button-primary button-wide" type="button">Скопировать ключ</button>
+        <button id="key-sheet-happ" class="button button-secondary button-wide" type="button">Инструкция и подключение в Happ →</button>
+      </div>
+      <button id="key-sheet-back" class="text-button hidden" type="button">← Выбрать другое устройство</button>
+      <button id="key-sheet-done" class="button button-secondary button-wide" type="button">Закрыть</button>
     </div>
   </div>
 

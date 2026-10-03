@@ -1,6 +1,11 @@
 from app.services.catalog import available_plans
 from app.services.device_slots import device_slot_offers
 from datetime import UTC, datetime
+from base64 import b64encode
+from io import BytesIO
+
+import qrcode
+from qrcode.image.svg import SvgPathImage
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -771,3 +776,39 @@ def get_slot_offers(
     database: Annotated[Session, Depends(get_db)],
 ):
     return device_slot_offers(database, auth.user.id)
+
+
+@router.get("/keys/{tier}")
+def get_mini_app_key(
+    tier: str,
+    response: Response,
+    auth: Annotated[TelegramWebAppAuthResult, Depends(require_telegram_webapp_auth)],
+    database: Annotated[Session, Depends(get_db)],
+    device_id: int | None = None,
+) -> dict[str, str]:
+    """Return only the caller's active tier/device link; never accept a raw URL."""
+    if tier not in {"basic", "mobile"}:
+        raise HTTPException(status_code=404, detail="Unknown subscription tier")
+    me = get_me(auth=auth, database=database)
+    if not any(item.access_tier == tier and item.status == "active" for item in me.subscriptions):
+        raise HTTPException(status_code=403, detail="Subscription is not active")
+    links = me.basic_device_connect_urls if tier == "basic" else me.auto_connect_urls
+    if device_id is not None:
+        url = links.get(str(device_id))
+        if not url:
+            raise HTTPException(status_code=404, detail="Device key is not available")
+    else:
+        # Legacy Mobile subscriptions have a shared link rather than per-device auto routing.
+        if tier != "mobile" or links or me.devices.active_count == 0:
+            raise HTTPException(status_code=409, detail="Select a connected device")
+        url = me.connect_urls.get(tier)
+    if not url:
+        raise HTTPException(status_code=404, detail="Key is not available")
+    code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=4)
+    code.add_data(url)
+    code.make(fit=True)
+    output = BytesIO()
+    code.make_image(image_factory=SvgPathImage).save(output)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Vary"] = "X-Telegram-Init-Data"
+    return {"url": url, "qr_data_url": "data:image/svg+xml;base64," + b64encode(output.getvalue()).decode("ascii")}
