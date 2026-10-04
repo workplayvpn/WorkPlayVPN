@@ -66,10 +66,28 @@ def key_client(monkeypatch):
     monkeypatch.setattr(mini_app, "get_me", lambda **kwargs: me)
     previous = dict(app.dependency_overrides)
     app.dependency_overrides[require_telegram_webapp_auth] = lambda: SimpleNamespace(user=SimpleNamespace(id=123))
-    app.dependency_overrides[get_db] = lambda: None
+    from sqlalchemy import create_engine, MetaData, Integer
+    from sqlalchemy.orm import Session
+    from sqlalchemy.pool import StaticPool
+    from app.models.user import User
+    from app.models.location import Location
+    from app.models.happ_import_link import HappImportLink
+    metadata = MetaData()
+    for model in (Location, User, HappImportLink):
+        table = model.__table__.to_metadata(metadata)
+        if "id" in table.c:
+            table.c.id.type = Integer()
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    metadata.create_all(engine)
+    database = Session(engine)
+    database.add(User(id=123, telegram_id=123))
+    database.commit()
+    app.dependency_overrides[get_db] = lambda: database
     yield TestClient(app), me
     app.dependency_overrides.clear()
     app.dependency_overrides.update(previous)
+    database.close()
+    engine.dispose()
 
 
 @pytest.mark.parametrize("tier", ["basic", "mobile"])
@@ -164,3 +182,15 @@ def test_device_instruction_links_are_not_used_for_account_keys(key_client):
     me.basic_device_connect_urls["11"] = "https://other.example/device/11/token"
     assert client.get("/mini-app/keys/basic?device_id=11").status_code == 200
     assert me.crypto_inputs == ['https://feed.example/sub/basic-owner-token']
+
+
+@pytest.mark.parametrize("tier", ["basic", "mobile"])
+def test_repeated_mini_app_and_bot_requests_share_persisted_key(key_client, tier):
+    client, me = key_client
+    first = client.get(f"/mini-app/keys/{tier}").json()
+    for _ in range(3):
+        assert client.get(f"/mini-app/keys/{tier}").json() == first
+        bot = client.get(f"/subscription-tokens/happ/{tier}?telegram_id=123",
+                         headers={"Authorization": "Bearer " + settings.internal_api_secret})
+        assert bot.status_code == 200 and bot.json()["url"] == first["url"]
+    assert me.crypto_inputs == [f"https://feed.example/sub/{tier}-owner-token"]

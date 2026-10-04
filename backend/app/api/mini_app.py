@@ -1,4 +1,5 @@
 from app.services.happ_crypt_link import encrypted_happ_link
+from app.services.happ_import_link import stable_happ_import_link
 from app.services.branded_qr import qr_svg
 from app.services.catalog import available_plans
 from app.services.device_slots import device_slot_offers
@@ -798,7 +799,10 @@ def get_mini_app_key(
     raw = subscription_token_service.scoped_token(token, tier)
     feed_url = settings.subscription_base_url.rstrip("/") + "/" + raw
     try:
-        import_url = encrypted_happ_link(feed_url)
+        import_url = stable_happ_import_link(
+            database, user_id=token.user_id, access_tier=tier,
+            subscription_url=feed_url, encrypt=encrypted_happ_link,
+        )
     except (httpx.HTTPError, ValueError) as exc:
         raise HTTPException(
             status_code=503,
