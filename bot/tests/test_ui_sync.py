@@ -19,7 +19,10 @@ def response(payload, status=200):
 
 
 def callback(data):
-    return SimpleNamespace(data=data, from_user=SimpleNamespace(id=123), answer=AsyncMock(), message=MagicMock(), id='offline-check')
+    message = MagicMock()
+    message.chat.type = 'private'
+    message.answer = AsyncMock()
+    return SimpleNamespace(data=data, from_user=SimpleNamespace(id=123), answer=AsyncMock(), message=message, id='offline-check')
 
 
 ACTIVE={'status':'active','total_device_limit':5,'active_subscriptions':[
@@ -105,10 +108,12 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(any('standard_' in (r[0].callback_data or '') for r in rows))
 
     async def test_qr_uses_selected_tier_link(self):
-        for tier,url in [('basic','https://test/basic'),('mobile','https://test/mobile')]:
-            with patch.object(subscription,'_load_subscription_data',AsyncMock(return_value=(ACTIVE,[],None))), patch.object(subscription,'_get_token',AsyncMock(return_value={'subscription_url':'https://test/basic','mobile_subscription_url':'https://test/mobile'})), patch.object(subscription,'edit_screen',AsyncMock()), patch.object(subscription.qrcode,'make') as qr:
-                await subscription.show_subscription_qr(callback(f'subscription_qr:{tier}'))
-                qr.assert_called_once_with(url)
+        for tier in ('basic', 'mobile'):
+            payload = {'url': 'happ://crypt5/' + tier, 'qr_png_base64': 'cG5n'}
+            with patch.object(subscription,'_load_subscription_data',AsyncMock(return_value=(ACTIVE,[{'id':11}],None))), patch.object(subscription,'backend_get',AsyncMock(return_value=response(payload))) as request, patch.object(subscription,'edit_screen',AsyncMock()) as screen:
+                await subscription.show_subscription_qr(callback(f'subscription_qr:{tier}:11'))
+                request.assert_awaited_once_with(f'/subscription-tokens/happ/{tier}?telegram_id=123&device_id=11')
+                self.assertEqual(screen.call_args.kwargs['photo'].data, b'png')
 
     async def test_legacy_qr_requests_tier_choice(self):
         with patch.object(subscription,'_load_subscription_data',AsyncMock(return_value=(ACTIVE,[],None))),patch.object(subscription,'_get_token',AsyncMock()) as token,patch.object(subscription,'edit_screen',AsyncMock()) as screen:

@@ -1,7 +1,12 @@
 from sqlalchemy import select
 from app.models.vpn_device import VpnDevice
 from app.api.happ_auto_route import auto_route_allowed
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
+from base64 import b64encode
+from datetime import UTC, datetime
+from app.api.mini_app import get_mini_app_key
+from app.services.branded_qr import qr_png
+from app.services.telegram_webapp_auth import TelegramWebAppAuthResult, TelegramWebAppUser
 from sqlalchemy.orm import Session
 
 from app.api.internal_auth import require_internal_api_secret
@@ -24,6 +29,19 @@ router = APIRouter(
         Depends(require_internal_api_secret),
     ],
 )
+
+
+@router.get("/happ/{tier}")
+def get_bot_happ_key(tier: str, telegram_id: int, response: Response,
+                     device_id: int | None = None, database: Session = Depends(get_db)):
+    """Internal bot calls only: Telegram sender ID, never a client-supplied URL."""
+    auth = TelegramWebAppAuthResult(
+        user=TelegramWebAppUser(id=telegram_id, first_name=""), auth_date=datetime.now(UTC))
+    data = get_mini_app_key(tier=tier, response=response, auth=auth,
+                            database=database, device_id=device_id)
+    if "Vary" in response.headers:
+        del response.headers["Vary"]
+    return {"url": data["url"], "qr_png_base64": b64encode(qr_png(data["url"])).decode("ascii")}
 
 
 def build_token_response(

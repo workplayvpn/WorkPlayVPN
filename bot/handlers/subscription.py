@@ -1,13 +1,14 @@
 from datetime import datetime
-from io import BytesIO
+from base64 import b64decode
+from html import escape
 import httpx
-import qrcode
 from aiogram import F, Router
 from aiogram.types import BufferedInputFile
 from api.backend import backend_get, backend_post
 from ui.helpers import edit_screen
 from ui.main import main_menu
 from ui.subscription import build_subscription_keyboard, build_subscription_secret_keyboard, build_tier_keyboard, tier_name
+from ui.subscription import build_key_device_keyboard
 
 router = Router(name="subscription")
 
@@ -72,10 +73,14 @@ async def _get_token(telegram_id):
 
 async def _secret(callback, qr=False):
     await callback.answer()
+    if not callback.message or callback.message.chat.type != "private":
+        return
     try:
-        subscription, _, _ = await _load_subscription_data(callback.from_user.id)
+        subscription, devices, _ = await _load_subscription_data(callback.from_user.id)
         tiers=_tiers(subscription)
-        tier=callback.data.split(":",1)[1] if ":" in callback.data else None
+        parts = callback.data.split(":")
+        tier = parts[1] if len(parts) > 1 else None
+        device_id = int(parts[2]) if len(parts) == 3 else None
         if tier is None:
             await edit_screen(callback, "Выберите подписку для QR-кода:" if qr else "Выберите подписку для ключа:",
                               build_tier_keyboard(tiers, "subscription_qr" if qr else "subscription_key"))
@@ -83,17 +88,35 @@ async def _secret(callback, qr=False):
         if tier not in tiers:
             await edit_screen(callback, "Подписка неактивна. Откройте каталог.", build_subscription_keyboard(active=False))
             return
-        token=await _get_token(callback.from_user.id)
-        url=(token or {}).get("mobile_subscription_url" if tier == "mobile" else "subscription_url")
-        if not url: raise ValueError("Missing subscription link")
+        if not devices:
+            await edit_screen(callback, "Сначала подключите устройство через Mini App.",
+                              build_subscription_keyboard(active=True, tier=tier))
+            return
+        if device_id is None:
+            await edit_screen(callback, "Выберите устройство для ключа Happ:",
+                              build_key_device_keyboard(devices, tier, qr))
+            return
+        if not any(int(device['id']) == device_id for device in devices):
+            raise ValueError("Unknown device")
+        result = await backend_get(f"/subscription-tokens/happ/{tier}?telegram_id={callback.from_user.id}&device_id={device_id}")
+        if tier == "mobile" and result.status_code == 404:
+            result = await backend_get(f"/subscription-tokens/happ/{tier}?telegram_id={callback.from_user.id}")
+        result.raise_for_status()
+        data = result.json()
+        url = data['url']
+        if not url.startswith("happ://crypt5/"):
+            raise ValueError("Invalid Happ import key")
         keyboard=build_subscription_secret_keyboard(copy_value=url, tier=tier)
         if qr:
-            buffer=BytesIO()
-            qrcode.make(url).save(buffer, format="PNG")
             await edit_screen(callback, f"📷 QR-код {tier_name(tier)}\n\nОтсканируйте в Happ на доверенном устройстве. Не передавайте другим людям.", keyboard,
-                              photo=BufferedInputFile(buffer.getvalue(), filename=f"subscription-{tier}.png"))
+                              photo=BufferedInputFile(b64decode(data['qr_png_base64'], validate=True), filename=f"subscription-{tier}.png"))
         else:
-            await edit_screen(callback, f"🔑 Ваш ключ доступа · {tier_name(tier)}\n\nНажмите кнопку, чтобы скопировать ссылку. Не передавайте её другим людям.", keyboard)
+            await edit_screen(callback, f"🔑 Ключ Happ · {tier_name(tier)}\n\nПолный ключ отправлен следующим сообщением. Его можно скопировать из блока кода или через Mini App. Не передавайте другим людям.", keyboard)
+            if len(url) <= 3900:
+                await callback.message.answer(f"<code>{escape(url)}</code>", parse_mode="HTML")
+            else:
+                await callback.message.answer_document(BufferedInputFile(url.encode(), filename="happ-key.txt"),
+                    caption="Полный ключ Happ. Скопируйте содержимое файла целиком.")
     except (httpx.HTTPError, ValueError, KeyError):
         await edit_screen(callback, "⚠️ Не удалось получить ссылку. Попробуйте позже.", build_subscription_secret_keyboard())
 

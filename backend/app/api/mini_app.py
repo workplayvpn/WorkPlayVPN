@@ -1,13 +1,12 @@
 from app.services.happ_crypt_link import encrypted_happ_link
+from app.services.branded_qr import qr_svg
 from app.services.catalog import available_plans
 from app.services.device_slots import device_slot_offers
 from datetime import UTC, datetime
 from base64 import b64encode
-from io import BytesIO
 
-import qrcode
 import httpx
-from qrcode.image.svg import SvgPathImage
+from qrcode.exceptions import DataOverflowError
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -819,11 +818,10 @@ def get_mini_app_key(
             status_code=503,
             detail="Happ encrypted import is temporarily unavailable",
         ) from exc
-    code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=4)
-    code.add_data(import_url)
-    code.make(fit=True)
-    output = BytesIO()
-    code.make_image(image_factory=SvgPathImage).save(output)
+    try:
+        qr_data = qr_svg(import_url)
+    except DataOverflowError as exc:
+        raise HTTPException(status_code=503, detail="Happ key is too large for QR") from exc
     response.headers["Cache-Control"] = "no-store"
     response.headers["Vary"] = "X-Telegram-Init-Data"
-    return {"url": import_url, "qr_data_url": "data:image/svg+xml;base64," + b64encode(output.getvalue()).decode("ascii")}
+    return {"url": import_url, "qr_data_url": "data:image/svg+xml;base64," + b64encode(qr_data).decode("ascii")}

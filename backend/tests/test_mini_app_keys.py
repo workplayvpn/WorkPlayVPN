@@ -8,6 +8,32 @@ import qrcode
 from fastapi.testclient import TestClient
 
 from app.api import mini_app
+
+
+def test_bot_endpoint_requires_internal_credentials(key_client):
+    client, _ = key_client
+    assert client.get('/subscription-tokens/happ/basic?telegram_id=123&device_id=11').status_code in (401, 403)
+
+
+@pytest.mark.parametrize('tier', ['basic', 'mobile'])
+def test_bot_endpoint_uses_same_owned_key_and_png(key_client, tier):
+    from app.core.config import settings
+    client, me = key_client
+    result = client.get(f'/subscription-tokens/happ/{tier}?telegram_id=123&device_id=11',
+                        headers={'Authorization': 'Bearer '+settings.internal_api_secret})
+    assert result.status_code == 200
+    assert result.json()['url'] == 'happ://crypt5/'+('basicCipher' if tier == 'basic' else 'mobileCipher')
+    assert base64.b64decode(result.json()['qr_png_base64']).startswith(b'\x89PNG\r\n\x1a\n')
+    assert result.headers['cache-control'] == 'no-store'
+    assert 'owner-token' not in result.text
+
+
+def test_bot_endpoint_rejects_foreign_device(key_client):
+    from app.core.config import settings
+    client, _ = key_client
+    result = client.get('/subscription-tokens/happ/basic?telegram_id=123&device_id=999',
+                        headers={'Authorization': 'Bearer '+settings.internal_api_secret})
+    assert result.status_code == 404
 from app.api.telegram_webapp_auth import require_telegram_webapp_auth
 from app.db.dependencies import get_db
 from app.main import app

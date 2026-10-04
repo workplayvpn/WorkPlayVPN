@@ -35,7 +35,19 @@ def build_subscription_keyboard(*, active, connect_url=None, mobile_connect_url=
 def build_subscription_secret_keyboard(copy_value=None, mobile_copy_value=None, *, tier=None):
     rows=[]
     for label, value in ((tier_name(tier or "basic"), copy_value), ("Mobile", mobile_copy_value)):
-        if value and not any(row[0].copy_text.text == value for row in rows):
+        if value and len(value) <= 256 and not any(row[0].copy_text and row[0].copy_text.text == value for row in rows):
             rows.append([InlineKeyboardButton(text=f"📋 Скопировать {label}", copy_text=CopyTextButton(text=value))])
+        elif value:
+            rows.append([InlineKeyboardButton(text="📋 Копирование в Mini App", web_app=WebAppInfo(
+                url=mini_app_url+('&' if '?' in mini_app_url else '?')+'view=subscriptions'))])
     rows.append([InlineKeyboardButton(text="← К подписке", callback_data=f"subscription_tier:{tier}" if tier else "subscription")])
     return build_keyboard(inline_keyboard=rows)
+
+
+def build_key_device_keyboard(devices, tier, qr=False):
+    action = "subscription_qr" if qr else "subscription_key"
+    return build_keyboard(inline_keyboard=[
+        [InlineKeyboardButton(text=device.get("device_name") or "Устройство",
+            callback_data=f"{action}:{tier}:{int(device['id'])}")]
+        for device in devices
+    ] + [[InlineKeyboardButton(text="← К подписке", callback_data=f"subscription_tier:{tier}")]])
