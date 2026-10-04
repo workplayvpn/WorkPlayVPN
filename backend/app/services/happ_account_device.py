@@ -59,9 +59,6 @@ def resolve_happ_account_device(
             raise HTTPException(409, "Installation already registered on another device")
     elif active_matches:
         device = active_matches[0]
-    elif matches:
-        # Deletion revokes credentials and must not silently re-enroll the HWID.
-        raise HTTPException(403, "Device was removed; add it again from your account")
     else:
         # Unidentified legacy rows are not silently assigned to a stranger.
         # Bind them using their existing per-device instruction link instead.

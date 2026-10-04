@@ -131,15 +131,28 @@ def test_missing_or_invalid_hwid_never_returns_any_device(account_db, hwid):
     assert exc.value.status_code == 403 and count(db) == 0 and calls == []
 
 
-def test_removed_device_does_not_silently_reenroll(account_db):
+def test_removed_device_reenrolls_with_new_credentials_and_one_shared_slot(account_db):
+    db, user, calls = account_db
+    one = service.resolve_happ_account_device(db, user.id, "basic", headers())
+    old_id, old_uuid, old_mobile_uuid = one.id, one.xray_uuid, one.mobile_xray_uuid
+    vpn_device_service.remove_device(db, user.telegram_id, one.id)
+    replacement = service.resolve_happ_account_device(db, user.id, "basic", headers())
+    assert replacement.id != old_id and replacement.xray_uuid != old_uuid
+    assert replacement.mobile_xray_uuid != old_mobile_uuid and count(db) == 1
+    assert service.resolve_happ_account_device(db, user.id, "mobile", headers()).id == replacement.id
+    assert count(db) == 1
+
+
+def test_removed_device_cannot_reenroll_after_another_device_takes_last_slot(account_db):
     db, user, calls = account_db
     one = service.resolve_happ_account_device(db, user.id, "basic", headers())
     vpn_device_service.remove_device(db, user.telegram_id, one.id)
+    for hwid in ["second", "third", "fourth"]:
+        service.resolve_happ_account_device(db, user.id, "basic", headers(hwid))
+    before = len(calls)
     with pytest.raises(HTTPException) as exc:
         service.resolve_happ_account_device(db, user.id, "basic", headers())
-    assert exc.value.status_code == 403 and count(db) == 0
-    other = service.resolve_happ_account_device(db, user.id, "basic", headers("other"))
-    assert other.xray_uuid != one.xray_uuid and count(db) == 1
+    assert exc.value.status_code == 409 and count(db) == 3 and len(calls) == before
 
 
 def test_other_accounts_cannot_bind_a_foreign_device(account_db):
@@ -284,3 +297,25 @@ def test_postgres_concurrent_imports_serialize_the_last_slot(monkeypatch, same_h
             db.execute(delete(VpnNode).where(VpnNode.id == node_id))
             db.execute(delete(Plan).where(Plan.id == plan_id))
             db.commit()
+
+
+@pytest.mark.parametrize("path", ["/sub/basic", "/sub/mobile", "/sub/auto/routed/mobile", "/sub/auto/mobile"])
+def test_full_account_returns_notice_without_credentials_then_recovers(feed_client, path):
+    import json
+    from app.services.happ_device_limit_response import LIMIT_MESSAGE
+    get, db = feed_client
+    for hwid in ["first", "second", "third"]:
+        assert get(path, headers(hwid)).status_code == 200
+    response = get(path, headers("fourth"))
+    assert response.status_code == 200 and count(db) == 3
+    assert base64.b64decode(response.headers["announce"].split(":", 1)[1]).decode() == LIMIT_MESSAGE
+    config = json.loads(response.body)[0]
+    assert config["outbounds"] == [{"tag": "blocked", "protocol": "blackhole", "settings": {}}]
+    assert "vless" not in response.body.decode() and "uuid" not in response.body.decode()
+    # Existing installations still receive their real profile at full capacity.
+    assert b'blackhole' not in get(path, headers("first")).body
+    user = db.get(User, 1)
+    user.extra_device_slots = 1
+    db.commit()
+    assert b'blackhole' not in get(path, headers("fourth")).body
+    assert count(db) == 4

@@ -22,6 +22,7 @@ from app.services.happ_subscription_info import subscription_presentation
 from app.services.happ_subscription_info import hidden_settings_metadata, happ_server_description
 from app.services.happ_device_metadata import record_happ_device_metadata
 from app.services.happ_account_device import resolve_happ_account_device
+from app.services.happ_device_limit_response import device_limit_response, is_device_limit_error
 from app.api.happ_auto_route import auto_route_allowed, get_routed_mobile_subscription
 from app.services.subscription_builder import (
     subscription_builder,
@@ -232,9 +233,15 @@ def _build_subscription_feed(
 
     registered_device = None
     if settings.happ_account_device_registration_enabled:
-        registered_device = resolve_happ_account_device(
-            database, user.id, access_tier, request.headers, device_id=device_id,
-        )
+        try:
+            registered_device = resolve_happ_account_device(
+                database, user.id, access_tier, request.headers, device_id=device_id,
+            )
+        except HTTPException as error:
+            if not is_device_limit_error(error):
+                raise
+            database.rollback()
+            return device_limit_response(access_tier)
 
     devices = database.scalars(
         select(VpnDevice)

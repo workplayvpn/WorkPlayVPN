@@ -21,6 +21,7 @@ from app.services.happ_subscription_info import (
 from app.services.happ_smart_routing import build_happ_smart_routing_link
 from app.services.happ_device_metadata import record_happ_device_metadata
 from app.services.happ_account_device import resolve_happ_account_device
+from app.services.happ_device_limit_response import device_limit_response, is_device_limit_error
 from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
@@ -87,10 +88,16 @@ def _build_response(
 
     registered_device = None
     if settings.happ_account_device_registration_enabled:
-        registered_device = resolve_happ_account_device(
-            database, user.id, tier, request.headers if request is not None else {},
-            device_id=device_id,
-        )
+        try:
+            registered_device = resolve_happ_account_device(
+                database, user.id, tier, request.headers if request is not None else {},
+                device_id=device_id,
+            )
+        except HTTPException as error:
+            if not is_device_limit_error(error):
+                raise
+            database.rollback()
+            return device_limit_response(tier)
 
     query = select(VpnDevice).where(
         VpnDevice.user_id == user.id,
