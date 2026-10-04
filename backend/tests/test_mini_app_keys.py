@@ -11,6 +11,8 @@ from app.api import mini_app
 from app.api.telegram_webapp_auth import require_telegram_webapp_auth
 from app.db.dependencies import get_db
 from app.main import app
+from app.core.config import settings
+import httpx
 
 
 @pytest.fixture
@@ -22,6 +24,15 @@ def key_client(monkeypatch):
         connect_urls={"mobile": "https://connect.example/mobile-owner-token"},
         devices=SimpleNamespace(active_count=1),
     )
+    monkeypatch.setattr(settings, "connect_base_url", "https://connect.example")
+    monkeypatch.setattr(settings, "subscription_base_url", "https://feed.example/sub")
+    me.crypto_inputs = []
+
+    def encrypt(feed_url):
+        me.crypto_inputs.append(feed_url)
+        return "happ://crypt5/" + ("mobileCipher" if "mobile-owner-token" in feed_url else "basicCipher")
+
+    monkeypatch.setattr(mini_app, "encrypted_happ_link", encrypt)
     monkeypatch.setattr(mini_app, "get_me", lambda **kwargs: me)
     previous = dict(app.dependency_overrides)
     app.dependency_overrides[require_telegram_webapp_auth] = lambda: SimpleNamespace(user=SimpleNamespace(id=123))
@@ -46,7 +57,11 @@ def test_key_qr_matches_selected_tier_and_device(key_client, tier, monkeypatch):
     assert response.status_code == 200
     data = response.json()
     links = me.basic_device_connect_urls if tier == "basic" else me.auto_connect_urls
-    assert data["url"] == links["11"]
+    expected_feed = links["11"].replace("https://connect.example/", "https://feed.example/sub/", 1)
+    assert me.crypto_inputs == [expected_feed]
+    assert data["url"] == "happ://crypt5/" + ("basicCipher" if tier == "basic" else "mobileCipher")
+    assert "owner-token" not in response.text
+    assert "https://feed.example" not in response.text
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["vary"] == "X-Telegram-Init-Data"
     svg = base64.b64decode(data["qr_data_url"].split(",", 1)[1])
@@ -82,7 +97,8 @@ def test_legacy_mobile_shared_link(key_client):
     me.auto_connect_urls = {}
     response = client.get("/mini-app/keys/mobile")
     assert response.status_code == 200
-    assert response.json()["url"] == me.connect_urls["mobile"]
+    assert response.json()["url"] == "happ://crypt5/mobileCipher"
+    assert me.crypto_inputs == ["https://feed.example/sub/mobile-owner-token"]
     me.devices.active_count = 0
     assert client.get("/mini-app/keys/mobile").status_code == 409
 
@@ -95,3 +111,24 @@ def test_unknown_tier_and_invalid_device_id(key_client):
 
 def test_key_route_requires_telegram_auth():
     assert TestClient(app).get("/mini-app/keys/basic?device_id=11").status_code == 401
+
+
+@pytest.mark.parametrize("failure", [ValueError("bad response"), httpx.TimeoutException("timeout")])
+def test_crypto_failure_does_not_return_plaintext_or_instruction(key_client, monkeypatch, failure):
+    client, _ = key_client
+
+    def fail(url):
+        raise failure
+
+    monkeypatch.setattr(mini_app, "encrypted_happ_link", fail)
+    response = client.get("/mini-app/keys/basic?device_id=11")
+    assert response.status_code == 503
+    assert "owner-token" not in response.text
+    assert "https://" not in response.text
+
+
+def test_unexpected_instruction_origin_is_not_sent_to_crypto(key_client):
+    client, me = key_client
+    me.basic_device_connect_urls["11"] = "https://other.example/device/11/token"
+    assert client.get("/mini-app/keys/basic?device_id=11").status_code == 503
+    assert me.crypto_inputs == []

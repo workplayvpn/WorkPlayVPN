@@ -147,6 +147,8 @@ function humanError(error) {
     "Insufficient referral balance": "Недостаточно доступных средств.",
     "Withdrawal cannot be canceled": "Заявка уже обрабатывается или завершена.",
     "Withdrawal key already used": "Обновите баланс и повторите заявку.",
+    "Happ encrypted import is temporarily unavailable": "Не удалось зашифровать ключ Happ. Попробуйте ещё раз позже.",
+    "Invalid Happ import key": "Некорректный ключ импорта Happ. Закройте и снова откройте Mini App.",
     "Trial already used": "Пробный период уже был использован.",
     "User already has active subscription": "У вас уже есть активная подписка.",
     "Active subscription required": "Сначала активируйте подписку.",
@@ -896,6 +898,9 @@ async function loadDeviceKey(deviceId, label) {
     const query = deviceId == null ? "" : `?device_id=${encodeURIComponent(deviceId)}`;
     const result = await api(`/mini-app/keys/${tier}${query}`, { cache: "no-store" });
     if (request !== keyRequest || keySheet.classList.contains("hidden")) return;
+    if (!/^happ:\/\/crypt5\/[A-Za-z0-9_+/%=.-]+$/.test(result.url || "")) {
+      throw new ApiError(502, "Invalid Happ import key");
+    }
     keyData = result;
     keyValue.value = result.url;
     keyValue.classList.toggle("hidden", keyMode !== "full");
@@ -1538,7 +1543,7 @@ document.querySelector("#key-sheet-close").addEventListener("click", closeKeyShe
 document.querySelector("#key-sheet-done").addEventListener("click", closeKeySheet);
 document.querySelector("#key-sheet-copy").addEventListener("click", copyDisplayedKey);
 document.querySelector("#key-sheet-back").addEventListener("click", chooseKeyDevice);
-document.querySelector("#key-sheet-happ").addEventListener("click", () => { if (keyData) openExternal(keyData.url); });
+document.querySelector("#key-sheet-happ").addEventListener("click", () => { if (keyData) window.location.href = keyData.url; });
 keySheet.addEventListener("keydown", (event) => {
   if (event.key !== "Tab") return;
   const controls = [...keySheet.querySelectorAll("button, textarea")].filter((item) => !item.disabled && item.getClientRects().length);

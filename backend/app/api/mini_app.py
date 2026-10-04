@@ -1,3 +1,4 @@
+from app.services.happ_crypt_link import encrypted_happ_link
 from app.services.catalog import available_plans
 from app.services.device_slots import device_slot_offers
 from datetime import UTC, datetime
@@ -5,6 +6,7 @@ from base64 import b64encode
 from io import BytesIO
 
 import qrcode
+import httpx
 from qrcode.image.svg import SvgPathImage
 from typing import Annotated
 
@@ -804,11 +806,24 @@ def get_mini_app_key(
         url = me.connect_urls.get(tier)
     if not url:
         raise HTTPException(status_code=404, detail="Key is not available")
+    # me.connect_urls are HTML instruction pages, not subscription feeds.
+    # Preserve the selected device/tier route while moving to the /sub base.
+    connect_prefix = settings.connect_base_url.rstrip("/") + "/"
+    if not url.startswith(connect_prefix):
+        raise HTTPException(status_code=503, detail="Subscription link is temporarily unavailable")
+    feed_url = settings.subscription_base_url.rstrip("/") + "/" + url[len(connect_prefix):]
+    try:
+        import_url = encrypted_happ_link(feed_url)
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Happ encrypted import is temporarily unavailable",
+        ) from exc
     code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=4)
-    code.add_data(url)
+    code.add_data(import_url)
     code.make(fit=True)
     output = BytesIO()
     code.make_image(image_factory=SvgPathImage).save(output)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Vary"] = "X-Telegram-Init-Data"
-    return {"url": url, "qr_data_url": "data:image/svg+xml;base64," + b64encode(output.getvalue()).decode("ascii")}
+    return {"url": import_url, "qr_data_url": "data:image/svg+xml;base64," + b64encode(output.getvalue()).decode("ascii")}
