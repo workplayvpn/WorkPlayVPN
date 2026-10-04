@@ -131,28 +131,36 @@ def test_missing_or_invalid_hwid_never_returns_any_device(account_db, hwid):
     assert exc.value.status_code == 403 and count(db) == 0 and calls == []
 
 
-def test_removed_device_reenrolls_with_new_credentials_and_one_shared_slot(account_db):
+@pytest.mark.parametrize("tier", ["basic", "mobile"])
+def test_removed_device_stays_revoked_even_with_free_slots(account_db, tier):
     db, user, calls = account_db
-    one = service.resolve_happ_account_device(db, user.id, "basic", headers())
-    old_id, old_uuid, old_mobile_uuid = one.id, one.xray_uuid, one.mobile_xray_uuid
+    one = service.resolve_happ_account_device(db, user.id, tier, headers())
     vpn_device_service.remove_device(db, user.telegram_id, one.id)
-    replacement = service.resolve_happ_account_device(db, user.id, "basic", headers())
-    assert replacement.id != old_id and replacement.xray_uuid != old_uuid
-    assert replacement.mobile_xray_uuid != old_mobile_uuid and count(db) == 1
-    assert service.resolve_happ_account_device(db, user.id, "mobile", headers()).id == replacement.id
-    assert count(db) == 1
+    before = list(calls)
+    for _ in range(3):
+        with pytest.raises(HTTPException) as exc:
+            service.resolve_happ_account_device(db, user.id, tier, headers())
+        assert exc.value.status_code == 403 and "Device was removed" in exc.value.detail
+    assert count(db) == 0 and calls == before
+    assert not db.get(VpnDevice, one.id).is_active
 
 
-def test_removed_device_cannot_reenroll_after_another_device_takes_last_slot(account_db):
+def test_removed_individual_device_link_stays_revoked(account_db):
     db, user, calls = account_db
     one = service.resolve_happ_account_device(db, user.id, "basic", headers())
     vpn_device_service.remove_device(db, user.telegram_id, one.id)
-    for hwid in ["second", "third", "fourth"]:
-        service.resolve_happ_account_device(db, user.id, "basic", headers(hwid))
-    before = len(calls)
     with pytest.raises(HTTPException) as exc:
-        service.resolve_happ_account_device(db, user.id, "basic", headers())
-    assert exc.value.status_code == 409 and count(db) == 3 and len(calls) == before
+        service.resolve_happ_account_device(db, user.id, "basic", headers(), device_id=one.id)
+    assert exc.value.status_code == 403 and "Device was removed" in exc.value.detail
+    assert count(db) == 0
+
+
+def test_new_installation_can_use_a_slot_freed_by_another_revoked_device(account_db):
+    db, user, calls = account_db
+    one = service.resolve_happ_account_device(db, user.id, "basic", headers())
+    vpn_device_service.remove_device(db, user.telegram_id, one.id)
+    other = service.resolve_happ_account_device(db, user.id, "basic", headers("another"))
+    assert other.id != one.id and other.xray_uuid != one.xray_uuid and count(db) == 1
 
 
 def test_other_accounts_cannot_bind_a_foreign_device(account_db):
@@ -319,3 +327,36 @@ def test_full_account_returns_notice_without_credentials_then_recovers(feed_clie
     db.commit()
     assert b'blackhole' not in get(path, headers("fourth")).body
     assert count(db) == 4
+
+
+@pytest.mark.parametrize("path", ["/sub/basic", "/sub/mobile", "/sub/auto/routed/mobile", "/sub/auto/mobile"])
+def test_removed_device_feed_replaces_credentials_with_notice_without_reenrollment(feed_client, path):
+    import json
+    from app.services.happ_device_limit_response import REMOVED_MESSAGE
+    get, db = feed_client
+    assert get(path, headers("first")).status_code == 200
+    device = db.scalar(select(VpnDevice).where(VpnDevice.is_active.is_(True)))
+    old_uuid, old_mobile_uuid = device.xray_uuid, device.mobile_xray_uuid
+    vpn_device_service.remove_device(db, db.get(User, 1).telegram_id, device.id)
+    for _ in range(3):
+        response = get(path, headers("first"))
+        assert response.status_code == 200 and count(db) == 0
+        assert base64.b64decode(response.headers["announce"].split(":", 1)[1]).decode() == REMOVED_MESSAGE
+        config = json.loads(response.body)[0]
+        assert config["remarks"] == "Устройство заблокировано"
+        assert config["outbounds"] == [{"tag": "blocked", "protocol": "blackhole", "settings": {}}]
+        assert old_uuid.encode() not in response.body and old_mobile_uuid.encode() not in response.body
+        assert b'vless' not in response.body
+    # Increasing capacity must not undo a deliberate deletion.
+    db.get(User, 1).extra_device_slots = 3
+    db.commit()
+    assert b'blackhole' in get(path, headers("first")).body and count(db) == 0
+    assert b'blackhole' not in get(path, headers("second")).body and count(db) == 1
+
+
+def test_unrelated_errors_are_not_converted_to_blocked_profiles():
+    from app.services.happ_device_limit_response import is_device_limit_error, is_device_removed_error
+    for error in [HTTPException(403, "Active subscription required"),
+                  HTTPException(409, "Ambiguous device registration"),
+                  HTTPException(502, "VPN node unavailable")]:
+        assert not is_device_limit_error(error) and not is_device_removed_error(error)

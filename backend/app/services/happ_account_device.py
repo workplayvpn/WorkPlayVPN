@@ -52,6 +52,8 @@ def resolve_happ_account_device(
     if device_id is not None:
         device = next((d for d in devices if d.id == device_id and d.is_active), None)
         if device is None:
+            if any(d.id == device_id and not d.is_active for d in matches):
+                raise HTTPException(403, "Device was removed; add it again from your account")
             raise HTTPException(404, "Device not found")
         if device.happ_hwid_digest and device.happ_hwid_digest != digest:
             raise HTTPException(403, "Device belongs to another Happ installation")
@@ -59,6 +61,10 @@ def resolve_happ_account_device(
             raise HTTPException(409, "Installation already registered on another device")
     elif active_matches:
         device = active_matches[0]
+    elif matches:
+        # A deletion is a revocation. Neither an import nor a background refresh
+        # of the shared key may silently undo the owner's removal.
+        raise HTTPException(403, "Device was removed; add it again from your account")
     else:
         # Unidentified legacy rows are not silently assigned to a stranger.
         # Bind them using their existing per-device instruction link instead.
