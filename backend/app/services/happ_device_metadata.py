@@ -27,6 +27,23 @@ def hwid_digest(value: str | None) -> str | None:
                     value.encode(), hashlib.sha256).hexdigest()
 
 
+def apply_happ_device_metadata(device: VpnDevice, headers: Mapping[str, str]) -> bool:
+    """Apply validated labels without committing, for atomic device creation."""
+    model = _clean(headers.get("x-device-model"), 100)
+    os_name = _clean(headers.get("x-device-os"), 50)
+    version = _clean(headers.get("x-ver-os"), 12)
+    if os_name and version and re.fullmatch(r"[0-9]{1,3}(?:\.[0-9]{1,3}){0,2}", version):
+        os_name = f"{os_name} {version}"
+    digest = hwid_digest(headers.get("x-hwid"))
+    changed = False
+    for field, value in (("happ_device_model", model), ("happ_device_os", os_name),
+                         ("happ_hwid_digest", digest)):
+        if value is not None and getattr(device, field) != value:
+            setattr(device, field, value)
+            changed = True
+    return changed
+
+
 def record_happ_device_metadata(
     database: Session,
     devices: Sequence[VpnDevice],

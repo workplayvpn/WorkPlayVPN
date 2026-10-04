@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     happ_provider_id: str = ""
     happ_hidden_settings_user_ids: str = ""
     happ_crypt5_user_ids: str = ""
+    # Enable after deploying the account-feed HWID registration fix.
+    happ_account_device_registration_enabled: bool = False
 
 
 settings = Settings()

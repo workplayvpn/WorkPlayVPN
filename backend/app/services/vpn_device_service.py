@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -15,6 +16,7 @@ from app.services.xray_node import xray_node_service
 from app.services.mobile_profile_service import require_mobile_profile
 from app.services.entitlements import active_entitlements, shared_device_limit
 from app.services.subscription_service import subscription_service
+from app.services.happ_device_metadata import apply_happ_device_metadata
 
 
 
@@ -26,6 +28,7 @@ class VpnDeviceService:
         node_code: str,
         device_name: str,
         client_instance_id: str | None = None,
+        happ_headers: Mapping[str, str] | None = None,
     ) -> VpnDevice:
         user = database.scalar(
             select(User)
@@ -156,6 +159,8 @@ class VpnDeviceService:
             mobile_xray_email=mobile_email,
             is_active=True,
         )
+        if happ_headers is not None:
+            apply_happ_device_metadata(device, happ_headers)
 
         try:
             database.add(device)
@@ -212,7 +217,7 @@ class VpnDeviceService:
         user = database.scalar(
             select(User).where(
                 User.telegram_id == telegram_id,
-            )
+            ).with_for_update()
         )
 
         if user is None:

@@ -20,6 +20,7 @@ from app.services.happ_subscription_info import (
 )
 from app.services.happ_smart_routing import build_happ_smart_routing_link
 from app.services.happ_device_metadata import record_happ_device_metadata
+from app.services.happ_account_device import resolve_happ_account_device
 from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
@@ -41,16 +42,18 @@ def auto_route_allowed(user_id: int) -> bool:
 def get_auto_route(
     token: str,
     database: Annotated[Session, Depends(get_db)],
+    request: Request = None,
 ) -> JSONResponse:
-    return _build_response(token, database, routed=False)
+    return _build_response(token, database, routed=False, request=request)
 
 
 @router.get("/routed/{token}")
 def get_routed_auto_route(
     token: str,
     database: Annotated[Session, Depends(get_db)],
+    request: Request = None,
 ) -> JSONResponse:
-    return _build_response(token, database, routed=True)
+    return _build_response(token, database, routed=True, request=request)
 
 
 def get_routed_mobile_subscription(
@@ -82,6 +85,13 @@ def _build_response(
     if mobile_entitlement is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
+    registered_device = None
+    if settings.happ_account_device_registration_enabled:
+        registered_device = resolve_happ_account_device(
+            database, user.id, tier, request.headers if request is not None else {},
+            device_id=device_id,
+        )
+
     query = select(VpnDevice).where(
         VpnDevice.user_id == user.id,
         VpnDevice.is_active.is_(True),
@@ -92,7 +102,9 @@ def _build_response(
     if not devices:
         raise HTTPException(status_code=(status.HTTP_404_NOT_FOUND if device_id is not None
                                          else status.HTTP_503_SERVICE_UNAVAILABLE))
-    device = devices[0]
+    device = registered_device or devices[0]
+    if registered_device is not None:
+        devices = [registered_device]
     if not device.mobile_xray_uuid or not device.mobile_xray_email:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
