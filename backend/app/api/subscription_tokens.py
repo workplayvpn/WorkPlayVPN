@@ -33,12 +33,12 @@ router = APIRouter(
 
 @router.get("/happ/{tier}")
 def get_bot_happ_key(tier: str, telegram_id: int, response: Response,
-                     device_id: int | None = None, database: Session = Depends(get_db)):
+                     database: Session = Depends(get_db)):
     """Internal bot calls only: Telegram sender ID, never a client-supplied URL."""
     auth = TelegramWebAppAuthResult(
         user=TelegramWebAppUser(id=telegram_id, first_name=""), auth_date=datetime.now(UTC))
     data = get_mini_app_key(tier=tier, response=response, auth=auth,
-                            database=database, device_id=device_id)
+                            database=database)
     if "Vary" in response.headers:
         del response.headers["Vary"]
     return {"url": data["url"], "qr_png_base64": b64encode(qr_png(data["url"])).decode("ascii")}

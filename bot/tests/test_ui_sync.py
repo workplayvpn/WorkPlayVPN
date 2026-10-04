@@ -112,7 +112,7 @@ class FlowTests(unittest.IsolatedAsyncioTestCase):
             payload = {'url': 'happ://crypt5/' + tier, 'qr_png_base64': 'cG5n'}
             with patch.object(subscription,'_load_subscription_data',AsyncMock(return_value=(ACTIVE,[{'id':11}],None))), patch.object(subscription,'backend_get',AsyncMock(return_value=response(payload))) as request, patch.object(subscription,'edit_screen',AsyncMock()) as screen:
                 await subscription.show_subscription_qr(callback(f'subscription_qr:{tier}:11'))
-                request.assert_awaited_once_with(f'/subscription-tokens/happ/{tier}?telegram_id=123&device_id=11')
+                request.assert_awaited_once_with(f'/subscription-tokens/happ/{tier}?telegram_id=123')
                 self.assertEqual(screen.call_args.kwargs['photo'].data, b'png')
 
     async def test_legacy_qr_requests_tier_choice(self):

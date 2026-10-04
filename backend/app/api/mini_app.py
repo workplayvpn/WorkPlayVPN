@@ -785,32 +785,18 @@ def get_mini_app_key(
     response: Response,
     auth: Annotated[TelegramWebAppAuthResult, Depends(require_telegram_webapp_auth)],
     database: Annotated[Session, Depends(get_db)],
-    device_id: int | None = None,
 ) -> dict[str, str]:
-    """Return only the caller's active tier/device link; never accept a raw URL."""
+    """One account subscription link per active tier, independent of devices."""
     if tier not in {"basic", "mobile"}:
         raise HTTPException(status_code=404, detail="Unknown subscription tier")
     me = get_me(auth=auth, database=database)
     if not any(item.access_tier == tier and item.status == "active" for item in me.subscriptions):
         raise HTTPException(status_code=403, detail="Subscription is not active")
-    links = me.basic_device_connect_urls if tier == "basic" else me.auto_connect_urls
-    if device_id is not None:
-        url = links.get(str(device_id))
-        if not url:
-            raise HTTPException(status_code=404, detail="Device key is not available")
-    else:
-        # Legacy Mobile subscriptions have a shared link rather than per-device auto routing.
-        if tier != "mobile" or links or me.devices.active_count == 0:
-            raise HTTPException(status_code=409, detail="Select a connected device")
-        url = me.connect_urls.get(tier)
-    if not url:
-        raise HTTPException(status_code=404, detail="Key is not available")
-    # me.connect_urls are HTML instruction pages, not subscription feeds.
-    # Preserve the selected device/tier route while moving to the /sub base.
-    connect_prefix = settings.connect_base_url.rstrip("/") + "/"
-    if not url.startswith(connect_prefix):
-        raise HTTPException(status_code=503, detail="Subscription link is temporarily unavailable")
-    feed_url = settings.subscription_base_url.rstrip("/") + "/" + url[len(connect_prefix):]
+    token, _ = subscription_token_service.get_or_create_token(
+        database=database, telegram_id=auth.user.id,
+    )
+    raw = subscription_token_service.scoped_token(token, tier)
+    feed_url = settings.subscription_base_url.rstrip("/") + "/" + raw
     try:
         import_url = encrypted_happ_link(feed_url)
     except (httpx.HTTPError, ValueError) as exc:

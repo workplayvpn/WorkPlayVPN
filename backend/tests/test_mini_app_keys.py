@@ -28,12 +28,12 @@ def test_bot_endpoint_uses_same_owned_key_and_png(key_client, tier):
     assert 'owner-token' not in result.text
 
 
-def test_bot_endpoint_rejects_foreign_device(key_client):
+def test_bot_endpoint_ignores_old_device_query(key_client):
     from app.core.config import settings
     client, _ = key_client
     result = client.get('/subscription-tokens/happ/basic?telegram_id=123&device_id=999',
                         headers={'Authorization': 'Bearer '+settings.internal_api_secret})
-    assert result.status_code == 404
+    assert result.status_code == 200
 from app.api.telegram_webapp_auth import require_telegram_webapp_auth
 from app.db.dependencies import get_db
 from app.main import app
@@ -53,6 +53,10 @@ def key_client(monkeypatch):
     monkeypatch.setattr(settings, "connect_base_url", "https://connect.example")
     monkeypatch.setattr(settings, "subscription_base_url", "https://feed.example/sub")
     me.crypto_inputs = []
+    monkeypatch.setattr(mini_app.subscription_token_service, "get_or_create_token",
+                        lambda **kwargs: (SimpleNamespace(user_id=kwargs['telegram_id']), 'basic-owner-token'))
+    monkeypatch.setattr(mini_app.subscription_token_service, "scoped_token",
+                        lambda token, tier: tier+'-owner-token')
 
     def encrypt(feed_url):
         me.crypto_inputs.append(feed_url)
@@ -82,8 +86,7 @@ def test_key_qr_matches_selected_tier_and_device(key_client, tier, monkeypatch):
     response = client.get(f"/mini-app/keys/{tier}?device_id=11")
     assert response.status_code == 200
     data = response.json()
-    links = me.basic_device_connect_urls if tier == "basic" else me.auto_connect_urls
-    expected_feed = links["11"].replace("https://connect.example/", "https://feed.example/sub/", 1)
+    expected_feed = f"https://feed.example/sub/{tier}-owner-token"
     assert me.crypto_inputs == [expected_feed]
     assert data["url"] == "happ://crypt5/" + ("basicCipher" if tier == "basic" else "mobileCipher")
     assert "owner-token" not in response.text
@@ -98,10 +101,11 @@ def test_key_qr_matches_selected_tier_and_device(key_client, tier, monkeypatch):
 
 @pytest.mark.parametrize("tier", ["basic", "mobile"])
 @pytest.mark.parametrize("device_id", [12, -1, 999999])
-def test_other_or_deleted_device_cannot_get_key(key_client, tier, device_id):
-    client, _ = key_client
+def test_old_device_query_cannot_change_account_key(key_client, tier, device_id):
+    client, me = key_client
     response = client.get(f"/mini-app/keys/{tier}?device_id={device_id}")
-    assert response.status_code == 404
+    assert response.status_code == 200
+    assert me.crypto_inputs == [f"https://feed.example/sub/{tier}-owner-token"]
     assert "owner-token" not in response.text
 
 
@@ -113,9 +117,11 @@ def test_expired_tier_cannot_get_key(key_client, tier):
 
 
 @pytest.mark.parametrize("tier", ["basic", "mobile"])
-def test_device_selection_required_for_device_keys(key_client, tier):
-    client, _ = key_client
-    assert client.get(f"/mini-app/keys/{tier}").status_code == 409
+def test_account_key_available_without_device_selection(key_client, tier):
+    client, me = key_client
+    me.devices.active_count = 0
+    assert client.get(f"/mini-app/keys/{tier}").status_code == 200
+    assert me.crypto_inputs == [f"https://feed.example/sub/{tier}-owner-token"]
 
 
 def test_legacy_mobile_shared_link(key_client):
@@ -126,13 +132,13 @@ def test_legacy_mobile_shared_link(key_client):
     assert response.json()["url"] == "happ://crypt5/mobileCipher"
     assert me.crypto_inputs == ["https://feed.example/sub/mobile-owner-token"]
     me.devices.active_count = 0
-    assert client.get("/mini-app/keys/mobile").status_code == 409
+    assert client.get("/mini-app/keys/mobile").status_code == 200
 
 
 def test_unknown_tier_and_invalid_device_id(key_client):
     client, _ = key_client
     assert client.get("/mini-app/keys/pro?device_id=11").status_code == 404
-    assert client.get("/mini-app/keys/basic?device_id=abc").status_code == 422
+    assert client.get("/mini-app/keys/basic?device_id=abc").status_code == 200
 
 
 def test_key_route_requires_telegram_auth():
@@ -153,8 +159,8 @@ def test_crypto_failure_does_not_return_plaintext_or_instruction(key_client, mon
     assert "https://" not in response.text
 
 
-def test_unexpected_instruction_origin_is_not_sent_to_crypto(key_client):
+def test_device_instruction_links_are_not_used_for_account_keys(key_client):
     client, me = key_client
     me.basic_device_connect_urls["11"] = "https://other.example/device/11/token"
-    assert client.get("/mini-app/keys/basic?device_id=11").status_code == 503
-    assert me.crypto_inputs == []
+    assert client.get("/mini-app/keys/basic?device_id=11").status_code == 200
+    assert me.crypto_inputs == ['https://feed.example/sub/basic-owner-token']

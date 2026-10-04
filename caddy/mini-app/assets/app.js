@@ -372,6 +372,25 @@ function activeSubscriptions() {
 function openSubscription(tier) {
   state.detailTier = tier;
   setView("devices");
+  prepareKeyCopyButton(tier);
+}
+
+function prepareKeyCopyButton(tier) {
+  const button = document.querySelector('[data-key-action="copy"]');
+  button.disabled = !preparedKeyValues.has(tier);
+  button.textContent = button.disabled ? "Получаем ключ…" : "Скопировать ключ";
+  const generation = keyGeneration;
+  prepareSubscriptionKey(tier).then(() => {
+    if (state.detailTier === tier && generation === keyGeneration) {
+      button.disabled = false;
+      button.textContent = "Скопировать ключ";
+    }
+  }).catch(() => {
+    if (state.detailTier === tier && generation === keyGeneration) {
+      button.disabled = false;
+      button.textContent = "Повторить получение ключа";
+    }
+  });
 }
 
 function renderSubscriptionCards(container, entries) {
@@ -412,6 +431,7 @@ function renderSubscriptionDetail() {
     ? "Подключение для Wi-Fi и мобильной сети." : "Подключение для работы и любимого досуга.";
   document.querySelector("#detail-connect").disabled = !entry;
   document.querySelectorAll("[data-key-action]").forEach((button) => { button.disabled = !entry; });
+  if (entry) prepareKeyCopyButton(state.detailTier);
   document.querySelector("#header-avatar").textContent = (state.me?.user?.first_name || "W").slice(0, 1).toUpperCase();
 }
 
@@ -849,7 +869,6 @@ function showDeviceConnections() {
 
 const keySheet = document.querySelector("#key-sheet");
 const keyOutput = document.querySelector("#key-output");
-const keyOptions = document.querySelector("#key-device-options");
 const keyStatus = document.querySelector("#key-sheet-status");
 const keyValue = document.querySelector("#key-full-value");
 const keyQR = document.querySelector("#key-qr-image");
@@ -857,6 +876,22 @@ let keyMode = "full";
 let keyData = null;
 let keyRequest = 0;
 let keyReturnFocus = null;
+const subscriptionKeys = new Map();
+const preparedKeyValues = new Map();
+let keyGeneration = 0;
+
+function prepareSubscriptionKey(tier) {
+  if (!subscriptionKeys.has(tier)) {
+    const generation = keyGeneration;
+    const pending = api(`/mini-app/keys/${tier}`, { cache: "no-store" }).then((result) => {
+      if (!/^happ:\/\/crypt5\/[A-Za-z0-9_+/%=.-]+$/.test(result.url || "")) throw new ApiError(502, "Invalid Happ key");
+      if (generation === keyGeneration) preparedKeyValues.set(tier, result);
+      return result;
+    }).catch((error) => { if (generation === keyGeneration) subscriptionKeys.delete(tier); throw error; });
+    subscriptionKeys.set(tier, pending);
+  }
+  return subscriptionKeys.get(tier);
+}
 
 function clearKeyOutput() {
   keyRequest += 1;
@@ -871,14 +906,17 @@ function closeKeySheet() {
   closeSheet(keySheet);
 }
 
-async function copyDisplayedKey() {
+async function copyDisplayedKey(trigger = null) {
   if (!keyData) return;
   try {
     await navigator.clipboard.writeText(keyData.url);
-    document.querySelector("#key-sheet-copy").textContent = "Скопировано ✓";
+    document.querySelector("#key-sheet-copy").textContent = "✓ Скопировано";
+    if (trigger?.dataset?.keyAction === "copy") trigger.textContent = "✓ Скопировано";
     showToast("Ключ подключения скопирован.");
     haptic("light");
   } catch {
+    openSheet(keySheet);
+    keyOutput.classList.remove("hidden");
     keyValue.classList.remove("hidden");
     keyValue.focus();
     keyValue.select();
@@ -886,17 +924,14 @@ async function copyDisplayedKey() {
   }
 }
 
-async function loadDeviceKey(deviceId, label) {
+async function loadSubscriptionKey() {
   clearKeyOutput();
   const request = keyRequest;
   const tier = state.detailTier;
-  keyOptions.replaceChildren();
-  document.querySelector("#key-sheet-back").classList.remove("hidden");
   keyStatus.textContent = "Получаем ваш ключ…";
-  document.querySelector("#key-sheet-context").textContent = `${tierLabel(tier)} · ${label}`;
+  document.querySelector("#key-sheet-context").textContent = `${tierLabel(tier)} · Ключ подписки`;
   try {
-    const query = deviceId == null ? "" : `?device_id=${encodeURIComponent(deviceId)}`;
-    const result = await api(`/mini-app/keys/${tier}${query}`, { cache: "no-store" });
+    const result = await prepareSubscriptionKey(tier);
     if (request !== keyRequest || keySheet.classList.contains("hidden")) return;
     if (!/^happ:\/\/crypt5\/[A-Za-z0-9_+/%=.-]+$/.test(result.url || "")) {
       throw new ApiError(502, "Invalid Happ import key");
@@ -907,63 +942,20 @@ async function loadDeviceKey(deviceId, label) {
     keyQR.classList.toggle("hidden", keyMode !== "qr");
     if (keyMode === "qr") keyQR.src = result.qr_data_url;
     keyOutput.classList.remove("hidden");
-    keyStatus.textContent = keyMode === "qr" ? "Отсканируйте код в Happ на выбранном устройстве." : "Ключ готов. Его можно скопировать и добавить в Happ.";
-    if (keyMode === "copy") await copyDisplayedKey();
+    keyStatus.textContent = keyMode === "qr" ? "Отсканируйте код в Happ. Один ключ для всех устройств этой подписки." : "Один ключ для всех устройств этой подписки.";
   } catch (error) {
     if (request !== keyRequest) return;
     keyStatus.textContent = humanError(error);
   }
 }
 
-function chooseKeyDevice() {
-  clearKeyOutput();
-  keyOptions.replaceChildren();
-  document.querySelector("#key-sheet-context").textContent = `${tierLabel(state.detailTier)} · Ключ подключения`;
-  document.querySelector("#key-sheet-title").textContent = keyMode === "qr" ? "QR-код ключа" : keyMode === "copy" ? "Скопировать ключ" : "Полный ключ";
-  document.querySelector("#key-sheet-back").classList.add("hidden");
-  keyStatus.textContent = "Выберите устройство, для которого нужен ключ.";
-  const map = state.detailTier === "basic" ? state.me.basic_device_connect_urls : state.me.auto_connect_urls;
-  for (const device of state.devices) {
-    if (!map?.[device.id]) continue;
-    const label = device.happ_device_model || device.device_name;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "key-device-choice";
-    const copy = document.createElement("span");
-    const title = document.createElement("strong");
-    title.textContent = label;
-    const hint = document.createElement("small");
-    hint.textContent = device.happ_device_os || `ID: ${device.public_id}`;
-    copy.append(title, hint);
-    button.append(deviceIllustration(device), copy);
-    button.addEventListener("click", () => loadDeviceKey(device.id, label));
-    keyOptions.append(button);
-  }
-  if (!keyOptions.childElementCount && state.detailTier === "mobile" && state.devices.length && !Object.keys(map || {}).length && state.me.connect_urls?.mobile) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "button button-secondary button-wide";
-    button.textContent = "Ключ подписки Mobile";
-    button.addEventListener("click", () => loadDeviceKey(null, "Подписка"));
-    keyOptions.append(button);
-  }
-  if (!keyOptions.childElementCount) {
-    keyStatus.textContent = "Сначала подключите устройство через Happ. После этого здесь появится его ключ.";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "button button-primary button-wide";
-    button.textContent = "Перейти к подключению";
-    button.addEventListener("click", () => { closeKeySheet(); showDeviceConnections(); });
-    keyOptions.append(button);
-  }
-}
-
 function showKeySheet(mode, trigger) {
   keyMode = mode;
   keyReturnFocus = trigger;
-  chooseKeyDevice();
+  document.querySelector("#key-sheet-title").textContent = keyMode === "qr" ? "QR-код ключа" : keyMode === "copy" ? "Скопировать ключ" : "Полный ключ";
   openSheet(keySheet);
   document.querySelector("#key-sheet-close").focus();
+  loadSubscriptionKey();
 }
 
 function handleMiniAppBack() {
@@ -1039,7 +1031,6 @@ function closeSheet(sheet) {
   sheet.classList.add("hidden");
   if (sheet === keySheet) {
     clearKeyOutput();
-    keyOptions.replaceChildren();
     keyStatus.textContent = "";
     keyReturnFocus?.focus();
     keyReturnFocus = null;
@@ -1290,6 +1281,10 @@ async function removeDevice() {
 }
 
 async function loadData() {
+  keyGeneration += 1;
+  subscriptionKeys.clear();
+  preparedKeyValues.clear();
+  clearKeyOutput();
   elements.refreshButton.disabled = true;
 
   try {
@@ -1318,10 +1313,17 @@ async function loadData() {
     elements.app.classList.remove("hidden");
 
     if (!state.initialViewApplied) {
-      const requestedView = new URLSearchParams(window.location.search).get("view");
+      const params = new URLSearchParams(window.location.search);
+      const requestedView = params.get("view");
       const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals", "help", "support"]);
       setView(allowedViews.has(requestedView) ? requestedView : "home");
       state.initialViewApplied = true;
+      const keyTier = params.get("key_tier");
+      if (params.get("key_action") === "copy" && ["basic", "mobile"].includes(keyTier)
+          && activeSubscriptions().some((entry) => subscriptionTier(entry) === keyTier)) {
+        openSubscription(keyTier);
+        showKeySheet("copy", document.querySelector('[data-key-action="copy"]'));
+      }
     }
 
     return true;
@@ -1537,12 +1539,19 @@ initializeTelegram();
 
 // Key values stay in memory and are discarded whenever the dialog closes.
 document.querySelectorAll("[data-key-action]").forEach((button) => {
-  button.addEventListener("click", () => showKeySheet(button.dataset.keyAction, button));
+  button.addEventListener("click", () => {
+    const data = preparedKeyValues.get(state.detailTier);
+    if (button.dataset.keyAction === "copy" && data) {
+      keyData = data;
+      keyValue.value = data.url;
+      keyReturnFocus = button;
+      copyDisplayedKey(button);
+    } else showKeySheet(button.dataset.keyAction, button);
+  });
 });
 document.querySelector("#key-sheet-close").addEventListener("click", closeKeySheet);
 document.querySelector("#key-sheet-done").addEventListener("click", closeKeySheet);
-document.querySelector("#key-sheet-copy").addEventListener("click", copyDisplayedKey);
-document.querySelector("#key-sheet-back").addEventListener("click", chooseKeyDevice);
+document.querySelector("#key-sheet-copy").addEventListener("click", () => copyDisplayedKey());
 document.querySelector("#key-sheet-happ").addEventListener("click", () => { if (keyData) window.location.href = keyData.url; });
 keySheet.addEventListener("keydown", (event) => {
   if (event.key !== "Tab") return;

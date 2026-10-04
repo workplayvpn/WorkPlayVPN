@@ -12,7 +12,7 @@
   <script src="/app/assets/knowledge-ui.js?v=20261003-3" defer></script>
   <script src="/app/assets/help-access.js?v=20261003-5" defer></script>
   <script src="/app/assets/support.js?v=20261003-4" defer></script>
-  <script src="/app/assets/app.js?v=20261004-2" defer></script>
+  <script src="/app/assets/app.js?v=20261004-3" defer></script>
   <link rel="stylesheet" href="/app/assets/knowledge.css?v=20261003-4">
 </head>
 <body>
@@ -343,7 +343,6 @@
       <div class="sheet-handle" aria-hidden="true"></div>
       <div class="sheet-head"><div><p id="key-sheet-context" class="eyebrow">Ключ подключения</p><h2 id="key-sheet-title">Ваш ключ</h2></div><button id="key-sheet-close" class="icon-button" type="button" aria-label="Закрыть окно ключа">×</button></div>
       <p id="key-sheet-status" role="status"></p>
-      <div id="key-device-options" class="device-connect-list"></div>
       <div id="key-output" class="hidden">
         <img id="key-qr-image" class="key-qr hidden" alt="QR-код ключа подключения">
         <textarea id="key-full-value" class="key-full-value hidden" readonly aria-label="Полный ключ подключения" spellcheck="false"></textarea>
@@ -351,7 +350,6 @@
         <button id="key-sheet-copy" class="button button-primary button-wide" type="button">Скопировать ключ</button>
         <button id="key-sheet-happ" class="button button-secondary button-wide" type="button">Добавить в Happ →</button>
       </div>
-      <button id="key-sheet-back" class="text-button hidden" type="button">← Выбрать другое устройство</button>
       <button id="key-sheet-done" class="button button-secondary button-wide" type="button">Закрыть</button>
     </div>
   </div>
