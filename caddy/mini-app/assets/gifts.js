@@ -14,11 +14,15 @@ function renderGiftOffers(rows) {
   const types=giftElement("gift-types");types.replaceChildren();
   const descriptions={basic:"Для работы и отдыха в обычной сети. Прямое VPN-подключение через Happ.",mobile:"Для Wi-Fi и мобильной сети. Прямой и резервный маршруты через Happ; доступность зависит от сети."};
   for(const tier of ["basic","mobile"]){const offers=rows.filter(row=>row.access_tier===tier);if(!offers.length)continue;
-    const type=giftNode("article","","gift-card");type.append(giftNode("h3",giftTier(tier)),giftNode("p",descriptions[tier]),giftNode("p","3 устройства. Срок начинается после активации подарка."),giftButton(`Выбрать ${giftTier(tier)} →`,()=>{giftUI.tier=tier;renderGiftOffers(giftUI.catalog);giftPane("catalog");}));types.append(type);
+    const type=giftNode("article","",`gift-card catalog-card catalog-card-${tier}`);
+    const heading=giftNode("div","","catalog-card-heading");heading.append(giftNode("h2",giftTier(tier)),giftNode("span",tier==="mobile"?"Больше маршрутов":"На каждый день","tier-badge"));
+    const select=giftButton(`Выбрать ${giftTier(tier)} →`,()=>{giftUI.tier=tier;renderGiftOffers(giftUI.catalog);giftPane("catalog");});
+    if(tier==="mobile")select.className="button button-primary";
+    type.append(heading,giftNode("p",descriptions[tier]),giftNode("p",`${offers[0].device_limit} устройства. Срок начинается после активации подарка.`),select);types.append(type);
   }
   if(!rows.length)types.append(giftNode("p","Доступных подарков пока нет."));
   giftElement("gift-catalog-title").textContent=giftUI.tier?`Подарить ${giftTier(giftUI.tier)}`:"Выбери срок";
-  for(const row of rows.filter(row=>row.access_tier===giftUI.tier)){const card=giftNode("article","","gift-card");card.append(giftNode("h3",`${row.duration_days} дней · ${row.device_limit} устройства`),giftNode("strong",giftMoney(row),"gift-price"),giftButton("Купить подарок",()=>buyGift(row)));root.append(card);}
+  for(const row of rows.filter(row=>row.access_tier===giftUI.tier)){const card=giftNode("article","",`gift-card catalog-card catalog-card-${row.access_tier}`);card.append(giftNode("h3",`${row.duration_days} дней · ${row.device_limit} устройства`),giftNode("strong",giftMoney(row),"gift-price"),giftButton("Купить подарок",()=>buyGift(row)));root.append(card);}
 }
 async function openGiftPayment(url) {
   const prompt="Перейти в сторонний браузер для оплаты через Robokassa?";

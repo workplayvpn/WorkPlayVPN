@@ -36,13 +36,11 @@ class GiftStartTests(unittest.IsolatedAsyncioTestCase):
             message, post, home = await self.invoke(arg)
             home.assert_awaited_once()
 
-    async def test_payment_return_opens_gift_history_without_confirming_payment(self):
+    async def test_payment_return_is_silent(self):
         message, post, home = await self.invoke("payment_return")
+        message.answer.assert_not_awaited()
         home.assert_not_awaited()
-        self.assertEqual(post.call_count, 1)
-        self.assertEqual(post.call_args.args[0], "/users")
-        keyboard = message.answer.call_args.kwargs["reply_markup"]
-        self.assertIn("view=gifts&gift_pane=mine", keyboard.inline_keyboard[0][0].web_app.url)
+        post.assert_not_awaited()
 
     def test_gifts_has_separate_menu_button(self):
         self.assertTrue(any(button.text=="🎁 Подарки" and "view=gifts" in button.web_app.url
