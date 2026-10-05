@@ -1,0 +1,140 @@
+/* Light theme only. Loaded last; dark theme retains its existing appearance. */
+:root[data-theme="light"] {
+  --bg-soft: #f6f9f8;
+  --surface-light: #edf5f3;
+  --border: #ccdcd8;
+  --border-strong: #8db4ab;
+  --text: #172a2a;
+  --text-soft: #506563;
+  --muted: #5c706e;
+  --shadow: 0 4px 16px rgba(21, 47, 43, 0.045);
+}
+
+:root[data-theme="light"] .ambient { opacity: 0.04; }
+:root[data-theme="light"] .connection-hero {
+  background: linear-gradient(125deg, #ffffff 35%, #edf8f5);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+:root[data-theme="light"] .connection-orbit {
+  border-color: #087b701f;
+  box-shadow: 0 0 0 28px #087b7005, 0 0 0 56px #087b7003;
+}
+
+:root[data-theme="light"] .action-card,
+:root[data-theme="light"] .referral-teaser,
+:root[data-theme="light"] .referral-rules,
+:root[data-theme="light"] .referral-history-card,
+:root[data-theme="light"] .profile-card,
+:root[data-theme="light"] .details-card,
+:root[data-theme="light"] .region-card,
+:root[data-theme="light"] .support-card,
+:root[data-theme="light"] .gift-card {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .catalog-card,
+:root[data-theme="light"] .subscription-tile {
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+:root[data-theme="light"] .catalog-card::before,
+:root[data-theme="light"] .subscription-tile::before {
+  background: radial-gradient(ellipse at 100% 0, #087b7009, transparent 70%), #ffffff;
+}
+:root[data-theme="light"] .catalog-card-mobile::before,
+:root[data-theme="light"] .subscription-tile-mobile::before {
+  background: radial-gradient(ellipse at 100% 0, #087b7012, transparent 68%), #ffffff;
+}
+:root[data-theme="light"] .catalog-card::after,
+:root[data-theme="light"] .subscription-tile::after {
+  border-color: #087b7015;
+  box-shadow: 0 0 0 24px #087b7003;
+}
+:root[data-theme="light"] .catalog-card-mobile::after,
+:root[data-theme="light"] .subscription-tile-mobile::after {
+  border-color: #087b7026;
+  box-shadow: 0 0 0 24px #087b7004;
+}
+:root[data-theme="light"] .tier-badge { color: #087b70; background: #e6f5f0; }
+:root[data-theme="light"] .catalog-card-mobile .tier-badge,
+:root[data-theme="light"] .subscription-tile-mobile .tier-badge {
+  color: #875017;
+  background: #fff2df;
+}
+
+:root[data-theme="light"] .button-secondary { background: #ffffff; }
+:root[data-theme="light"] .button-primary,
+:root[data-theme="light"] .button-compact,
+:root[data-theme="light"] .kb-root .button:not(.button-secondary) {
+  color: #ffffff;
+  background: #087b70;
+  box-shadow: none;
+}
+:root[data-theme="light"] .button-danger { background: #c93b56; color: #ffffff; }
+:root[data-theme="light"] .plans-tier-switch button[aria-pressed="true"] {
+  color: #ffffff;
+  background: #087b70;
+}
+:root[data-theme="light"] .shared-note,
+:root[data-theme="light"] .key-private-note { background: #e8f3f0; }
+:root[data-theme="light"] .detail-hero { box-shadow: var(--shadow); }
+:root[data-theme="light"] .referral-input {
+  background: #ffffff;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+:root[data-theme="light"] .comparison-wrap { background: #ffffff; }
+:root[data-theme="light"] .comparison-table thead { background: #eaf2ef; }
+:root[data-theme="light"] .comparison-table tbody tr:nth-child(even) { background: #f6f9f8; }
+:root[data-theme="light"] .bottom-nav { box-shadow: 0 -1px 0 var(--border); }
+:root[data-theme="light"] .bottom-nav .nav-item:not(.active) { color: var(--muted); }
+:root[data-theme="light"] .sheet { box-shadow: 0 -12px 35px rgba(21, 47, 43, 0.1); }
+:root[data-theme="light"] .sheet-backdrop { background: rgba(17, 36, 32, 0.32); }
+:root[data-theme="light"] .key-qr { border: 1px solid var(--border); }
+
+/* Gifts originally had fixed dark surfaces; every part needs light colors. */
+:root[data-theme="light"] .gift-home-card {
+  font: inherit;
+  color: var(--text);
+  background: linear-gradient(115deg, #e6f5ee, #f7faf8);
+  border-color: #a6c9be;
+  box-shadow: var(--shadow);
+}
+:root[data-theme="light"] .gift-home-card strong { color: var(--text); }
+:root[data-theme="light"] .gift-home-card small { color: var(--text-soft); }
+:root[data-theme="light"] .gift-home-card > span:last-child { color: #087b70; }
+:root[data-theme="light"] .gift-hero {
+  color: var(--text);
+  background: radial-gradient(ellipse at 50% 0, #e1f3e9, #ffffff 75%);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+:root[data-theme="light"] .gift-hero p,
+:root[data-theme="light"] .gift-card p,
+:root[data-theme="light"] #view-gifts > p,
+:root[data-theme="light"] .gift-footnote,
+:root[data-theme="light"] .gift-loading { color: var(--text-soft); }
+:root[data-theme="light"] #view-gifts > .eyebrow { color: #087b70; }
+:root[data-theme="light"] .gift-price,
+:root[data-theme="light"] .gift-status,
+:root[data-theme="light"] .gift-art span { color: #087b70; }
+:root[data-theme="light"] .gift-tabs [aria-pressed="true"] {
+  color: #087b70;
+  border-color: #087b70;
+  background: #e6f5ee;
+}
+:root[data-theme="light"] .gift-card input,
+:root[data-theme="light"] .gift-code-value {
+  color: var(--text);
+  background: #f2f7f5;
+  border-color: var(--border-strong);
+}
+:root[data-theme="light"] .gift-card input::placeholder { color: #637b74; opacity: 1; }
+:root[data-theme="light"] .gift-error { color: #a81e3f !important; background: #fff0f3; }
+:root[data-theme="light"] :is(.gift-home-card, .gift-card input, .gift-tabs button):focus-visible {
+  outline: 2px solid #087b70;
+  outline-offset: 3px;
+}
