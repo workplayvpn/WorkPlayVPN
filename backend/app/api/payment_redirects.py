@@ -14,6 +14,16 @@ router = APIRouter(
 )
 
 
+@router.get("/return", include_in_schema=False)
+def return_to_telegram() -> RedirectResponse:
+    # Browser return is navigation only; it never confirms or fulfils a payment.
+    return RedirectResponse(
+        url="https://t.me/workplayvpn_bot?start=payment_return",
+        status_code=status.HTTP_302_FOUND,
+        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
+    )
+
+
 @router.get(
     "/{token}",
     include_in_schema=False,

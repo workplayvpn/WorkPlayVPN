@@ -82,6 +82,14 @@ async def handle_start(
         )
         return
 
+    if command.args == "payment_return" and message.chat.type == "private":
+        await message.answer(
+            "🎁 Вернулись из оплаты. Откройте «Мои подарки»: код появится после подтверждения Robokassa.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                text="🎁 Мои подарки", web_app=WebAppInfo(
+                    url=f"{mini_app_url}{'&' if '?' in mini_app_url else '?'}view=gifts&gift_pane=mine"))]]))
+        return
+
     gift_match = re.fullmatch(r"gift_([A-Z2-7]{24})", command.args or "")
     if gift_match and message.chat.type == "private":
         code = gift_match.group(1)

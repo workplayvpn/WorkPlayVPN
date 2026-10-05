@@ -15,6 +15,7 @@ from app.services.gifts import utc
 from datetime import UTC, datetime
 from app.services.payment_service import payment_service
 from app.services.payment_redirect_service import payment_redirect_service
+from app.services.gift_checkout import gift_checkout_is_current
 
 router = APIRouter(prefix="/mini-app/gifts", tags=["gifts"], dependencies=[Depends(require_telegram_webapp_auth)])
 
@@ -75,6 +76,8 @@ def mine(response: Response, auth=Depends(require_telegram_webapp_auth), databas
                 data["state"] = payment.status
                 if payment.status == "pending" and payment.expires_at and utc(payment.expires_at) <= datetime.now(UTC):
                     data["state"] = "expired"
+                if data["state"] == "pending" and not gift_checkout_is_current(payment):
+                    data["state"] = "obsolete"
                 data["confirmation_url"] = payment_redirect_service.build_public_confirmation_url(payment) if data["state"] == "pending" else None
             if gift.state == "ready" and payment.status == "succeeded":
                 data["code"] = display_code(gift)

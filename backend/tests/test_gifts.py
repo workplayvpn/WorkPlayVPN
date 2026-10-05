@@ -355,3 +355,44 @@ def test_postgres_simultaneous_redemption_has_one_winner(monkeypatch):
             db.execute(delete(Plan).where(Plan.id.in_(plan_ids)))
             db.execute(delete(User).where(User.id.in_(user_ids)))
             db.commit()
+
+
+def test_old_merchant_gift_invoice_stays_in_history_but_cannot_be_reused(db, monkeypatch):
+    payment = order(db)
+    payment.provider = "robokassa"
+    payment.confirmation_url = "https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=old_shop&OutSum=199.00&InvId="+str(payment.id)+"&SignatureValue=old"
+    db.commit()
+    monkeypatch.setattr(settings, "robokassa_merchant_login", "new_shop")
+    data = mine(Response(), auth(101), db)["purchased"][0]
+    assert data["state"] == "obsolete" and data["confirmation_url"] is None
+    assert db.get(Payment, payment.id).status == "pending"
+    assert "code" not in data
+
+
+def test_basic_30_days_new_shop_signed_callback_issues_gift(db, monkeypatch):
+    from app.services.payment_providers.robokassa import RobokassaProvider, calculate_robokassa_signature
+    from app.services.robokassa_webhook import robokassa_webhook_service
+    for key, value in {"robokassa_merchant_login":"new_shop", "robokassa_password_1":"test_password_1",
+                       "robokassa_password_2":"test_password_2", "robokassa_hash_algorithm":"md5",
+                       "robokassa_is_test":True}.items():
+        monkeypatch.setattr(settings, key, value)
+    payment = order(db)
+    # SQLite drops timestamptz; build the real provider URL without expiration here.
+    result = RobokassaProvider().create_payment(amount=payment.amount, currency=payment.currency,
+        description="Basic gift 30 days", idempotency_key=payment.idempotency_key,
+        metadata={"payment_id":str(payment.id)})
+    payment.provider="robokassa"
+    payment.provider_payment_id=result.provider_payment_id
+    payment.confirmation_url=result.confirmation_url
+    db.commit()
+    data = mine(Response(), auth(101), db)["purchased"][0]
+    assert data["state"] == "pending" and data["confirmation_url"]
+    payload = {"OutSum":"199.00", "InvId":str(payment.id)}
+    payload["SignatureValue"] = calculate_robokassa_signature(parts=[payload["OutSum"],payload["InvId"],"test_password_2"],algorithm="md5")
+    robokassa_webhook_service.verify_signature(payload)
+    robokassa_webhook_service.handle_result(database=db, payload=payload)
+    robokassa_webhook_service.handle_result(database=db, payload=payload)
+    data = mine(Response(), auth(101), db)["purchased"][0]
+    assert data["state"] == "ready" and data["code"]
+    assert data["duration_days"] == 30 and data["access_tier"] == "basic"
+    assert count(db, GiftCertificate) == 1
