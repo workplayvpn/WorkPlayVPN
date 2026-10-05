@@ -9,7 +9,8 @@ class InformerNotification(Base):
     __tablename__ = "informer_notifications"
     __table_args__ = (Index("ix_informer_pending", "sent_at", "next_attempt_at"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    payment_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("payments.id", ondelete="CASCADE"), unique=True, nullable=False)
+    payment_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("payments.id", ondelete="CASCADE"), unique=True, nullable=True)
+    event_key: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

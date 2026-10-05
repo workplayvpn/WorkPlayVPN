@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.internal_auth import require_internal_api_secret
 from app.db.dependencies import get_db
 from app.models.plan import Plan
+from app.models.payment import Payment
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.schemas.subscription import (
@@ -96,7 +97,8 @@ def get_current_subscription(
     entry = entitlements.get("basic") or entitlements.get("mobile")
     subscription = entry[0] if entry else database.scalar(
         select(Subscription)
-        .where(Subscription.user_id == user.id, Subscription.status == "pending")
+        .where(Subscription.user_id == user.id, Subscription.status == "pending",
+            ~select(Payment.id).where(Payment.subscription_id == Subscription.id, Payment.purpose == "gift").exists())
         .order_by(Subscription.created_at.desc())
     )
 

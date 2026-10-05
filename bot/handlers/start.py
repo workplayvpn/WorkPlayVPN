@@ -4,7 +4,8 @@ from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
 from aiogram.filters.command import CommandObject
-from aiogram.types import FSInputFile, Message
+from aiogram.types import FSInputFile, Message, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from config import mini_app_url
 
 from api.backend import backend_post
 from ui.home import build_home_text
@@ -79,6 +80,16 @@ async def handle_start(
             "⚠️ Не удалось загрузить профиль.\n\n"
             "Попробуйте отправить /start ещё раз."
         )
+        return
+
+    gift_match = re.fullmatch(r"gift_([A-Z2-7]{24})", command.args or "")
+    if gift_match and message.chat.type == "private":
+        code = gift_match.group(1)
+        await message.answer(
+            "🎁 Вам подарили Work&PlayVPN!\n\nОткройте подарок, проверьте тип и срок подписки и подтвердите активацию. Срок начнётся после активации; действующая подписка того же типа будет продлена.",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+                text="🎁 Открыть подарок", web_app=WebAppInfo(
+                    url=f"{mini_app_url}{'&' if '?' in mini_app_url else '?'}view=gifts&gift_code={code}"))]]))
         return
 
     text = build_home_text(

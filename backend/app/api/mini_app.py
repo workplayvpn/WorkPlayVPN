@@ -131,6 +131,7 @@ def get_visible_subscription(database: Session, user: User) -> Subscription | No
         select(Subscription).where(
             Subscription.user_id == user.id,
             Subscription.status == "pending",
+            ~select(Payment.id).where(Payment.subscription_id == Subscription.id, Payment.purpose == "gift").exists(),
         ).order_by(Subscription.created_at.desc())
     )
 
@@ -746,6 +747,7 @@ def get_current_payment(
         .where(
             Payment.user_id == user.id,
             Payment.status == "pending",
+            Payment.purpose == "subscription",
             or_(
                 Payment.expires_at.is_(None),
                 Payment.expires_at > datetime.now(UTC),

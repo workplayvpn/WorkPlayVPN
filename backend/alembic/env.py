@@ -11,6 +11,7 @@ from app.models.informer_notification import InformerNotification  # noqa: F401
 from app.models.abuse_alert import AbuseAlert  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.happ_import_link import HappImportLink  # noqa: F401
+from app.models.gift import GiftCertificate, GiftAttemptWindow  # noqa: F401
 from app.models.plan import Plan  # noqa: F401
 from app.models.subscription import Subscription  # noqa: F401
 from app.models.payment_fulfillment import PaymentFulfillment  # noqa: F401

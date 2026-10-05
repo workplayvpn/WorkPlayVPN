@@ -47,6 +47,8 @@ main_menu = build_keyboard(
         ],
         [InlineKeyboardButton(text="🤝 Реферальная программа",
             web_app=WebAppInfo(url=mini_app_referrals_url))],
+        [InlineKeyboardButton(text="🎁 Подарки",
+            web_app=WebAppInfo(url=f"{mini_app_url}{'&' if '?' in mini_app_url else '?'}view=gifts"))],
         [
             InlineKeyboardButton(
                 text="📄 Документы",

@@ -12,7 +12,9 @@
   <script src="/app/assets/knowledge-ui.js?v=20261003-3" defer></script>
   <script src="/app/assets/help-access.js?v=20261003-5" defer></script>
   <script src="/app/assets/support.js?v=20261003-4" defer></script>
-  <script src="/app/assets/app.js?v=20261004-3" defer></script>
+  <script src="/app/assets/app.js?v=20261005-gifts-1" defer></script>
+  <script src="/app/assets/gifts.js?v=20261005-1" defer></script>
+  <link rel="stylesheet" href="/app/assets/gifts.css?v=20261005-1">
   <link rel="stylesheet" href="/app/assets/knowledge.css?v=20261003-4">
 </head>
 <body>
@@ -54,6 +56,20 @@
     </header>
 
     <main class="content">
+      <section id="view-gifts" class="view" aria-labelledby="gifts-title">
+        <div class="mini-section-heading"><button id="gift-back" class="text-button" type="button">← Назад</button><button id="gift-refresh" class="text-button" type="button">Обновить</button></div>
+        <p class="eyebrow">Делись тем, что любишь</p><h1 id="gifts-title">🎁 Подарки</h1>
+        <p id="gift-error" class="gift-error hidden" role="alert"></p>
+        <div data-gift-pane="home">
+          <article class="gift-hero"><div class="gift-art" aria-hidden="true">🎁<span>WP</span></div><h2>Подари свободу подключения</h2><p>Basic или Mobile на выбранный срок. Код без срока активации, используется один раз.</p></article>
+          <div class="gift-actions"><button class="button button-primary" data-gift-open="catalog" type="button">Купить подарок →</button><button class="button button-secondary" data-gift-open="redeem" type="button">Активировать код →</button><button class="button button-secondary" data-gift-open="mine" type="button">Мои подарки →</button></div>
+        </div>
+        <div data-gift-pane="catalog" class="hidden"><h2>Выбери подарок</h2><p>Срок начнётся после активации получателем. Свою покупку активировать нельзя. Реферальные начисления на подарки не действуют.</p><div id="gift-offers"></div></div>
+        <div data-gift-pane="redeem" class="hidden"><form id="gift-redeem-form" class="gift-card"><h2>Активировать подарок</h2><label for="gift-code">Подарочный код</label><input id="gift-code" maxlength="128" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" required><p>Регистр, пробелы и дефисы не важны. Подарок получит тот, кто первым подтвердит активацию.</p><button class="button button-primary" type="submit">Проверить код</button></form><div id="gift-preview" class="gift-card hidden"></div></div>
+        <div data-gift-pane="mine" class="hidden"><div class="gift-tabs"><button id="gift-purchased-tab" class="button button-secondary" type="button">Купленные</button><button id="gift-activated-tab" class="button button-secondary" type="button">Активированные</button></div><div id="gift-list"></div></div>
+        <div data-gift-pane="invoice" class="hidden"><div id="gift-invoice" class="gift-card"></div></div>
+        <p class="gift-footnote">Подарок выдаётся только после подтверждения оплаты. Передавай код только получателю: он даёт право на активацию. Действующая подписка того же типа продлится, ключ и устройства сохранятся.</p>
+      </section>
       <section id="view-home" class="view active" aria-labelledby="home-title">
         <div class="welcome">
           <p class="eyebrow">Твой мир на связи</p>
@@ -65,6 +81,7 @@
           <h2>Для работы.<br>Для игр.<br>Для всего, что любишь.</h2>
           <p>Рабочие задачи, любимые игры и вечернее кино — с Work&amp;PlayVPN.</p>
         </div>
+        <button type="button" class="gift-home-card" data-view-link="gifts"><span class="gift-home-icon" aria-hidden="true">🎁</span><span><strong>Подарки</strong><small>Basic и Mobile для друзей и близких</small></span><span aria-hidden="true">→</span></button>
         <div class="mini-section-heading"><h2>Мои подписки</h2><button class="text-button" type="button" data-view-link="subscriptions">Все →</button></div>
         <article id="subscription-card" class="status-card">
           <div class="status-card-head">

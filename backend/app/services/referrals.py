@@ -43,7 +43,7 @@ def bind_new_user(db, user, code):
         db.add(ReferralInvite(user_id=user.id, referrer_id=inviter.user_id))
 
 def credit_payment(db, payment, plan):
-    if (settings.payment_mode != "live" or payment.provider == "test"
+    if (getattr(payment, "purpose", "subscription") == "gift" or settings.payment_mode != "live" or payment.provider == "test"
         or (payment.provider == "robokassa" and settings.robokassa_is_test)
         or payment.currency != "RUB" or not plan or plan.access_tier not in ("basic", "mobile")
         or payment.status != "succeeded" or payment.amount <= 0): return

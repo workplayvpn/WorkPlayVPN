@@ -328,6 +328,7 @@ function deviceDisplayName(device) {
 }
 
 function setView(name) {
+  if (name === "gifts" && typeof loadGifts === "function") loadGifts();
   if (name === "help") { loadKnowledge(); loadSupportTickets(); }
   if (name === "support") prepareSupportForm();
   if (name === "referrals") loadReferrals();
@@ -1305,6 +1306,7 @@ async function loadData() {
 
     renderAll();
     if (state.view === "referrals") loadReferrals();
+    if (state.view === "gifts" && typeof loadGifts === "function") loadGifts();
     elements.loading.classList.add("hidden");
     elements.error.classList.add("hidden");
     if (!state.initialViewApplied) {
@@ -1315,7 +1317,7 @@ async function loadData() {
     if (!state.initialViewApplied) {
       const params = new URLSearchParams(window.location.search);
       const requestedView = params.get("view");
-      const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals", "help", "support"]);
+      const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals", "help", "support", "gifts"]);
       setView(allowedViews.has(requestedView) ? requestedView : "home");
       state.initialViewApplied = true;
       const keyTier = params.get("key_tier");

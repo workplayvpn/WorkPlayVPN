@@ -117,6 +117,9 @@ class PaymentFulfillmentService:
                 detail="Fulfillment payment not found",
             )
 
+        if payment.purpose == "gift":
+            raise HTTPException(status_code=409, detail="Gift payment does not grant buyer VPN access")
+
         user = database.get(
             User,
             fulfillment.user_id,

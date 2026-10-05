@@ -158,6 +158,7 @@ class SubscriptionService:
         self,
         database: Session,
         subscription: Subscription,
+        *, skip_expiry: bool = False,
     ) -> Subscription:
         if subscription.status in {"applied", "active"}:
             plan = database.get(Plan, subscription.plan_id)
@@ -200,6 +201,8 @@ class SubscriptionService:
             Subscription.expires_at.is_not(None),
             Subscription.expires_at <= now,
         )).all())
+        if skip_expiry:
+            stale = []
         for old in stale:
             self.expire_subscription(database, old)
         if stale:

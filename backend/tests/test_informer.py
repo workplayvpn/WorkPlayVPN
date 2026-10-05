@@ -151,8 +151,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, UTC
 with engine.begin() as c:
-    c.execute(text('CREATE TABLE informer_notifications (id VARCHAR PRIMARY KEY, payment_id BIGINT, user_id BIGINT, text TEXT, attempts INTEGER, next_attempt_at DATETIME, created_at DATETIME, sent_at DATETIME)'))
-    c.execute(text("INSERT INTO informer_notifications VALUES ('x',1,1,'test',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,NULL)"))
+    c.execute(text('CREATE TABLE informer_notifications (id VARCHAR PRIMARY KEY, payment_id BIGINT, event_key VARCHAR, user_id BIGINT, text TEXT, attempts INTEGER, next_attempt_at DATETIME, created_at DATETIME, sent_at DATETIME)'))
+    c.execute(text("INSERT INTO informer_notifications VALUES ('x',1,NULL,1,'test',0,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,NULL)"))
 with Session(engine) as s:
     event = s.get(informer.InformerNotification, 'x')
     event.sent_at = datetime.now(UTC)

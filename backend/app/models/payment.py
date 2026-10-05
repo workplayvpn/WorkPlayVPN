@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     Numeric,
@@ -32,6 +33,9 @@ class Payment(Base):
         index=True,
         nullable=False,
     )
+
+    purpose: Mapped[str] = mapped_column(String(16), default="subscription", server_default="subscription", nullable=False)
+    is_gift_test: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
 
     subscription_id: Mapped[int] = mapped_column(
         BigInteger,

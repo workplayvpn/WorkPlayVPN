@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from app.core.config import settings
 
 from app.models.payment import Payment
 from app.models.payment_fulfillment import PaymentFulfillment
@@ -32,7 +33,10 @@ class PaymentService:
         plan_code: str,
         provider: str,
         idempotency_key: str | None = None,
+        *, purchase_kind: str = "subscription",
     ) -> Payment:
+        if purchase_kind not in {"subscription", "gift"}:
+            raise HTTPException(400, "Unknown purchase kind")
         user = database.scalar(
             select(User).where(
                 User.telegram_id == telegram_id,
@@ -64,6 +68,9 @@ class PaymentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Plan not found",
             )
+
+        if purchase_kind == "gift" and (plan.access_tier not in {"basic", "mobile"} or slot_count(plan) or plan.code == "trial_1d" or plan.price_amount <= 0 or plan.duration_days <= 0):
+            raise HTTPException(400, "Этот тариф нельзя купить в подарок")
 
         if slot_count(plan) and not active_entitlements(database, user.id):
             raise HTTPException(status_code=409, detail="Active subscription required")
@@ -105,6 +112,7 @@ class PaymentService:
 
             if (
                 existing_payment.user_id != user.id
+                or existing_payment.purpose != purchase_kind
                 or existing_payment.provider != provider
                 or existing_subscription.plan_id != plan.id
             ):
@@ -169,6 +177,7 @@ class PaymentService:
 
                 if (
                     existing_payment.user_id != locked_user.id
+                    or existing_payment.purpose != purchase_kind
                     or existing_payment.provider != provider
                     or existing_subscription.plan_id != plan.id
                 ):
@@ -188,6 +197,16 @@ class PaymentService:
                 # создаёт отдельный pending-платёж.
                 # -------------------------------------------------
 
+                if purchase_kind == "gift":
+                    from sqlalchemy import func
+                    pending_count = database.scalar(select(func.count()).select_from(Payment).where(
+                        Payment.user_id == locked_user.id, Payment.purpose == "gift", Payment.status == "pending",
+                        Payment.expires_at > datetime.now(UTC)))
+                    daily_count = database.scalar(select(func.count()).select_from(Payment).where(
+                        Payment.user_id == locked_user.id, Payment.purpose == "gift",
+                        Payment.created_at > datetime.now(UTC) - timedelta(days=1)))
+                    if pending_count >= 5 or daily_count >= 20:
+                        raise HTTPException(429, "Слишком много заказов подарков. Завершите оплату или попробуйте позже.")
                 subscription = Subscription(
                     user_id=locked_user.id,
                     plan_id=plan.id,
@@ -198,6 +217,8 @@ class PaymentService:
                     user_id=locked_user.id,
                     subscription_id=0,
                     provider=provider,
+                    purpose=purchase_kind,
+                    is_gift_test=purchase_kind == "gift" and (provider == "test" or settings.payment_mode == "test" or (provider == "robokassa" and settings.robokassa_is_test)),
                     provider_payment_id=None,
                     idempotency_key=idempotency_key,
                     status="pending",
@@ -216,6 +237,10 @@ class PaymentService:
                     )
 
                     database.add(payment)
+                    database.flush()
+                    if purchase_kind == "gift":
+                        from app.services.gifts import prepare_gift_order
+                        prepare_gift_order(database, payment, plan)
                     database.commit()
                     database.refresh(payment)
 
@@ -231,6 +256,11 @@ class PaymentService:
 
                     if payment is None:
                         raise
+                    existing_subscription = database.get(Subscription, payment.subscription_id)
+                    if (payment.user_id != user.id or payment.provider != provider
+                            or payment.purpose != purchase_kind or existing_subscription is None
+                            or existing_subscription.plan_id != plan.id):
+                        raise HTTPException(409, "Idempotency key already used for another payment")
 
         # -------------------------------------------------
         # 4. Provider payment уже создан.
@@ -268,7 +298,7 @@ class PaymentService:
             provider_result = provider_service.create_payment(
                 amount=payment.amount,
                 currency=payment.currency,
-                description=f"Work&PlayVPN {plan.name}",
+                description=f"Work&PlayVPN {'Подарок — ' if payment.purpose == 'gift' else ''}{plan.name}",
                 idempotency_key=payment.idempotency_key,
                 metadata={
                     "payment_id": str(payment.id),
@@ -329,6 +359,25 @@ class PaymentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Payment not found",
             )
+
+        if payment.purpose == "gift":
+            if payment.status not in {"pending", "succeeded"}:
+                raise HTTPException(409, "Payment cannot be completed")
+            from app.services.gifts import issue_paid_gift
+            if payment.status == "pending":
+                payment.status = "succeeded"
+                payment.paid_at = datetime.now(UTC)
+                if provider_payment_id is not None:
+                    payment.provider_payment_id = provider_payment_id
+            gift = issue_paid_gift(database, payment)
+            database.get(Subscription, payment.subscription_id).status = "completed"
+            if database.scalar(select(PaymentFulfillment.id).where(PaymentFulfillment.payment_id == payment.id)) is None:
+                database.add(PaymentFulfillment(payment_id=payment.id, user_id=payment.user_id,
+                    status="delivered", delivered_at=datetime.now(UTC)))
+            enqueue_purchase(database, payment, plan=database.get(Plan, gift.plan_id))
+            database.commit()
+            database.refresh(payment)
+            return payment
 
         # Повторный webhook.
         #
@@ -469,6 +518,7 @@ class PaymentService:
                     Payment.id
                     != succeeded_payment.id,
                     Payment.status == "pending",
+                    Payment.purpose == "subscription",
                 )
             ).all()
         )
