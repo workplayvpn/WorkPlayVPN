@@ -1,3 +1,4 @@
+from app.services.payment_order_number import public_order_number
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -50,7 +51,7 @@ def buy(payload: BuyGift, response: Response, auth=Depends(require_telegram_weba
     payment = payment_service.create_payment(database, user.telegram_id, payload.plan_code,
         settings.payment_default_provider, payload.idempotency_key, purchase_kind="gift")
     response.headers["Cache-Control"] = "no-store"
-    return dict(id=payment.id, status=payment.status, amount=str(payment.amount), currency=payment.currency,
+    return dict(id=payment.id, order_number=public_order_number(payment), status=payment.status, amount=str(payment.amount), currency=payment.currency,
                 confirmation_url=payment_redirect_service.build_public_confirmation_url(payment), expires_at=payment.expires_at)
 
 
@@ -67,7 +68,7 @@ def mine(response: Response, auth=Depends(require_telegram_webapp_auth), databas
     purchased, activated = [], []
     for gift in rows:
         payment = database.get(Payment, gift.payment_id)
-        data = dict(id=gift.id, payment_id=gift.payment_id, access_tier=gift.access_tier,
+        data = dict(id=gift.id, payment_id=gift.payment_id, order_number=public_order_number(payment), access_tier=gift.access_tier,
                     duration_days=gift.duration_days, state=gift.state, redeemed_at=gift.redeemed_at,
                     created_at=gift.created_at, is_test=payment.is_gift_test)
         if gift.buyer_id == user.id:

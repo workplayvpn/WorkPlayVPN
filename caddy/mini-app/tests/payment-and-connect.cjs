@@ -38,6 +38,9 @@ function harness() {
   assert.equal(h.calls.filter(c=>c.options?.method==='POST').length,1);
   h.run('renderCheckout()');assert.equal(h.node('#checkout-order').textContent,'№ 42');
   assert.equal(h.node('#checkout-amount').textContent,'199.00 RUB');
+  h.run('state.payment.order_number="422415962178";renderCheckout()');
+  assert.equal(h.node('#checkout-order').textContent,'№ 422415962178');
+  assert.equal(h.context.state.payment.id,42);
   let pending=h.run('confirmPaymentLink(state.payment.confirmation_url)');
   assert.equal(h.context.popup.title,'Открыть ссылку?');h.context.finishPopup('cancel');
   assert.equal(await pending,false);assert.equal(h.opened.length,0);

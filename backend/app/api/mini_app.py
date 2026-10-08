@@ -1,3 +1,4 @@
+from app.services.payment_order_number import public_order_number
 from app.services.payment_checkout import effective_payment_expiry, payment_available_for_checkout
 from app.services.happ_crypt_link import encrypted_happ_link
 from app.services.happ_import_link import stable_happ_import_link
@@ -687,7 +688,7 @@ def build_payment_read(database: Session, payment: Payment) -> MiniAppPaymentRea
     if payment_status == "pending" and not payment_available_for_checkout(payment):
         payment_status = "expired"
     return MiniAppPaymentRead(
-        id=payment.id, status=payment_status, amount=payment.amount,
+        id=payment.id, order_number=public_order_number(payment), status=payment_status, amount=payment.amount,
         currency=payment.currency,
         confirmation_url=(payment_redirect_service.build_public_confirmation_url(payment)
                           if payment_status == "pending" else None),

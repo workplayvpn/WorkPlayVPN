@@ -110,6 +110,7 @@ class MiniAppPaymentCreate(BaseModel):
 
 class MiniAppPaymentRead(BaseModel):
     id: int
+    order_number: str | None = None
     status: str
     amount: Decimal
     currency: str

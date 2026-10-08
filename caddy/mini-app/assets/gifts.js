@@ -49,7 +49,7 @@ function renderGiftList() {
 function renderGiftInvoice() {
   if(!giftUI.order)return;const root=giftElement("gift-invoice");root.replaceChildren();const id=giftUI.order.payment_id||giftUI.order.id;const row=giftUI.data.purchased.find(item=>item.payment_id===id)||giftUI.order;
   if(row.state && row.state!=="pending") {root.append(giftNode("h2",row.state==="ready"?"Подарок готов 🎁":row.state==="obsolete"?"Нужен новый заказ":"Счёт завершён"),giftButton("К моим подаркам",()=>{giftUI.tab="purchased";giftPane("mine");}));giftUI.keys.clear();return;}
-  root.append(giftNode("h2","Ожидаем оплату"),giftNode("p",`Заказ #${id} · ${giftMoney(row)}`),giftNode("p","После подтверждения оплаты код появится в «Моих подарках». Страница проверяет оплату автоматически."));
+  root.append(giftNode("h2","Ожидаем оплату"),giftNode("p",`Заказ #${row.order_number || giftUI.order.order_number || id} · ${giftMoney(row)}`),giftNode("p","После подтверждения оплаты код появится в «Моих подарках». Страница проверяет оплату автоматически."));
   if(row.confirmation_url)root.append(giftButton("Перейти к оплате",()=>openGiftPayment(row.confirmation_url)));root.append(giftButton("Проверить оплату",()=>checkGiftPayment()));
 }
 async function loadGifts() {

@@ -3,6 +3,7 @@ import hmac
 from urllib.parse import parse_qs, urlsplit
 
 from app.core.config import settings
+from app.services.payment_order_number import public_order_number
 from app.services.payment_providers.robokassa import calculate_robokassa_signature
 
 
@@ -18,7 +19,7 @@ def gift_checkout_is_current(payment) -> bool:
         return False
     value = {key: values[0] for key, values in params.items()}
     if (value["MerchantLogin"] != settings.robokassa_merchant_login
-            or value["InvId"] != str(payment.id)
+            or value["InvId"] != public_order_number(payment)
             or value["OutSum"] != format(payment.amount, ".2f")
             or (value.get("IsTest") == "1") != settings.robokassa_is_test
             or not settings.robokassa_password_1):

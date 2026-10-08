@@ -78,5 +78,5 @@ async def robokassa_webhook(
     )
 
     return PlainTextResponse(
-        content=f"OK{payment.id}",
+        content=f"OK{payload['InvId']}",
     )

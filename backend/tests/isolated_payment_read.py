@@ -70,6 +70,7 @@ def load_handlers():
     namespace = {"Session": Database, "Payment": Payment, "User": User, "Plan": Plan,
                  "Subscription": Subscription, "select": Query, "UTC": UTC, "datetime": datetime,
                  "MiniAppPaymentRead": NS, "HTTPException": HTTPException,
+                 "public_order_number": lambda p: str(p.id),
                  **load_checkout_policy(),
                  "payment_redirect_service": NS(build_public_confirmation_url=lambda p: "https://pay.example/42")}
     exec(compile(ast.fix_missing_locations(ast.Module(body=selected, type_ignores=[])), str(source), "exec"), namespace)

@@ -117,7 +117,7 @@ class RobokassaProvider(PaymentProvider):
                 detail="Robokassa supports RUB payments only",
             )
 
-        payment_id = metadata.get("payment_id")
+        payment_id = metadata.get("invoice_id") or metadata.get("payment_id")
 
         if not payment_id or not payment_id.isdecimal():
             raise HTTPException(

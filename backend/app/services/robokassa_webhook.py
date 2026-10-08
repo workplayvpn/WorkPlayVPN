@@ -4,6 +4,7 @@ from urllib.parse import parse_qs
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.core.config import settings
 from app.models.payment import Payment
@@ -163,7 +164,14 @@ class RobokassaWebhookService:
                 detail="Invalid OutSum",
             )
 
-        payment = database.get(Payment, payment_id)
+        # New invoices use a random public number persisted in provider_payment_id.
+        payment = database.scalar(select(Payment).where(
+            Payment.provider == "robokassa",
+            Payment.provider_payment_id == f"robokassa:{invoice_id}",
+        ))
+        if payment is None:
+            # Compatibility with already-issued invoices using internal IDs.
+            payment = database.get(Payment, payment_id)
 
         if payment is None:
             raise HTTPException(

@@ -681,7 +681,7 @@ function renderCheckout() {
   text("checkout-term", payment.duration_days > 0 ? `${payment.duration_days} дней`
     : payment.access_tier === "device_slots" ? "Не меняет срок подписки" : "—");
   text("checkout-amount", formatMoney(payment.amount, payment.currency));
-  text("checkout-order", `№ ${payment.id}`);
+  text("checkout-order", `№ ${payment.order_number || payment.id}`);
   text("checkout-status", labels[status] || "Уточняем статус заказа");
   text("checkout-note", ["paid", "succeeded"].includes(status)
     ? "Платёж подтверждён сервером. Обновляем подписку; её параметры доступны в «Мои подписки»."

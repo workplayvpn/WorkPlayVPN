@@ -34,6 +34,7 @@ def make_payment(
 
 def make_database(payment):
     database = MagicMock()
+    database.scalar.return_value = None
 
     def get_side_effect(model, object_id):
         if model is Payment and object_id == payment.id:
@@ -287,3 +288,15 @@ def test_mode_mismatch_is_rejected() -> None:
     assert exc_info.value.detail == (
         "Robokassa payment mode is inconsistent"
     )
+
+
+def test_public_invoice_number_is_resolved_to_internal_payment():
+    payment = make_payment(payment_id=100, provider_payment_id="robokassa:422415962178")
+    database = make_database(payment)
+    database.scalar.return_value = payment
+    service = RobokassaWebhookService()
+    with patch("app.services.robokassa_webhook.payment_service.mark_succeeded", return_value=payment) as mark:
+        result = service.handle_result(database=database, payload={"InvId": "422415962178", "OutSum": "199.00"})
+    assert result is payment
+    mark.assert_called_once_with(database=database, payment_id=100, provider_payment_id="robokassa:422415962178")
+    database.get.assert_not_called()
