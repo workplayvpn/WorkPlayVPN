@@ -22,6 +22,7 @@ from app.core.config import settings
 from app.api.happ_auto_route import auto_route_allowed
 from app.services.entitlements import active_entitlements
 from app.services.happ_crypt_link import encrypted_happ_link
+from app.services.happ_import_link import stable_happ_import_link
 from app.db.dependencies import get_db
 from app.models.subscription import Subscription
 from app.models.vpn_device import VpnDevice
@@ -69,6 +70,24 @@ def get_happ_connect_script() -> FileResponse:
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+@router.get("/launch/key/{token}", include_in_schema=False)
+def launch_account_key(token: str, database: Session = Depends(get_db)) -> RedirectResponse:
+    user, tier = subscription_token_service.resolve_token_scope(database, token)
+    if tier not in active_entitlements(database, user.id):
+        raise HTTPException(status_code=403, detail="Active subscription required")
+    feed_url = f"{settings.subscription_base_url.rstrip('/')}/{token}"
+    try:
+        url = stable_happ_import_link(
+            database, user_id=user.id, access_tier=tier,
+            subscription_url=feed_url, encrypt=encrypted_happ_link,
+        )
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="Happ encrypted import is temporarily unavailable") from exc
+    return RedirectResponse(url=url, status_code=307, headers={
+        "Cache-Control": "no-store", "Pragma": "no-cache", "Referrer-Policy": "no-referrer",
+    })
 
 
 @router.get(
@@ -259,7 +278,7 @@ def _connect_happ_page(
         f"/connect/happ/launch/device/{device_id}/{token}"
         if device_id is not None else
         f"/connect/happ/launch/auto/routed/{token}" if routed else
-        f"/connect/happ/launch/{token}"
+        f"/connect/happ/launch/key/{token}"
     )
 
     safe_launch_url = escape(
@@ -291,7 +310,7 @@ def _connect_happ_page(
     ></script>
 
     <script
-        src="/connect/happ/assets/happ-connect.js?v=20261003-1"
+        src="/connect/happ/assets/happ-connect.js?v=20261008-happ-fix-2"
         defer
     ></script>
 </head>

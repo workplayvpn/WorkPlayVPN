@@ -23,7 +23,7 @@ IDEMPOTENCY_KEY = "mini-app-payment-request-0001"
 client = TestClient(app)
 
 
-def build_init_data() -> str:
+def build_init_data(telegram_id: int = TELEGRAM_ID) -> str:
     bot_token = settings.telegram_bot_token
     assert bot_token is not None
 
@@ -34,7 +34,7 @@ def build_init_data() -> str:
         "query_id": "AAE-mini-app-payment-test",
         "user": json.dumps(
             {
-                "id": TELEGRAM_ID,
+                "id": telegram_id,
                 "first_name": "Payments",
                 "username": "payments_test",
             },
@@ -205,7 +205,52 @@ def test_payment_is_created_once_for_repeated_request() -> None:
         "created_at",
         "expires_at",
         "paid_at",
+        "plan_code",
+        "plan_name",
+        "duration_days",
+        "access_tier",
+        "purpose",
     }
+    assert payment["plan_code"] == "standard_7d"
+    assert payment["duration_days"] == 7
+    assert payment["access_tier"] == "basic"
+
+
+def test_order_read_is_owned_and_does_not_create_payment() -> None:
+    headers = {"X-Telegram-Init-Data": build_init_data()}
+    assert client.get("/mini-app/me", headers=headers).status_code == 200
+    created = client.post("/mini-app/payments", headers=headers, json={
+        "plan_code": "standard_7d", "idempotency_key": IDEMPOTENCY_KEY,
+    })
+    assert created.status_code == 201
+    order = created.json()
+    path = f"/mini-app/payments/{order['id']}"
+    for _ in range(2):
+        response = client.get(path, headers=headers)
+        assert response.status_code == 200
+        assert response.json() == order
+        assert response.headers["cache-control"] == "no-store"
+    assert client.get(path).status_code == 401
+    foreign = {"X-Telegram-Init-Data": build_init_data(TELEGRAM_ID + 1)}
+    assert client.get(path, headers=foreign).status_code == 404
+    assert client.get("/mini-app/payments/999999999", headers=headers).status_code == 404
+    from app.models.payment import Payment
+    with SessionLocal() as database:
+        payment = database.get(Payment, order["id"])
+        payment.expires_at = datetime.now(UTC) - timedelta(minutes=1)
+        database.commit()
+    expired = client.get(path, headers=headers).json()
+    assert expired["status"] == "expired"
+    assert expired["confirmation_url"] is None
+    with SessionLocal() as database:
+        payment = database.get(Payment, order["id"])
+        assert payment.status == "pending"  # GET must not mutate persistence.
+        payment.status = "succeeded"
+        payment.paid_at = datetime.now(UTC)
+        database.commit()
+    paid = client.get(path, headers=headers).json()
+    assert paid["status"] == "succeeded"
+    assert paid["confirmation_url"] is None
 
 
 def test_trial_plan_cannot_be_purchased() -> None:

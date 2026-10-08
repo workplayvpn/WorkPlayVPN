@@ -14,7 +14,7 @@ window.WorkPlayKnowledge = (() => {
       const matches=articles.filter(a=>(group==='Все'||a.group===group)&&[a.title,a.subtitle,a.group,...a.paragraphs].join(' ').toLocaleLowerCase('ru').includes(query));
       list.replaceChildren();document.querySelector('#knowledge-count').textContent=`${matches.length} из ${articles.length}`;
       for(const a of matches){
-        const card=node('details',null,'kb-article'),summary=node('summary',null),cover=node('span',null,'kb-cover'),img=document.createElement('img');img.src=`${assets}/help/${a.art}.svg`;img.alt='';img.width=150;img.height=150;cover.append(img);
+        const card=node('details',null,'kb-article'),summary=node('summary',null),cover=node('span',null,'kb-cover'),img=document.createElement('img');card.dataset.articleId=a.id;img.src=`${assets}/help/${a.art}.svg`;img.alt='';img.width=150;img.height=150;cover.append(img);
         const copy=node('span',null,'kb-card-copy'),meta=node('span',null,'kb-card-meta');meta.append(node('span',`${a.emoji} ${a.group}`),node('span',`${Math.max(1,Math.ceil(a.paragraphs.join(' ').length/850))} мин`));
         const read=node('span',null,'kb-read');read.append(node('span','Открыть инструкцию'),node('span','↗'));copy.append(meta,node('strong',a.title),node('small',a.subtitle),read);summary.append(cover,copy);
         const body=node('div',null,'kb-body'),steps=node('ol',null);for(const p of a.paragraphs)steps.append(node('li',p));body.append(steps,node('div','💡 Если вопрос остался, открой «Сообщить о проблеме» — подскажем, что проверить.','kb-note'));card.append(summary,body);
@@ -22,7 +22,8 @@ window.WorkPlayKnowledge = (() => {
       }
       if(!matches.length)list.append(node('div','🔎 Ничего не найдено. Попробуй другой запрос или выбери раздел «Все».','kb-empty'));
     }
-    search.addEventListener('input',render);render();return {render};
+    function openArticle(id){group='Все';search.value='';for(const btn of filters.children)btn.setAttribute('aria-pressed',String(btn===filters.firstChild));render();const card=[...list.children].find(item=>item.dataset.articleId===id);if(card){card.open=true;card.scrollIntoView({block:'start',behavior:'smooth'});}}
+    search.addEventListener('input',render);render();return {render,openArticle};
   }
   return {mount,node};
 })();

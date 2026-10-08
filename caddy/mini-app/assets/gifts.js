@@ -25,12 +25,7 @@ function renderGiftOffers(rows) {
   for(const row of rows.filter(row=>row.access_tier===giftUI.tier)){const card=giftNode("article","",`gift-card catalog-card catalog-card-${row.access_tier}`);card.append(giftNode("h3",`${row.duration_days} дней · ${row.device_limit} устройства`),giftNode("strong",giftMoney(row),"gift-price"),giftButton("Купить подарок",()=>buyGift(row)));root.append(card);}
 }
 async function openGiftPayment(url) {
-  const prompt="Перейти в сторонний браузер для оплаты через Robokassa?";
-  let confirmed=false;
-  if(telegram?.showConfirm && telegram.isVersionAtLeast?.("6.2")){
-    confirmed=await new Promise(resolve=>telegram.showConfirm(prompt,resolve));
-  }else{confirmed=window.confirm(prompt);}
-  if(confirmed)openExternal(url);
+  return confirmPaymentLink(url);
 }
 async function checkGiftPayment() {
   if(await loadGifts()===false)return;

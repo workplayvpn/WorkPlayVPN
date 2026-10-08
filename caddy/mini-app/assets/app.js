@@ -17,6 +17,10 @@ const state = {
   view: "home",
   devices: [],
   payment: null,
+  checkoutReturnView: "terms",
+  checkoutTimer: null,
+  checkoutChecking: false,
+  checkoutError: "",
   deleteDeviceId: null,
   toastTimer: null,
   telegramEventsBound: false,
@@ -328,6 +332,7 @@ function deviceDisplayName(device) {
 }
 
 function setView(name) {
+  clearTimeout(state.checkoutTimer);
   if (name === "gifts" && typeof loadGifts === "function") loadGifts();
   if (name === "help") { loadKnowledge(); loadSupportTickets(); }
   if (name === "support") prepareSupportForm();
@@ -339,6 +344,10 @@ function setView(name) {
     renderSubscriptionDetail();
   }
   state.view = name;
+  if (name === "checkout") {
+    renderCheckout();
+    scheduleCheckoutCheck();
+  }
   document.querySelectorAll(".view").forEach((view) => {
     view.classList.toggle("active", view.id === `view-${name}`);
   });
@@ -378,6 +387,9 @@ function openSubscription(tier) {
 
 function prepareKeyCopyButton(tier) {
   const button = document.querySelector('[data-key-action="copy"]');
+  const happButton = document.querySelector("#detail-connect");
+  happButton.disabled = !preparedKeyValues.has(tier);
+  happButton.textContent = happButton.disabled ? "Готовим подключение…" : "Подключить через Happ";
   button.disabled = !preparedKeyValues.has(tier);
   button.textContent = button.disabled ? "Получаем ключ…" : "Скопировать ключ";
   const generation = keyGeneration;
@@ -385,11 +397,15 @@ function prepareKeyCopyButton(tier) {
     if (state.detailTier === tier && generation === keyGeneration) {
       button.disabled = false;
       button.textContent = "Скопировать ключ";
+      happButton.disabled = false;
+      happButton.textContent = "Подключить через Happ";
     }
   }).catch(() => {
     if (state.detailTier === tier && generation === keyGeneration) {
       button.disabled = false;
       button.textContent = "Повторить получение ключа";
+      happButton.disabled = false;
+      happButton.textContent = "Повторить получение ключа";
     }
   });
 }
@@ -605,6 +621,170 @@ function renderPayment() {
     elements.pendingPaymentAmount.textContent =
       formatMoney(payment.amount, payment.currency);
   }
+}
+
+// Payment links are only opened from an explicit confirmation callback.
+function confirmPaymentLink(value) {
+  let url;
+  try {
+    url = new URL(value);
+    if (url.protocol !== "https:") throw new Error("Invalid payment URL");
+  } catch {
+    showToast("Ссылка оплаты недоступна. Обновите статус заказа.", "error");
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    const finish = (confirmed) => {
+      if (confirmed) openExternal(url.href);
+      resolve(confirmed);
+    };
+    const message = `Перейти на ${url.hostname} для оплаты? Откроется страница в браузере.`;
+    try {
+      if (telegram?.showPopup && telegram.isVersionAtLeast?.("6.2")) {
+        telegram.showPopup({title: "Открыть ссылку?", message, buttons: [
+          {id: "cancel", type: "default", text: "Отмена"},
+          {id: "open", type: "default", text: "Открыть"},
+        ]}, (id) => finish(id === "open"));
+      } else {
+        finish(window.confirm(message));
+      }
+    } catch {
+      showToast("Не удалось открыть подтверждение. Попробуйте ещё раз.", "error");
+      resolve(false);
+    }
+  });
+}
+
+function paymentIsPending(payment) {
+  return payment?.status === "pending" && (!payment.expires_at || Date.parse(payment.expires_at) > Date.now());
+}
+
+function openPaymentCheckout() {
+  if (!state.payment) return;
+  if (state.view !== "checkout") state.checkoutReturnView = state.view;
+  state.checkoutError = "";
+  closeSheet(elements.slotSheet);
+  setView("checkout");
+}
+
+function renderCheckout() {
+  const payment = state.payment;
+  if (!payment) return;
+  const pending = paymentIsPending(payment);
+  const status = payment.status === "pending" && !pending ? "expired" : payment.status;
+  const labels = {pending: "Ожидает оплаты", paid: "Оплата подтверждена", succeeded: "Оплата подтверждена",
+    canceled: "Заказ отменён", expired: "Срок оплаты истёк", failed: "Оплата не завершена"};
+  const text = (id, value) => { document.querySelector(`#${id}`).textContent = value; };
+  text("checkout-plan", payment.access_tier === "device_slots" ? (payment.plan_name || "Лимит устройств")
+    : payment.access_tier ? tierLabel(payment.access_tier) : (payment.plan_name || "Подписка"));
+  text("checkout-title", payment.access_tier === "device_slots" ? "Оплата устройств" : "Оплата подписки");
+  text("checkout-term", payment.duration_days > 0 ? `${payment.duration_days} дней`
+    : payment.access_tier === "device_slots" ? "Не меняет срок подписки" : "—");
+  text("checkout-amount", formatMoney(payment.amount, payment.currency));
+  text("checkout-order", `№ ${payment.id}`);
+  text("checkout-status", labels[status] || "Уточняем статус заказа");
+  text("checkout-note", ["paid", "succeeded"].includes(status)
+    ? "Платёж подтверждён сервером. Обновляем подписку; её параметры доступны в «Мои подписки»."
+    : status === "expired" ? "Этот счёт больше не действует. Вернитесь в каталог и создайте новый заказ."
+    : pending ? "После оплаты вернитесь сюда. Статус проверяется автоматически; повторный заказ не нужен."
+    : "Вернитесь в каталог, чтобы выбрать новый заказ.");
+  text("checkout-error", state.checkoutError || "");
+  const pay = document.querySelector("#checkout-pay");
+  pay.disabled = !pending || !payment.confirmation_url;
+  pay.classList.toggle("hidden", !pending);
+  document.querySelector("#checkout-refresh").disabled = state.checkoutChecking;
+}
+
+function scheduleCheckoutCheck() {
+  clearTimeout(state.checkoutTimer);
+  if (state.view === "checkout" && paymentIsPending(state.payment) && !document.hidden) {
+    state.checkoutTimer = setTimeout(() => refreshCheckout(), 5000);
+  }
+}
+
+async function refreshCheckout() {
+  if (state.checkoutChecking || state.view !== "checkout" || !state.payment) return;
+  const id = state.payment.id;
+  const wasPending = state.payment.status === "pending";
+  state.checkoutChecking = true;
+  renderCheckout();
+  try {
+    const payment = await api(`/mini-app/payments/${id}`, {cache: "no-store"});
+    if (state.payment?.id !== id) return;
+    state.payment = payment;
+    state.checkoutError = "";
+    renderPayment();
+    if (wasPending && ["paid", "succeeded"].includes(payment.status)) await loadData();
+  } catch (error) {
+    if (state.payment?.id === id) state.checkoutError = "Не удалось проверить оплату. Статус не подтверждён — попробуйте ещё раз.";
+  } finally {
+    state.checkoutChecking = false;
+    if (state.view === "checkout") renderCheckout();
+    scheduleCheckoutCheck();
+  }
+}
+
+// Import the account's stable tier key, never POST a new device on a button click.
+async function connectSubscriptionInHapp() {
+  const button = document.querySelector("#detail-connect");
+  if (button.disabled) return;
+  const tier = state.detailTier;
+  const generation = keyGeneration;
+  if (!activeSubscriptions().some((entry) => subscriptionTier(entry) === tier)) return;
+  button.disabled = true;
+  button.textContent = "Открываем Happ…";
+  try {
+    let key = preparedKeyValues.get(tier);
+    if (!key) {
+      await prepareSubscriptionKey(tier);
+      // A slow retry can lose iOS user activation: the next tap opens the cached link synchronously.
+      if (generation === keyGeneration && tier === state.detailTier && state.view === "devices") {
+        showToast("Ключ готов. Нажмите «Подключить через Happ».");
+      }
+      return;
+    }
+    if (generation !== keyGeneration || tier !== state.detailTier || state.view !== "devices") return;
+    const launch = new URL(key.launch_url, window.location.origin);
+    if (launch.protocol !== "https:" || launch.origin !== window.location.origin
+        || !launch.pathname.startsWith("/connect/happ/launch/key/")) throw new Error("Invalid launch link");
+    // Telegram iOS can ignore custom schemes in its WebView; use its HTTPS opener.
+    openExternal(launch.href);
+  } catch (error) {
+    showToast(humanError(error), "error");
+  } finally {
+    button.textContent = "Подключить через Happ";
+    button.disabled = !activeSubscriptions().some((entry) => subscriptionTier(entry) === state.detailTier);
+  }
+}
+
+async function openConnectionInstructions() {
+  const tier = state.detailTier;
+  const generation = keyGeneration;
+  const button = document.querySelector("#detail-instruction");
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    const key = preparedKeyValues.get(tier) || await prepareSubscriptionKey(tier);
+    if (generation !== keyGeneration || tier !== state.detailTier || state.view !== "devices") return;
+    const url = new URL(key.instruction_url, window.location.origin);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith("/connect/happ/")) throw new Error("Invalid instruction link");
+    url.searchParams.set("return_tier", tier);
+    url.hash = window.location.hash;
+    // Same WebView/history, not openLink: Back must return to this subscription.
+    window.location.assign(url.href);
+  } catch (error) { showToast(humanError(error), "error"); }
+  finally { button.disabled = false; }
+}
+
+function openConnectionCheck() {
+  state.supportReturnView = "devices";
+  setView("support");
+  document.querySelector("#support-title").textContent = "Проверить подключение";
+  document.querySelector("#support-category").value = "connection";
+  document.querySelector("#support-tier").value = state.detailTier;
+  supportState.checkIndex = 0;
+  supportState.tried = [];
+  supportStage("context");
 }
 
 function renderProfile() {
@@ -962,7 +1142,7 @@ function showKeySheet(mode, trigger) {
 function handleMiniAppBack() {
   const sheet = [keySheet, elements.confirmSheet, elements.regionSuccessSheet, elements.deviceConnectSheet, elements.locationSheet, elements.slotSheet].find((item) => !item.classList.contains("hidden"));
   if (sheet) { closeSheet(sheet); return; }
-  setView(state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : state.view === "support" ? "help" : "home");
+  setView(state.view === "checkout" ? state.checkoutReturnView : state.view === "terms" ? (state.termsReturnView || "plans") : state.view === "devices" ? "subscriptions" : state.view === "support" ? (state.supportReturnView || "help") : "home");
 }
 
 function renderRegion() {
@@ -1172,9 +1352,9 @@ async function showSlotOffers() {
 async function startPayment(plan, button) {
   if (state.creatingPayment) return;
   const originalLabel = button.innerHTML;
-  if (state.payment?.status === "pending") {
+  if (paymentIsPending(state.payment)) {
     showToast("Сначала завершите уже созданный платёж.");
-    openExternal(state.payment.confirmation_url);
+    openPaymentCheckout();
     return;
   }
 
@@ -1193,12 +1373,8 @@ async function startPayment(plan, button) {
 
     renderPayment();
     haptic("medium");
-
-    if (state.payment.confirmation_url) {
-      openExternal(state.payment.confirmation_url);
-    } else {
-      showToast("Платёж создан. Ссылка появится после подключения оплаты.");
-    }
+    delete button.dataset.paymentKey;
+    openPaymentCheckout();
   } catch (error) {
     showToast(humanError(error), "error");
   } finally {
@@ -1282,6 +1458,8 @@ async function removeDevice() {
 }
 
 async function loadData() {
+  const checkoutId = state.view === "checkout" ? state.payment?.id : null;
+  const paymentBeforeLoad = state.payment?.id;
   keyGeneration += 1;
   subscriptionKeys.clear();
   preparedKeyValues.clear();
@@ -1297,14 +1475,15 @@ async function loadData() {
     const [catalog, devices, payment] = await Promise.all([
       api("/mini-app/catalog"),
       api("/mini-app/devices"),
-      api("/mini-app/payments/current"),
+      api(checkoutId ? `/mini-app/payments/${checkoutId}` : "/mini-app/payments/current", {cache: "no-store"}),
     ]);
 
     state.catalog = catalog;
     state.devices = devices;
-    state.payment = payment;
+    if (state.payment?.id === paymentBeforeLoad) state.payment = payment;
 
     renderAll();
+    if (state.view === "checkout") { renderCheckout(); scheduleCheckoutCheck(); }
     if (state.view === "referrals") loadReferrals();
     if (state.view === "gifts" && typeof loadGifts === "function") loadGifts();
     elements.loading.classList.add("hidden");
@@ -1318,6 +1497,7 @@ async function loadData() {
       const params = new URLSearchParams(window.location.search);
       const requestedView = params.get("view");
       const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals", "help", "support", "gifts"]);
+      if (["basic", "mobile"].includes(params.get("detail_tier"))) state.detailTier = params.get("detail_tier");
       setView(allowedViews.has(requestedView) ? requestedView : "home");
       state.initialViewApplied = true;
       const keyTier = params.get("key_tier");
@@ -1356,7 +1536,7 @@ function initializeTelegram() {
 
     if (!state.telegramEventsBound) {
       telegram.BackButton?.onClick(handleMiniAppBack);
-      telegram.onEvent?.("activated", () => loadData());
+      telegram.onEvent?.("activated", () => state.view === "checkout" ? refreshCheckout() : loadData());
       telegram.onEvent?.("themeChanged", applyTheme);
       state.telegramEventsBound = true;
     }
@@ -1392,12 +1572,28 @@ elements.refreshButton.addEventListener("click", async () => {
 });
 elements.trialButton.addEventListener("click", startTrial);
 elements.resumePaymentButton.addEventListener("click", () => {
-  openExternal(state.payment?.confirmation_url);
+  openPaymentCheckout();
 });
+document.querySelector("#checkout-back").addEventListener("click", () => setView(state.checkoutReturnView));
+document.querySelector("#checkout-refresh").addEventListener("click", refreshCheckout);
+document.querySelector("#checkout-pay").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  if (button.disabled || !paymentIsPending(state.payment)) return;
+  button.disabled = true;
+  try { await confirmPaymentLink(state.payment.confirmation_url); }
+  finally { if (state.view === "checkout") renderCheckout(); }
+});
+document.addEventListener("visibilitychange", () => {
+  clearTimeout(state.checkoutTimer);
+  if (!document.hidden && state.view === "checkout") refreshCheckout();
+});
+window.addEventListener("focus", () => { if (state.view === "checkout") refreshCheckout(); });
 elements.changeRegionButton.addEventListener("click", () => {
   openSheet(elements.locationSheet);
 });
-document.querySelector("#detail-connect").addEventListener("click", showDeviceConnections);
+document.querySelector("#detail-connect").addEventListener("click", connectSubscriptionInHapp);
+document.querySelector("#detail-instruction").addEventListener("click", openConnectionInstructions);
+document.querySelector("#detail-check").addEventListener("click", openConnectionCheck);
 document.querySelector("#detail-renew").addEventListener("click", () => {
   openPlanTerms(state.detailTier, "devices");
 });
@@ -1554,7 +1750,7 @@ document.querySelectorAll("[data-key-action]").forEach((button) => {
 document.querySelector("#key-sheet-close").addEventListener("click", closeKeySheet);
 document.querySelector("#key-sheet-done").addEventListener("click", closeKeySheet);
 document.querySelector("#key-sheet-copy").addEventListener("click", () => copyDisplayedKey());
-document.querySelector("#key-sheet-happ").addEventListener("click", () => { if (keyData) window.location.href = keyData.url; });
+document.querySelector("#key-sheet-happ").addEventListener("click", () => { if (keyData) openExternal(keyData.launch_url); });
 keySheet.addEventListener("keydown", (event) => {
   if (event.key !== "Tab") return;
   const controls = [...keySheet.querySelectorAll("button, textarea")].filter((item) => !item.disabled && item.getClientRects().length);

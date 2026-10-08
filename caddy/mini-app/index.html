@@ -7,13 +7,13 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Work&amp;PlayVPN</title>
   <link rel="icon" href="/app/assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/app/assets/app.css?v=20261004-2">
+  <link rel="stylesheet" href="/app/assets/app.css?v=20261008-checkout-1">
   <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
-  <script src="/app/assets/knowledge-ui.js?v=20261003-3" defer></script>
+  <script src="/app/assets/knowledge-ui.js?v=20261008-checkout-1" defer></script>
   <script src="/app/assets/help-access.js?v=20261003-5" defer></script>
-  <script src="/app/assets/support.js?v=20261003-4" defer></script>
-  <script src="/app/assets/app.js?v=20261005-gifts-1" defer></script>
-  <script src="/app/assets/gifts.js?v=20261005-3" defer></script>
+  <script src="/app/assets/support.js?v=20261008-checkout-1" defer></script>
+  <script src="/app/assets/app.js?v=20261008-happ-fix-2" defer></script>
+  <script src="/app/assets/gifts.js?v=20261008-checkout-1" defer></script>
   <link rel="stylesheet" href="/app/assets/gifts.css?v=20261005-3">
   <link rel="stylesheet" href="/app/assets/knowledge.css?v=20261003-4">
   <link rel="stylesheet" href="/app/assets/light-theme.css?v=20261005-1">
@@ -212,9 +212,28 @@
         <button class="button button-secondary button-wide terms-subscriptions" type="button" data-view-link="subscriptions">Мои подписки →</button>
       </section>
 
+      <section id="view-checkout" class="view" aria-labelledby="checkout-title">
+        <button id="checkout-back" class="text-button detail-back" type="button">← Назад к выбору</button>
+        <div class="section-head"><p class="eyebrow">Ваш заказ</p><h1 id="checkout-title">Оплата подписки</h1><p>Проверьте заказ и перейдите к оплате.</p></div>
+        <article class="checkout-card">
+          <p id="checkout-status" class="checkout-status" role="status" aria-live="polite">Ожидает оплаты</p>
+          <dl class="checkout-details">
+            <div><dt>Тариф / покупка</dt><dd id="checkout-plan">—</dd></div>
+            <div><dt>Срок</dt><dd id="checkout-term">—</dd></div>
+            <div><dt>Заказ</dt><dd id="checkout-order">—</dd></div>
+            <div class="checkout-total"><dt>К оплате</dt><dd id="checkout-amount">—</dd></div>
+          </dl>
+          <p id="checkout-note" class="setup-note"></p>
+          <p id="checkout-error" class="checkout-error" role="status" aria-live="polite"></p>
+          <button id="checkout-pay" class="button button-primary button-wide" type="button">Перейти к оплате ↗</button>
+          <button id="checkout-refresh" class="button button-secondary button-wide" type="button">Проверить оплату</button>
+          <button class="text-button" type="button" data-view-link="subscriptions">Мои подписки →</button>
+        </article>
+      </section>
+
       <section id="view-devices" class="view" aria-labelledby="devices-title">
         <button class="text-button detail-back" type="button" data-view-link="subscriptions">← Мои подписки</button>
-        <article class="connection-hero detail-hero"><div class="connection-orbit" aria-hidden="true"></div><p class="eyebrow">Work&amp;PlayVPN</p><h1 id="detail-tier-name">Подписка</h1><p id="detail-description"></p><div class="detail-row"><span>Действует до</span><strong id="detail-expiry">—</strong></div><button id="detail-connect" class="button button-primary button-wide" type="button">Подключить через Happ</button><div class="key-actions" aria-label="Действия с ключом"><button class="key-action" type="button" data-key-action="copy"><span aria-hidden="true">⧉</span>Скопировать ключ</button><button class="key-action" type="button" data-key-action="qr"><span aria-hidden="true">▦</span>QR-код</button><button class="key-action key-action-wide" type="button" data-key-action="full"><span aria-hidden="true">⌕</span>Показать полный ключ</button></div><p class="key-context-note">Ключ подключения VPN для выбранной подписки. Это не ключ входа в помощь. Устройства и их лимит общие для Basic и Mobile.</p><button id="detail-renew" class="button button-secondary button-wide" type="button">Продлить подписку</button></article>
+        <article class="connection-hero detail-hero"><div class="connection-orbit" aria-hidden="true"></div><p class="eyebrow">Work&amp;PlayVPN</p><h1 id="detail-tier-name">Подписка</h1><p id="detail-description"></p><div class="detail-row"><span>Действует до</span><strong id="detail-expiry">—</strong></div><button id="detail-connect" class="button button-primary button-wide" type="button">Подключить через Happ</button><button id="detail-instruction" class="button button-secondary button-wide detail-instruction" type="button">Инструкция →</button><div class="key-actions" aria-label="Действия с ключом"><button class="key-action" type="button" data-key-action="copy"><span aria-hidden="true">⧉</span>Скопировать ключ</button><button class="key-action" type="button" data-key-action="qr"><span aria-hidden="true">▦</span>QR-код</button><button class="key-action key-action-wide" type="button" data-key-action="full"><span aria-hidden="true">⌕</span>Показать полный ключ</button></div><p class="key-context-note">Ключ подключения VPN для выбранной подписки. Это не ключ входа в помощь. Устройства и их лимит общие для Basic и Mobile.</p><button id="detail-renew" class="button button-secondary button-wide" type="button">Продлить подписку</button></article>
         <div class="section-head section-head-row">
           <div>
             <p class="eyebrow">Общие для Basic и Mobile</p>
@@ -246,8 +265,9 @@
         </button>
 
         <div class="help-card">
-          <strong>Как подключить?</strong>
-          <p>Откройте «Подключить через Happ» в карточке подписки на нужном устройстве. Название и ОС обновятся автоматически после загрузки подписки в Happ.</p>
+          <strong>Не работает VPN?</strong>
+          <p>Пройдите пошаговые проверки для выбранной подписки.</p>
+          <button id="detail-check" class="button button-secondary button-wide" type="button">Проверить подключение →</button>
         </div>
       </section>
 

@@ -6,11 +6,12 @@ const supportTopics=[['connection','🔌','Не работает подключ�
 const supportNode=(tag,text,cls)=>window.WorkPlayKnowledge.node(tag,text,cls);
 const supportEl=id=>document.getElementById(id);
 function renderKnowledge(){supportState.renderer?.render();}
+function openRequestedKnowledgeArticle(){if(state.view==='help'&&state.knowledgeArticle&&supportState.renderer){supportState.renderer.openArticle(state.knowledgeArticle);state.knowledgeArticle=null;}}
 async function loadKnowledge(){
  if(!await window.WorkPlayHelpAccess.ensure())return;
- if(supportState.articles){renderKnowledge();return;}if(supportState.knowledgeLoading)return;supportState.knowledgeLoading=true;
+ if(supportState.articles){renderKnowledge();openRequestedKnowledgeArticle();return;}if(supportState.knowledgeLoading)return;supportState.knowledgeLoading=true;
  const error=supportEl('knowledge-error');error.textContent='Загружаем инструкции…';
- try{supportState.articles=await window.WorkPlayHelpAccess.request('/mini-app/support/knowledge');supportState.renderer=window.WorkPlayKnowledge.mount(supportState.articles,'/app/assets');error.textContent='';}
+ try{supportState.articles=await window.WorkPlayHelpAccess.request('/mini-app/support/knowledge');supportState.renderer=window.WorkPlayKnowledge.mount(supportState.articles,'/app/assets');error.textContent='';openRequestedKnowledgeArticle();}
  catch(e){if(e.status===403)window.WorkPlayHelpAccess.lock();error.textContent='Не удалось загрузить инструкции. Открой раздел повторно или напиши в поддержку.';}finally{supportState.knowledgeLoading=false;}
 }
 function prepareSupportForm(){

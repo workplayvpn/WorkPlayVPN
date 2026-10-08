@@ -117,3 +117,8 @@ class MiniAppPaymentRead(BaseModel):
     created_at: datetime
     expires_at: datetime | None
     paid_at: datetime | None
+    plan_code: str | None = None
+    plan_name: str | None = None
+    duration_days: int | None = None
+    access_tier: str | None = None
+    purpose: str = "subscription"

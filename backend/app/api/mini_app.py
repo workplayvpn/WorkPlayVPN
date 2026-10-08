@@ -676,6 +676,29 @@ def remove_device(
     )
 
 
+def build_payment_read(database: Session, payment: Payment) -> MiniAppPaymentRead:
+    plan = database.scalar(
+        select(Plan).join(Subscription, Subscription.plan_id == Plan.id)
+        .where(Subscription.id == payment.subscription_id)
+    )
+    expires_at = payment.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    payment_status = payment.status
+    if payment_status == "pending" and expires_at is not None and expires_at <= datetime.now(UTC):
+        payment_status = "expired"
+    return MiniAppPaymentRead(
+        id=payment.id, status=payment_status, amount=payment.amount,
+        currency=payment.currency,
+        confirmation_url=(payment_redirect_service.build_public_confirmation_url(payment)
+                          if payment_status == "pending" else None),
+        created_at=payment.created_at, expires_at=payment.expires_at, paid_at=payment.paid_at,
+        plan_code=plan.code if plan else None, plan_name=plan.name if plan else None,
+        duration_days=plan.duration_days if plan else None,
+        access_tier=plan.access_tier if plan else None, purpose=payment.purpose,
+    )
+
+
 @router.post(
     "/payments",
     response_model=MiniAppPaymentRead,
@@ -700,19 +723,7 @@ def create_payment(
         idempotency_key=payload.idempotency_key,
     )
 
-    return MiniAppPaymentRead(
-        id=payment.id,
-        status=payment.status,
-        amount=payment.amount,
-        currency=payment.currency,
-        confirmation_url=(
-            payment_redirect_service
-            .build_public_confirmation_url(payment)
-        ),
-        created_at=payment.created_at,
-        expires_at=payment.expires_at,
-        paid_at=payment.paid_at,
-    )
+    return build_payment_read(database, payment)
 
 
 @router.get(
@@ -759,19 +770,28 @@ def get_current_payment(
     if payment is None:
         return None
 
-    return MiniAppPaymentRead(
-        id=payment.id,
-        status=payment.status,
-        amount=payment.amount,
-        currency=payment.currency,
-        confirmation_url=(
-            payment_redirect_service
-            .build_public_confirmation_url(payment)
-        ),
-        created_at=payment.created_at,
-        expires_at=payment.expires_at,
-        paid_at=payment.paid_at,
+    return build_payment_read(database, payment)
+
+
+@router.get("/payments/{payment_id}", response_model=MiniAppPaymentRead)
+def get_payment(
+    payment_id: int,
+    response: Response,
+    auth: Annotated[TelegramWebAppAuthResult, Depends(require_telegram_webapp_auth)],
+    database: Annotated[Session, Depends(get_db)],
+) -> MiniAppPaymentRead:
+    # Never expose another user's order, even if its sequential ID is known.
+    payment = database.scalar(
+        select(Payment).join(User, User.id == Payment.user_id).where(
+            Payment.id == payment_id, User.telegram_id == auth.user.id,
+            User.is_active.is_(True), Payment.purpose == "subscription",
+        )
     )
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Vary"] = "X-Telegram-Init-Data"
+    return build_payment_read(database, payment)
 
 
 @router.get("/device-slots/offers")
@@ -816,4 +836,10 @@ def get_mini_app_key(
         raise HTTPException(status_code=503, detail="Happ key is too large for QR") from exc
     response.headers["Cache-Control"] = "no-store"
     response.headers["Vary"] = "X-Telegram-Init-Data"
-    return {"url": import_url, "qr_data_url": "data:image/svg+xml;base64," + b64encode(qr_data).decode("ascii")}
+    connect_base = settings.connect_base_url.rstrip("/")
+    return {
+        "url": import_url,
+        "qr_data_url": "data:image/svg+xml;base64," + b64encode(qr_data).decode("ascii"),
+        "launch_url": f"{connect_base}/launch/key/{raw}",
+        "instruction_url": f"{connect_base}/{raw}",
+    }

@@ -22,6 +22,12 @@ function navigateBack() {
         // Older Telegram clients may not support hiding the button.
     }
 
+    const tier = new URLSearchParams(window.location.search).get("return_tier");
+    if (["basic", "mobile"].includes(tier)) {
+        if (window.history.length > 1) window.history.back();
+        else window.location.assign(`/app/?view=devices&detail_tier=${tier}${window.location.hash}`);
+        return;
+    }
     if (window.history.length > 1) {
         window.history.back();
         return;
