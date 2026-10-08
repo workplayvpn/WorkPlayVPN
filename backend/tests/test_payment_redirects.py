@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.dependencies import get_db
 from app.main import app
 from app.models.payment import Payment
+from app.core.config import settings
 from app.services.payment_redirect_service import (
     payment_redirect_service,
 )
@@ -22,6 +23,13 @@ ROBOKASSA_URL = (
     "&InvId=123"
     "&SignatureValue=secret-signature"
 )
+
+
+@pytest.fixture(autouse=True)
+def checkout_environment(monkeypatch):
+    monkeypatch.setattr(settings, "payment_mode", "live")
+    monkeypatch.setattr(settings, "robokassa_is_test", False)
+    monkeypatch.setattr(settings, "robokassa_merchant_login", "workplayvpn")
 
 
 def build_payment(
@@ -37,6 +45,7 @@ def build_payment(
         user_id=456,
         subscription_id=789,
         provider="robokassa",
+        purpose="subscription",
         provider_payment_id="robokassa:123",
         idempotency_key="payment-redirect-test",
         status=status,
@@ -212,3 +221,13 @@ def test_public_endpoint_redirects_without_cache() -> None:
     assert response.headers["x-robots-tag"] == (
         "noindex, nofollow, noarchive"
     )
+
+def test_test_invoice_is_not_available_in_live_mode():
+    payment = build_payment(confirmation_url=ROBOKASSA_URL + "&IsTest=1")
+    database = Mock(spec=Session)
+    database.get.return_value = payment
+    with pytest.raises(HTTPException) as error:
+        payment_redirect_service.resolve_confirmation_url(
+            database=database, raw_token=payment_redirect_service.build_token(payment.id)
+        )
+    assert error.value.status_code == 410

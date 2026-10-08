@@ -3,13 +3,14 @@ import logging
 import time
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, or_, and_
 
 from app.db.session import SessionLocal
 from app.models.payment import Payment
 from app.models.subscription import Subscription
 from app.models.plan import Plan
 from app.models.user import User
+from app.services.payment_checkout import effective_payment_expiry, SUBSCRIPTION_PAYMENT_TTL
 from app.services.payment_providers import (
     payment_provider_registry,
 )
@@ -26,8 +27,11 @@ def expire_pending_payments() -> int:
             database.scalars(
                 select(Payment.id).where(
                     Payment.status == "pending",
-                    Payment.expires_at.is_not(None),
-                    Payment.expires_at <= datetime.now(UTC),
+                    or_(
+                        and_(Payment.expires_at.is_not(None), Payment.expires_at <= datetime.now(UTC)),
+                        and_(Payment.purpose == "subscription",
+                             Payment.created_at <= datetime.now(UTC) - SUBSCRIPTION_PAYMENT_TTL),
+                    ),
                 )
             ).all()
         )
@@ -54,10 +58,8 @@ def expire_pending_payments() -> int:
             if payment.status != "pending":
                 continue
 
-            if payment.expires_at is None:
-                continue
-
-            if payment.expires_at > datetime.now(UTC):
+            expires_at = effective_payment_expiry(payment)
+            if expires_at is None or expires_at > datetime.now(UTC):
                 continue
 
             subscription = database.get(

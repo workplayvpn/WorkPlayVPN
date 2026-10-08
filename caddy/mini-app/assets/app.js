@@ -686,7 +686,7 @@ function renderCheckout() {
   text("checkout-note", ["paid", "succeeded"].includes(status)
     ? "Платёж подтверждён сервером. Обновляем подписку; её параметры доступны в «Мои подписки»."
     : status === "expired" ? "Этот счёт больше не действует. Вернитесь в каталог и создайте новый заказ."
-    : pending ? "После оплаты вернитесь сюда. Статус проверяется автоматически; повторный заказ не нужен."
+    : pending ? "Счёт действует 2 часа. После оплаты вернитесь сюда — статус проверяется автоматически."
     : "Вернитесь в каталог, чтобы выбрать новый заказ.");
   text("checkout-error", state.checkoutError || "");
   const pay = document.querySelector("#checkout-pay");
@@ -1352,12 +1352,6 @@ async function showSlotOffers() {
 async function startPayment(plan, button) {
   if (state.creatingPayment) return;
   const originalLabel = button.innerHTML;
-  if (paymentIsPending(state.payment)) {
-    showToast("Сначала завершите уже созданный платёж.");
-    openPaymentCheckout();
-    return;
-  }
-
   state.creatingPayment = true;
   button.disabled = true;
   button.textContent = "Создаём…";

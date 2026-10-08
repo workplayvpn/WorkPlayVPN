@@ -11,7 +11,7 @@ function harness() {
     return nodes.get(id);
   };
   const order = {id:42,status:'pending',amount:'199.00',currency:'RUB',access_tier:'basic',
-    duration_days:30,confirmation_url:'https://pay.example/42',expires_at:new Date(Date.now()+60000).toISOString()};
+    plan_code:'standard_30d',duration_days:30,confirmation_url:'https://pay.example/42',expires_at:new Date(Date.now()+60000).toISOString()};
   const location = {origin:'https://connect.workplayvpn.ru',hash:'#tgWebAppData=test',assign:url=>navigation.push(url),set href(url){navigation.push(url);}};
   const context = vm.createContext({Map,URL,Date,Promise,Error,ApiError:Error,
     state:{view:'terms',detailTier:'basic',payment:null}, keyGeneration:0,
@@ -43,8 +43,22 @@ function harness() {
   assert.equal(await pending,false);assert.equal(h.opened.length,0);
   pending=h.run('confirmPaymentLink(state.payment.confirmation_url)');h.context.finishPopup('open');
   assert.equal(await pending,true);assert.deepEqual(h.opened,['https://pay.example/42']);
+  await h.run('startPayment({code:"standard_30d"},buy)');
+  assert.equal(h.calls.filter(c=>c.options?.method==='POST').length,2);
   await h.run('startPayment({code:"another"},buy)');
-  assert.equal(h.calls.filter(c=>c.options?.method==='POST').length,1);
+  assert.equal(h.calls.filter(c=>c.options?.method==='POST').length,3);
+  assert.equal(JSON.parse(h.calls.at(-1).options.body).plan_code,'another');
+  for (const tier of ['basic','mobile']) {
+    const choice=harness(); choice.context.buy=choice.node('buy');
+    choice.run(`state.payment={...${JSON.stringify(h.order)},access_tier:${JSON.stringify(tier)},plan_code:${JSON.stringify(tier+'_7d')},amount:'99.00',duration_days:7}`);
+    await choice.run(`startPayment({code:${JSON.stringify(tier+'_30d')}},buy)`);
+    assert.equal(choice.calls.filter(c=>c.options?.method==='POST').length,1);
+    assert.equal(JSON.parse(choice.calls[0].options.body).plan_code,tier+'_30d');
+  }
+  const expired=harness(); expired.context.buy=expired.node('buy');
+  expired.run(`state.payment={...${JSON.stringify(h.order)},expires_at:'2000-01-01T00:00:00Z'}`);
+  await expired.run('startPayment({code:"standard_30d"},buy)');
+  assert.equal(expired.calls.filter(c=>c.options?.method==='POST').length,1);
   assert.equal(await h.run('confirmPaymentLink("javascript:alert(1)")'),false);
   await h.run('refreshCheckout()');assert.equal(h.context.state.payment.id,42);
   assert.equal(h.context.reloads,0);assert.equal(h.calls.at(-1).path,'/mini-app/payments/42');

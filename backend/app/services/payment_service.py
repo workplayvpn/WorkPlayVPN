@@ -20,6 +20,7 @@ from app.services.entitlements import active_entitlements
 from app.services.subscription_service import subscription_service
 from app.services.referrals import credit_payment
 from app.services.informer import enqueue_purchase
+from app.services.payment_checkout import SUBSCRIPTION_PAYMENT_TTL, payment_available_for_checkout
 
 logger = logging.getLogger(__name__)
 
@@ -133,9 +134,8 @@ class PaymentService:
             # -------------------------------------------------
             # 2. Блокируем пользователя.
             #
-            # Благодаря этому два запроса с РАЗНЫМИ
-            # idempotency_key не смогут одновременно
-            # создать два pending Payment.
+            # Сериализуем выбор счёта одного пользователя.
+            # Разные тарифы могут иметь независимые pending-счета.
             # -------------------------------------------------
 
             locked_user = database.scalar(
@@ -160,6 +160,25 @@ class PaymentService:
                     Payment.idempotency_key == idempotency_key,
                 )
             )
+
+            if existing_payment is None and purchase_kind == "subscription":
+                candidates = database.scalars(
+                    select(Payment).join(Subscription, Subscription.id == Payment.subscription_id)
+                    .where(
+                        Payment.user_id == locked_user.id,
+                        Payment.purpose == "subscription",
+                        Payment.provider == provider,
+                        Payment.status == "pending",
+                        Subscription.status == "pending",
+                        Subscription.plan_id == plan.id,
+                        Payment.amount == plan.price_amount,
+                        Payment.currency == plan.currency,
+                    ).order_by(Payment.created_at.desc())
+                ).all()
+                existing_payment = next(
+                    (candidate for candidate in candidates if payment_available_for_checkout(candidate)),
+                    None,
+                )
 
             if existing_payment is not None:
                 existing_subscription = database.get(
@@ -193,8 +212,8 @@ class PaymentService:
 
             else:
                 # -------------------------------------------------
-                # 3. Каждый новый запрос с новым idempotency_key
-                # создаёт отдельный pending-платёж.
+                # 3. Для нового тарифа создаём отдельный счёт.
+                # Ожидающие счета других тарифов не мешают покупке.
                 # -------------------------------------------------
 
                 if purchase_kind == "gift":
@@ -222,7 +241,7 @@ class PaymentService:
                     provider_payment_id=None,
                     idempotency_key=idempotency_key,
                     status="pending",
-                    expires_at=datetime.now(UTC) + timedelta(hours=24),
+                    expires_at=datetime.now(UTC) + (SUBSCRIPTION_PAYMENT_TTL if purchase_kind == "subscription" else timedelta(hours=24)),
                     amount=plan.price_amount,
                     currency=plan.currency,
                     confirmation_url=None,
@@ -281,6 +300,7 @@ class PaymentService:
                 Payment.id == payment.id,
             )
             .with_for_update()
+            .execution_options(populate_existing=True)
         )
 
         if payment is None:
@@ -510,9 +530,17 @@ class PaymentService:
         *,
         succeeded_payment: Payment,
     ) -> None:
+        succeeded_subscription = database.get(Subscription, succeeded_payment.subscription_id)
+        succeeded_plan = database.get(Plan, succeeded_subscription.plan_id) if succeeded_subscription else None
+        if succeeded_plan is None:
+            return
         pending_payment_ids = list(
             database.scalars(
-                select(Payment.id).where(
+                select(Payment.id)
+                .join(Subscription, Subscription.id == Payment.subscription_id)
+                .join(Plan, Plan.id == Subscription.plan_id)
+                .where(
+                    Plan.access_tier == succeeded_plan.access_tier,
                     Payment.user_id
                     == succeeded_payment.user_id,
                     Payment.id

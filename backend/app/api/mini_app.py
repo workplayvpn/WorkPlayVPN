@@ -1,3 +1,4 @@
+from app.services.payment_checkout import effective_payment_expiry, payment_available_for_checkout
 from app.services.happ_crypt_link import encrypted_happ_link
 from app.services.happ_import_link import stable_happ_import_link
 from app.services.branded_qr import qr_svg
@@ -681,18 +682,16 @@ def build_payment_read(database: Session, payment: Payment) -> MiniAppPaymentRea
         select(Plan).join(Subscription, Subscription.plan_id == Plan.id)
         .where(Subscription.id == payment.subscription_id)
     )
-    expires_at = payment.expires_at
-    if expires_at is not None and expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=UTC)
+    expires_at = effective_payment_expiry(payment)
     payment_status = payment.status
-    if payment_status == "pending" and expires_at is not None and expires_at <= datetime.now(UTC):
+    if payment_status == "pending" and not payment_available_for_checkout(payment):
         payment_status = "expired"
     return MiniAppPaymentRead(
         id=payment.id, status=payment_status, amount=payment.amount,
         currency=payment.currency,
         confirmation_url=(payment_redirect_service.build_public_confirmation_url(payment)
                           if payment_status == "pending" else None),
-        created_at=payment.created_at, expires_at=payment.expires_at, paid_at=payment.paid_at,
+        created_at=payment.created_at, expires_at=expires_at, paid_at=payment.paid_at,
         plan_code=plan.code if plan else None, plan_name=plan.name if plan else None,
         duration_days=plan.duration_days if plan else None,
         access_tier=plan.access_tier if plan else None, purpose=payment.purpose,
@@ -753,10 +752,11 @@ def get_current_payment(
             detail="User not found",
         )
 
-    payment = database.scalar(
+    candidates = database.scalars(
         select(Payment)
         .where(
             Payment.user_id == user.id,
+            Payment.provider == settings.payment_default_provider,
             Payment.status == "pending",
             Payment.purpose == "subscription",
             or_(
@@ -765,7 +765,8 @@ def get_current_payment(
             ),
         )
         .order_by(Payment.created_at.desc())
-    )
+    ).all()
+    payment = next((p for p in candidates if payment_available_for_checkout(p)), None)
 
     if payment is None:
         return None

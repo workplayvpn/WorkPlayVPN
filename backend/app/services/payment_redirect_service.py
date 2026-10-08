@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.payment import Payment
+from app.services.payment_checkout import effective_payment_expiry, payment_matches_environment
 
 
 class PaymentRedirectService:
@@ -113,7 +114,7 @@ class PaymentRedirectService:
                 detail="Payment link is no longer available",
             )
 
-        expires_at = payment.expires_at
+        expires_at = effective_payment_expiry(payment)
 
         if expires_at is not None:
             if expires_at.tzinfo is None:
@@ -141,6 +142,9 @@ class PaymentRedirectService:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Payment confirmation URL is invalid",
             )
+
+        if not payment_matches_environment(payment):
+            raise HTTPException(status_code=410, detail="Payment belongs to another payment environment")
 
         return payment.confirmation_url
 

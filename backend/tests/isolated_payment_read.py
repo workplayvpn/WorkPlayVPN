@@ -49,6 +49,15 @@ class HTTPException(Exception):
     def __init__(self, status_code, detail): self.status_code, self.detail = status_code, detail
 
 
+def load_checkout_policy():
+    source = Path(__file__).resolve().parents[1] / "app/services/payment_checkout.py"
+    tree = ast.parse(source.read_text())
+    tree.body = [node for node in tree.body if not (isinstance(node, ast.ImportFrom) and node.module == "app.core.config")]
+    namespace = {"settings": NS(payment_mode="test", robokassa_is_test=True, robokassa_merchant_login="shop")}
+    exec(compile(tree, str(source), "exec"), namespace)
+    return namespace
+
+
 def load_handlers():
     source = Path(__file__).resolve().parents[1] / "app/api/mini_app.py"
     tree = ast.parse(source.read_text())
@@ -61,6 +70,7 @@ def load_handlers():
     namespace = {"Session": Database, "Payment": Payment, "User": User, "Plan": Plan,
                  "Subscription": Subscription, "select": Query, "UTC": UTC, "datetime": datetime,
                  "MiniAppPaymentRead": NS, "HTTPException": HTTPException,
+                 **load_checkout_policy(),
                  "payment_redirect_service": NS(build_public_confirmation_url=lambda p: "https://pay.example/42")}
     exec(compile(ast.fix_missing_locations(ast.Module(body=selected, type_ignores=[])), str(source), "exec"), namespace)
     return namespace
@@ -69,7 +79,7 @@ def load_handlers():
 class PaymentReadChecks(unittest.TestCase):
     def setUp(self):
         self.handlers = load_handlers()
-        self.payment = NS(id=42, subscription_id=20, purpose="subscription", status="pending",
+        self.payment = NS(id=42, subscription_id=20, provider="test", confirmation_url="https://pay.example/42", purpose="subscription", status="pending",
                           amount=Decimal("199.00"), currency="RUB", created_at=datetime.now(UTC),
                           expires_at=datetime.now(UTC) + timedelta(hours=1), paid_at=None)
         self.database = Database(self.payment)
