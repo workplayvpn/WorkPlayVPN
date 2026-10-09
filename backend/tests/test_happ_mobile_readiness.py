@@ -56,7 +56,7 @@ def create_node(
         node = VpnNode(
             location_id=1,
             code=TEST_NODE_CODE,
-            name="NL Mobile Readiness Test",
+            name="NL Pro Readiness Test",
             host="nl-test.workplayvpn.local",
             ssh_port=22,
             ssh_user="test",
@@ -83,7 +83,7 @@ def create_mobile_profile(
         profile = VpnNodeProfile(
             node_id=node_id,
             code=TEST_PROFILE_CODE,
-            name="NL Mobile Readiness Profile",
+            name="NL Pro Readiness Profile",
             protocol="vless",
             network="xhttp",
             security="tls",

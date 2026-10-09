@@ -56,7 +56,7 @@ def test_snapshot_and_idempotency(db):
     db.commit()
     assert len(db.scalars(select(InformerNotification)).all()) == 1
     assert 'ТЕСТОВАЯ ОПЛАТА' in event.text and '@customer' in event.text
-    assert '30 дней' in event.text and 'Mobile' in event.text
+    assert '30 дней' in event.text and 'Pro' in event.text
     assert 'tg-555-' not in event.text
 
 

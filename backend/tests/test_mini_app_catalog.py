@@ -148,7 +148,7 @@ def test_catalog_exposes_mobile_only_to_pilot_users(monkeypatch: pytest.MonkeyPa
         user = User(telegram_id=993100002, first_name="Catalog", is_active=True)
         db.add(user)
         db.add(Plan(
-            code=code, name="Mobile test", duration_days=30,
+            code=code, name="Pro test", duration_days=30,
             price_amount=Decimal("299.00"), currency="RUB",
             access_tier="mobile", device_limit=1, is_active=True,
         ))

@@ -33,12 +33,12 @@ def subscription_presentation(*, access_tier: str, routed_mobile: bool = False) 
         title = "Work&PlayVPN Basic"
         description = "Надёжное подключение для работы и отдыха."
     elif access_tier == "mobile":
-        title = "Work&PlayVPN Mobile"
+        title = "Work&PlayVPN Pro"
         description = (
             "Подключение для Wi-Fi и мобильной сети. "
             "Маршрут выбирается автоматически."
             if routed_mobile else
-            "Для подключения выберите профиль Wi-Fi или Mobile в Happ."
+            "Для подключения выберите профиль Wi-Fi или Pro в Happ."
         )
     else:
         raise ValueError("Unknown subscription tier")

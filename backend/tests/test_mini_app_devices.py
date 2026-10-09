@@ -238,7 +238,7 @@ def test_auto_ru_link_requires_pilot_mobile_and_provisioned_device(monkeypatch) 
         response = client.get(page.replace("/connect/happ/", "/sub/"),
                               headers=happ_headers)
         assert response.status_code == 200
-        assert response.headers["profile-title"] == "Work&PlayVPN Mobile"
+        assert response.headers["profile-title"] == "Work&PlayVPN Pro"
         config = response.json()[0]
         assert config["outbounds"][0]["settings"]["vnext"][0]["users"][0]["id"] == direct_uuid
         assert config["outbounds"][1]["settings"]["vnext"][0]["users"][0]["id"] == mobile_uuid

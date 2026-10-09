@@ -62,7 +62,7 @@ class HelpAccessTests(unittest.TestCase):
         public = self.client.get('/help-access/knowledge')
         self.assertEqual(public.status_code, 200)
         self.assertEqual(public.headers['cache-control'], 'no-store, private')
-        self.assertNotIn('Mobile', public.text)
+        self.assertNotIn('Pro', public.text)
         self.assertEqual(self.client.get('/internal/support/access-key/101').status_code, 401)
 
     def test_mini_login_cannot_use_foreign_key(self):

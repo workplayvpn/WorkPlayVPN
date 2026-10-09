@@ -228,8 +228,8 @@ def _build_subscription_feed(
     if entitlement is None:
         return Response(content="", status_code=403, media_type="text/plain")
     if client == "happ" and access_tier == "mobile" and auto_route_allowed(user.id):
-        # The canary's existing Mobile URL updates to the single routed JSON entry.
-        # Legacy Mobile URLs for other users retain their current format.
+        # The canary's existing Pro URL updates to the single routed JSON entry.
+        # Legacy Pro URLs for other users retain their current format.
         return get_routed_mobile_subscription(token, database, request)
     mobile_entitled = access_tier == "mobile"
 
@@ -279,7 +279,7 @@ def _build_subscription_feed(
         source_device.mobile_xray_uuid and source_device.mobile_xray_email
     ):
         return Response(
-            content="Mobile credential is not provisioned",
+            content="Pro credential is not provisioned",
             status_code=503,
             media_type="text/plain",
             headers={"Cache-Control": "no-store"},
@@ -337,7 +337,7 @@ def _build_subscription_feed(
         allowed_ids=settings.happ_hidden_settings_user_ids,
     ) if client == "happ" else {}
     if provider_metadata:
-        caption = "Work&PlayVPN Mobile" if mobile_entitled else "Work&PlayVPN Basic"
+        caption = "Work&PlayVPN Pro" if mobile_entitled else "Work&PlayVPN Basic"
         links = [happ_server_description(link, caption) for link in links]
 
     if mobile_entitled and should_enable_happ_feature(

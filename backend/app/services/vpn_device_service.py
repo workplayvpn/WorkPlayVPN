@@ -145,7 +145,7 @@ class VpnDeviceService:
                     pass
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,
-                    detail="Mobile VPN node unavailable",
+                    detail="Pro VPN node unavailable",
                 ) from exc
 
         device = VpnDevice(

@@ -62,3 +62,11 @@ def test_browser_return_only_redirects_to_bot():
     assert result.status_code == 302
     assert result.headers["location"] == "https://t.me/workplayvpn_bot?start=payment_return"
     assert result.headers["cache-control"] == "no-store"
+
+
+def test_receipt_cannot_be_removed_from_signed_gift_invoice(invoice):
+    from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+    parsed = urlsplit(invoice.confirmation_url)
+    params = [(k, v) for k, v in parse_qsl(parsed.query) if k != 'Receipt']
+    invoice.confirmation_url = urlunsplit(parsed._replace(query=urlencode(params)))
+    assert not gift_checkout_is_current(invoice)

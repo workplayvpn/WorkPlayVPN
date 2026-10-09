@@ -50,7 +50,7 @@ def test_basic_and_mobile_have_distinct_happ_descriptions() -> None:
     basic = subscription_presentation(access_tier="basic")
     mobile = subscription_presentation(access_tier="mobile", routed_mobile=True)
     assert basic["profile-title"] == "Work&PlayVPN Basic"
-    assert mobile["profile-title"] == "Work&PlayVPN Mobile"
+    assert mobile["profile-title"] == "Work&PlayVPN Pro"
     assert all(len(item["profile-title"]) <= 25 for item in (basic, mobile))
     def description(item):
         return base64.b64decode(item["announce"].removeprefix("base64:")).decode("utf-8")
@@ -145,8 +145,8 @@ def test_mobile_happ_metadata_uses_full_brand() -> None:
     headers = build_subscription_response_headers(
         client="happ", access_tier="mobile",
     )
-    assert "#profile-title: Work&PlayVPN Mobile" in payload.splitlines()
-    assert headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert "#profile-title: Work&PlayVPN Pro" in payload.splitlines()
+    assert headers["profile-title"] == "Work&PlayVPN Pro"
 
 
 def test_happ_response_headers_can_include_routing() -> None:

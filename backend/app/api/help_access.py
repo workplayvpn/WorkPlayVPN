@@ -94,7 +94,7 @@ def session(response: Response, owner: Annotated[User, Depends(require_help_user
 @router.get("/help-access/knowledge")
 def public_knowledge(response: Response, owner: Annotated[User, Depends(require_help_user)]):
     _no_cache(response)
-    # Public website describes Basic; Mobile stays inside the authenticated Mini App.
+    # Public website describes Basic; Pro stays inside the authenticated Mini App.
     public = [dict(a, paragraphs=list(a["paragraphs"])) for a in ARTICLES if a["id"] != "tiers"]
     for a in public:
         if a["id"] == "keys":

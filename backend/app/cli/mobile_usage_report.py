@@ -40,14 +40,14 @@ def parse_daily_report(lines: Iterable[str]) -> list[UsageRow]:
             if date.fromisoformat(day).isoformat() != day:
                 raise ValueError("Invalid day")
             if not re.fullmatch(r"[0-9a-f]{12}", key_id):
-                raise ValueError("Invalid Mobile key ID")
+                raise ValueError("Invalid Pro key ID")
             if not up.isascii() or not up.isdecimal() or not down.isascii() or not down.isdecimal():
                 raise ValueError("Invalid byte count")
             row = UsageRow(day, key_id, int(up), int(down))
         except ValueError as exc:
             raise ValueError("Invalid daily report row") from exc
         if (day, key_id) in seen:
-            raise ValueError("Duplicate Mobile key/day in report")
+            raise ValueError("Duplicate Pro key/day in report")
         seen.add((day, key_id))
         rows.append(row)
     return rows

@@ -30,6 +30,8 @@ def payment_matches_environment(payment):
     return (
         parsed.scheme == "https"
         and parsed.hostname == "auth.robokassa.ru"
+        and len(query.get("Receipt", [])) == 1
+        and bool(query["Receipt"][0])
         and query.get("MerchantLogin") == [settings.robokassa_merchant_login]
         and bool(settings.robokassa_is_test) == expected_test
         and query.get("IsTest", [""]) in ([["1"]] if expected_test else [[""], ["0"]])

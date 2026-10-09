@@ -29,14 +29,14 @@ ACTIVE={'status':'active','total_device_limit':5,'active_subscriptions':[
     {'access_tier':'basic','expires_at':'2026-12-01T00:00:00+00:00'},
     {'access_tier':'mobile','expires_at':'2026-12-02T00:00:00+00:00'}]}
 CATALOG=[{'code':'standard_1m','access_tier':'basic','duration_days':30,'price_amount':'199.00','name':'1 месяц','device_limit':3},
-         {'code':'mobile_1m','access_tier':'mobile','duration_days':30,'price_amount':'249.00','name':'Mobile 30 дней','device_limit':3}]
+         {'code':'mobile_1m','access_tier':'mobile','duration_days':30,'price_amount':'249.00','name':'Pro 30 дней','device_limit':3}]
 
 
 class MenuTests(unittest.TestCase):
     def test_catalogue_mobile_first_and_basic_neutral(self):
         from ui.subscription import build_tier_keyboard
         rows = build_tier_keyboard({'basic', 'mobile'}, 'plans_tier').inline_keyboard
-        self.assertEqual(rows[0][0].text, '📲 Mobile')
+        self.assertEqual(rows[0][0].text, '📲 Pro')
         self.assertEqual(rows[0][0].style, 'primary')
         self.assertIsNone(rows[1][0].style)
 
@@ -50,7 +50,7 @@ class MenuTests(unittest.TestCase):
         self.assertLessEqual(len(SHORT_DESCRIPTION),120)
         self.assertLessEqual(len(DESCRIPTION),512)
         self.assertIn("Basic",DESCRIPTION)
-        self.assertIn("Mobile",DESCRIPTION)
+        self.assertIn("Pro",DESCRIPTION)
 
     def test_primary_buttons_first(self):
         for keyboard in [main_menu,build_subscription_keyboard(active=True,tier='basic'),build_subscription_keyboard(active=True,tier='mobile')]:

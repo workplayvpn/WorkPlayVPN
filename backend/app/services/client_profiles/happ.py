@@ -128,11 +128,11 @@ class HappProfile(ClientProfile):
         elif not display_name.strip():
             display_name = None
         else:
-            display_name = display_name.strip()
+            display_name = display_name.strip().replace("Mobile", "Pro")
 
         if not label_access_mode:
-            # Basic uses the same country name as the Mobile Wi-Fi profile,
-            # without suggesting that it includes a separate Mobile route.
+            # Basic uses the same country name as the Pro Wi-Fi profile,
+            # without suggesting that it includes a separate Pro route.
             display_name = (
                 display_name.removesuffix(" — Wi-Fi")
                 if display_name is not None
@@ -142,7 +142,7 @@ class HappProfile(ClientProfile):
             suffix = (
                 "Wi-Fi"
                 if access_mode == "wifi"
-                else "Mobile"
+                else "Pro"
             )
             display_name = f"{node.name} — {suffix}"
 

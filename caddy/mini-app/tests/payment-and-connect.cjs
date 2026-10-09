@@ -19,20 +19,24 @@ function harness() {
     telegram:{isVersionAtLeast:()=>true,showPopup:(popup,cb)=>{context.popup=popup;context.finishPopup=cb;}},
     setTimeout:()=>1,clearTimeout(){},showToast(){},humanError:e=>e.message,haptic(){},
     closeSheet(){},elements:{slotSheet:{}},renderPayment(){},loadData:async()=>{context.reloads++;},reloads:0,
-    setView:name=>{context.state.view=name;},tierLabel:tier=>tier==='mobile'?'Mobile':'Basic',
+    setView:name=>{context.state.view=name;},tierLabel:tier=>tier==='mobile'?'Pro':'Basic',
     activeSubscriptions:()=>[{access_tier:'basic'},{access_tier:'mobile'}],subscriptionTier:e=>e.access_tier,
     formatMoney:(amount,currency)=>`${amount} ${currency}`,makeIdempotencyKey:()=> 'test-idempotency-key',
     openExternal:url=>opened.push(url),
     api:async(path,options)=>{calls.push({path,options});return path.startsWith('/mini-app/keys/')?
       {url:'happ://crypt5/'+path.split('/').pop(),launch_url:'https://connect.workplayvpn.ru/connect/happ/launch/key/'+path.split('/').pop(),instruction_url:'https://connect.workplayvpn.ru/connect/happ/'+path.split('/').pop()}: {...order};},
   });
+  vm.runInContext(source.slice(0, source.indexOf('const ')), context);
   vm.runInContext(source.slice(source.indexOf('// Payment links are'), source.indexOf('function renderProfile()')),context);
   vm.runInContext(source.slice(source.indexOf('const subscriptionKeys ='),source.indexOf('function clearKeyOutput()')),context);
   vm.runInContext(source.slice(source.indexOf('async function startPayment('),source.indexOf('async function changeAccountRegion(')),context);
   return {context,order,node,calls,opened,navigation,run:s=>vm.runInContext(s,context)};
 }
 (async()=>{
-  const h=harness(); h.context.buy=h.node('buy');
+  const h=harness();
+  assert.equal(h.run('subscriptionTerm(30)'), '1 месяц');
+  assert.equal(h.run('subscriptionTerm(365)'), '12 месяцев');
+  h.context.buy=h.node('buy');
   await h.run('startPayment({code:"standard_30d"},buy)');
   assert.equal(h.context.state.view,'checkout');assert.equal(h.opened.length,0);
   assert.equal(h.calls.filter(c=>c.options?.method==='POST').length,1);

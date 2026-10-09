@@ -12,7 +12,7 @@ def _links() -> list[str]:
         f"vless://{DIRECT_UUID}@nl.example:443?security=reality#"
         "%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%E2%80%94%20Wi-Fi",
         f"vless://{MOBILE_UUID}@cdn.example:443?security=tls&type=xhttp#"
-        "%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%E2%80%94%20Mobile",
+        "%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%E2%80%94%20Pro",
     ]
 
 
@@ -23,7 +23,7 @@ def test_network_candidates_keep_direct_primary_on_both_networks() -> None:
     assert [unquote(urlsplit(link).fragment) for link in result] == [
         "Нидерланды — Wi-Fi only WiFi",
         "Нидерланды — Direct only Mobile",
-        "Нидерланды — Mobile only Mobile",
+        "Нидерланды — Pro only Mobile",
     ]
     assert [urlsplit(link).username for link in result] == [
         DIRECT_UUID, DIRECT_UUID, MOBILE_UUID,

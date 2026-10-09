@@ -21,7 +21,7 @@ ROBOKASSA_URL = (
     "?MerchantLogin=workplayvpn"
     "&OutSum=199.00"
     "&InvId=123"
-    "&SignatureValue=secret-signature"
+    "&SignatureValue=secret-signature&Receipt=encoded-receipt"
 )
 
 

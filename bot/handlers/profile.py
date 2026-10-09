@@ -90,7 +90,7 @@ async def show_profile(
 
         for item in subscription.get("active_subscriptions", []):
             expiry = datetime.fromisoformat(item["expires_at"].replace("Z", "+00:00"))
-            name = "Mobile" if item["access_tier"] == "mobile" else "Basic"
+            name = "Pro" if item["access_tier"] == "mobile" else "Basic"
             lines.append(f"{name} — до {expiry:%d.%m.%Y}")
 
     else:

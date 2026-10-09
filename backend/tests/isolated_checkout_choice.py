@@ -13,7 +13,7 @@ class CheckoutPolicyChecks(unittest.TestCase):
         self.settings.robokassa_is_test = False
         self.payment = NS(status='pending', purpose='subscription', provider='robokassa',
             created_at=datetime.now(UTC), expires_at=datetime.now(UTC) + timedelta(hours=24),
-            confirmation_url='https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=shop')
+            confirmation_url='https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=shop&Receipt=encoded-receipt')
 
     def available(self):
         return self.policy['payment_available_for_checkout'](self.payment)
@@ -58,6 +58,10 @@ class CheckoutPolicyChecks(unittest.TestCase):
     def test_gift_lifetime_is_unchanged(self):
         self.payment.purpose = 'gift'
         self.assertEqual(self.policy['effective_payment_expiry'](self.payment), self.payment.expires_at)
+
+    def test_legacy_invoice_without_receipt_is_not_reused(self):
+        self.payment.confirmation_url = 'https://auth.robokassa.ru/Merchant/Index.aspx?MerchantLogin=shop'
+        self.assertFalse(self.available())
 
     def test_terminal_invoice_is_unavailable(self):
         for status in ['succeeded', 'canceled', 'expired']:

@@ -17,14 +17,14 @@ async def show_slots(callback: CallbackQuery):
     try:
         response = await backend_get(f"/payments/device-slots/{callback.from_user.id}/offers")
         if response.status_code != 200:
-            await edit_screen(callback, "Для добавления лимита нужна активная подписка Basic или Mobile.",
+            await edit_screen(callback, "Для добавления лимита нужна активная подписка Basic или Pro.",
                 build_keyboard(inline_keyboard=[[InlineKeyboardButton(text="← Назад", callback_data=subscription_back(tier))]]))
             return
         data = response.json()
         rows = [[InlineKeyboardButton(text=f"+{o['slots']} · {o['price_amount'].removesuffix('.00')} ₽ · станет {o['new_limit']}",
                 callback_data=scoped_action(f"buy_slots:{o['code']}", tier))] for o in data['offers']]
         rows.append([InlineKeyboardButton(text="← Назад", callback_data=subscription_back(tier))])
-        await edit_screen(callback, f"📱 Добавить лимит устройств\n\nСейчас доступно: {data['total_limit']} слотов.\nВыберите +1, +2 или +3 слота. Лимит общий для Basic и Mobile.\nРазовая покупка: слоты сохраняются при продлении, но для подключения нужна действующая подписка.", build_keyboard(inline_keyboard=rows))
+        await edit_screen(callback, f"📱 Добавить лимит устройств\n\nСейчас доступно: {data['total_limit']} слотов.\nВыберите +1, +2 или +3 слота. Лимит общий для Basic и Pro.\nРазовая покупка: слоты сохраняются при продлении, но для подключения нужна действующая подписка.", build_keyboard(inline_keyboard=rows))
     except httpx.RequestError:
         await edit_screen(callback, "⚠️ Не удалось загрузить лимит. Попробуйте ещё раз.", build_keyboard(inline_keyboard=[
             [InlineKeyboardButton(text="Повторить", callback_data=scoped_action("device_slots", tier))],

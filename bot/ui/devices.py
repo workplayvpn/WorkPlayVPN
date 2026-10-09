@@ -204,7 +204,7 @@ def build_happ_connect_keyboard(
                 )
             ],
             *([[InlineKeyboardButton(
-                text="Открыть Mobile →",
+                text="Открыть Pro →",
                 web_app=WebAppInfo(url=mobile_connect_url),
             )]] if mobile_connect_url and mobile_connect_url != connect_url else []),
             [

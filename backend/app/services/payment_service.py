@@ -21,6 +21,7 @@ from app.services.subscription_service import subscription_service
 from app.services.referrals import credit_payment
 from app.services.informer import enqueue_purchase
 from app.services.payment_order_number import generate_robokassa_invoice_id
+from app.services.payment_receipt import receipt_item_name, checkout_description
 from app.services.payment_checkout import SUBSCRIPTION_PAYMENT_TTL, payment_available_for_checkout
 
 logger = logging.getLogger(__name__)
@@ -320,11 +321,12 @@ class PaymentService:
             provider_result = provider_service.create_payment(
                 amount=payment.amount,
                 currency=payment.currency,
-                description=f"Work&PlayVPN {'Подарок — ' if payment.purpose == 'gift' else ''}{plan.name}",
+                description=checkout_description(plan, payment.purpose),
                 idempotency_key=payment.idempotency_key,
                 metadata={
                     "payment_id": str(payment.id),
                     "invoice_id": invoice_id,
+                    "receipt_name": receipt_item_name(invoice_id, plan, payment.purpose),
                     "subscription_id": str(
                         payment.subscription_id
                     ),

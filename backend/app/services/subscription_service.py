@@ -75,8 +75,8 @@ class SubscriptionService:
         other_live = other_tier in remaining
         same_tier_live = plan.access_tier in remaining
 
-        # Mobile Wi-Fi and Basic share Direct. Basic expiry leaves both Xray
-        # credentials intact while Mobile is live; Mobile expiry removes only
+        # Pro Wi-Fi and Basic share Direct. Basic expiry leaves both Xray
+        # credentials intact while Pro is live; Pro expiry removes only
         # CDN while Basic is live. The last expiry removes both.
         action = (
             "none" if same_tier_live or (plan.access_tier == "basic" and other_live)
@@ -248,7 +248,7 @@ class SubscriptionService:
                             raise HTTPException(status_code=500, detail="VPN node not found")
                         require_mobile_profile(database, node.id)
                         if bool(device.mobile_xray_uuid) != bool(device.mobile_xray_email):
-                            raise HTTPException(status_code=409, detail="Incomplete Mobile credential")
+                            raise HTTPException(status_code=409, detail="Incomplete Pro credential")
                         if not device.mobile_xray_uuid:
                             device.mobile_xray_uuid = str(uuid.uuid4())
                             device.mobile_xray_email = f"mobile_{uuid.uuid4().hex}@workplayvpn"
@@ -276,7 +276,7 @@ class SubscriptionService:
 
         # A purchase of the other product starts its own clock. The device
         # list and Direct credential remain shared. Only CDN provisioning is
-        # needed when Mobile is added to an existing Basic subscription.
+        # needed when Pro is added to an existing Basic subscription.
         other_tier = "mobile" if plan.access_tier == "basic" else "basic"
         other_live = other_tier in entitlements
         devices = list(database.scalars(select(VpnDevice).where(
@@ -293,7 +293,7 @@ class SubscriptionService:
                         raise HTTPException(status_code=500, detail="VPN node not found")
                     require_mobile_profile(database, node.id)
                     if bool(device.mobile_xray_uuid) != bool(device.mobile_xray_email):
-                        raise HTTPException(status_code=409, detail="Incomplete Mobile credential")
+                        raise HTTPException(status_code=409, detail="Incomplete Pro credential")
                     if not device.mobile_xray_uuid:
                         device.mobile_xray_uuid = str(uuid.uuid4())
                         device.mobile_xray_email = f"mobile_{uuid.uuid4().hex}@workplayvpn"

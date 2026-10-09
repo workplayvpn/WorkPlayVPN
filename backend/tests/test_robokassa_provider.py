@@ -1,7 +1,8 @@
 import hashlib
+import json
 from decimal import Decimal
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 import pytest
 from fastapi import HTTPException
@@ -59,9 +60,11 @@ def test_robokassa_provider_creates_signed_test_url() -> None:
     )
 
     expected_signature = hashlib.sha256(
-        b"workplayvpn:199.00:123:test-password-1"
+        f"workplayvpn:199.00:123:{query['Receipt'][0]}:test-password-1".encode()
     ).hexdigest()
 
+    receipt = json.loads(unquote(query["Receipt"][0]))
+    assert receipt == {"items": [{"name": "WorkPlayVPN 1 month", "quantity": 1, "sum": 199.0, "tax": "none"}]}
     assert result.provider_payment_id == "robokassa:123"
     assert query["MerchantLogin"] == ["workplayvpn"]
     assert query["OutSum"] == ["199.00"]

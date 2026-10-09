@@ -62,7 +62,7 @@ def get_routed_auto_route(
 def get_routed_mobile_subscription(
     token: str, database: Session, request: Request | None = None,
 ) -> JSONResponse:
-    """Serve the existing Mobile URL as one routed profile for canary users."""
+    """Serve the existing Pro URL as one routed profile for canary users."""
     return _build_response(token, database, routed=True, branded=True, request=request)
 
 
@@ -142,9 +142,9 @@ def _build_response(
         ) from exc
 
     profile_title = (
-        "Work&PlayVPN Mobile" if branded or device_id is not None
+        "Work&PlayVPN Pro" if branded or device_id is not None
         else "Work&PlayVPN Auto RU" if routed
-        else "Work&PlayVPN Mobile Auto (pilot)"
+        else "Work&PlayVPN Pro Auto (pilot)"
     )
     headers = {
         "Cache-Control": "no-store",
@@ -164,7 +164,7 @@ def _build_response(
     )
     if provider_metadata:
         headers.update(provider_metadata)
-        config[0]["meta"] = {"serverDescription": "Work&PlayVPN Mobile"}
+        config[0]["meta"] = {"serverDescription": "Work&PlayVPN Pro"}
     expiry_info = subscription_expiry_info(mobile_entitlement[0].expires_at)
     if expiry_info is not None:
         headers["subscription-userinfo"] = expiry_info

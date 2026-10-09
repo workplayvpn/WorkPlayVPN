@@ -1,3 +1,7 @@
+function subscriptionTerm(days) {
+  return ({7: "7 дней", 30: "1 месяц", 90: "3 месяца", 180: "6 месяцев", 360: "12 месяцев", 365: "12 месяцев"})[Number(days)] || `${days} дней`;
+}
+
 "use strict";
 
 const telegram = window.Telegram?.WebApp ?? null;
@@ -372,7 +376,7 @@ function subscriptionTier(entry) {
   return entry.access_tier || (entry.plan_code?.startsWith("mobile_") ? "mobile" : "basic");
 }
 
-function tierLabel(tier) { return tier === "mobile" ? "Mobile" : "Basic"; }
+function tierLabel(tier) { return tier === "mobile" ? "Pro" : "Basic"; }
 
 function activeSubscriptions() {
   const entries = state.me?.subscriptions?.filter((entry) => entry.status === "active") || [];
@@ -498,7 +502,7 @@ function renderCatalogOverview() {
       tier === "mobile" ? mobileRouteDescription() : "Прямое подключение. При ограничениях мобильной сети может быть недоступно.",
       "Подключение через приложение Happ.",
       `До ${Math.max(...plans.map((plan) => plan.device_limit))} устройств в тарифе. Лимит общий с другой подпиской.`,
-      tier === "mobile" ? "Можно использовать вместе с Basic — сроки подписок независимы." : "Можно использовать вместе с Mobile — сроки подписок независимы.",
+      tier === "mobile" ? "Можно использовать вместе с Basic — сроки подписок независимы." : "Можно использовать вместе с Pro — сроки подписок независимы.",
     ]) {
       const item = document.createElement("li");
       item.textContent = text;
@@ -530,11 +534,11 @@ function renderCatalogOverview() {
   const table = document.createElement("table");
   table.className = "comparison-table";
   const caption = document.createElement("caption");
-  caption.textContent = "Сравнение Basic и Mobile";
+  caption.textContent = "Сравнение Basic и Pro";
   table.append(caption);
   const thead = document.createElement("thead");
   const header = document.createElement("tr");
-  for (const label of ["Возможности", "Basic", "Mobile"]) {
+  for (const label of ["Возможности", "Basic", "Pro"]) {
     const th = document.createElement("th"); th.scope = "col"; th.textContent = label; header.append(th);
   }
   thead.append(header); table.append(thead);
@@ -578,7 +582,7 @@ function renderSubscription() {
     elements.subscriptionTitle.textContent = entries.length > 1
       ? "Две подписки активны" : entries[0].plan_name || tierLabel(subscriptionTier(entries[0]));
     elements.subscriptionDescription.textContent = entries.length > 1
-      ? "Обычный VPN и Mobile действуют каждый до своего срока."
+      ? "Обычный VPN и Pro действуют каждый до своего срока."
       : "Защищённое подключение доступно на ваших устройствах.";
     elements.subscriptionExpiry.textContent = entries.length > 1
       ? "Отдельно для каждой" : formatDate(entries[0].expires_at);
@@ -678,7 +682,7 @@ function renderCheckout() {
   text("checkout-plan", payment.access_tier === "device_slots" ? (payment.plan_name || "Лимит устройств")
     : payment.access_tier ? tierLabel(payment.access_tier) : (payment.plan_name || "Подписка"));
   text("checkout-title", payment.access_tier === "device_slots" ? "Оплата устройств" : "Оплата подписки");
-  text("checkout-term", payment.duration_days > 0 ? `${payment.duration_days} дней`
+  text("checkout-term", payment.duration_days > 0 ? subscriptionTerm(payment.duration_days)
     : payment.access_tier === "device_slots" ? "Не меняет срок подписки" : "—");
   text("checkout-amount", formatMoney(payment.amount, payment.currency));
   text("checkout-order", `№ ${payment.order_number || payment.id}`);
@@ -801,7 +805,7 @@ function renderProfile() {
   elements.profileSubscription.textContent =
     (state.me.subscriptions || []).length > 0
       ? state.me.subscriptions.map((entry) => entry.access_tier === "mobile"
-        ? "Mobile" : "Work&PlayVPN").join(" + ")
+        ? "Pro" : "Work&PlayVPN").join(" + ")
       : subscription?.status === "active" ? subscription.plan_name : "Не активна";
   elements.profileDevices.textContent =
     `${state.me.devices.active_count} из ${state.me.devices.total_limit}`;
@@ -834,7 +838,7 @@ function renderPlans() {
     ));
     elements.plansStartingPrice.textContent =
       `От ${formatMoney(cheapestPlan.price_amount, cheapestPlan.currency)} `
-      + `за ${cheapestPlan.name.toLowerCase()}`;
+      + `за ${subscriptionTerm(cheapestPlan.duration_days)}`;
   } else {
     elements.plansStartingPrice.textContent = "Тарифы временно недоступны";
   }
@@ -866,7 +870,7 @@ function renderPlans() {
 
     const name = document.createElement("p");
     name.className = "plan-name";
-    name.textContent = plan.name;
+    name.textContent = subscriptionTerm(plan.duration_days);
     top.append(name);
 
     if (plan.duration_days === 90) {
@@ -1005,7 +1009,7 @@ function showDeviceConnections() {
   for (const device of state.devices) {
     const links = [
       ["Basic", state.me.basic_device_connect_urls?.[device.id]],
-      ["Mobile", state.me.auto_connect_urls?.[device.id]],
+      ["Pro", state.me.auto_connect_urls?.[device.id]],
     ].filter(([tier, url]) => Boolean(url) && tier.toLowerCase() === state.detailTier);
     if (!links.length) continue;
 
@@ -1025,11 +1029,11 @@ function showDeviceConnections() {
     }
     elements.deviceConnectList.append(entry);
   }
-  // Accounts outside the automatic-routing pilot retain their existing Mobile link.
+  // Accounts outside the automatic-routing pilot retain their existing Pro link.
   if (!elements.deviceConnectList.childElementCount && state.devices.length && state.detailTier === "mobile" && state.me.connect_urls?.mobile) {
     const link = document.createElement("a");
     link.className = "button button-secondary";
-    link.textContent = "Открыть Mobile в Happ";
+    link.textContent = "Открыть Pro в Happ";
     link.href = state.me.connect_urls.mobile;
     elements.deviceConnectList.append(link);
   }

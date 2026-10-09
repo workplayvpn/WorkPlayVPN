@@ -201,7 +201,7 @@ def test_basic_happ_uses_the_same_country_label_as_mobile_wifi() -> None:
         "Нидерланды",
     ]
     assert [unquote(urlsplit(link).fragment) for link in mobile_links] == [
-        "Нидерланды — Wi-Fi", "Нидерланды — Mobile",
+        "Нидерланды — Wi-Fi", "Нидерланды — Pro",
     ]
     assert urlsplit(basic_links[0]).username == urlsplit(mobile_links[0]).username
 
@@ -228,7 +228,7 @@ def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
         settings={
             "happ_access_mode": "mobile",
             "happ_server_address": "mobile.workplayvpn.ru",
-            "happ_display_name": "Netherlands — Mobile",
+            "happ_display_name": "Netherlands — Pro",
             "fingerprint": "chrome",
             "path": "/mobile/opaque",
             "mode": "auto",
@@ -260,7 +260,7 @@ def test_wifi_and_mobile_links_share_one_device_uuid() -> None:
     ]
     assert [unquote(link.fragment) for link in parsed_links] == [
         "Netherlands — Wi-Fi",
-        "Netherlands — Mobile",
+        "Netherlands — Pro",
     ]
 
     mobile_query = parse_qs(parsed_links[1].query)

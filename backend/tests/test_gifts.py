@@ -50,7 +50,7 @@ def db(monkeypatch):
                          User(id=2, telegram_id=102, username="recipient"), User(id=3, telegram_id=103),
                          Plan(id=1, code="standard_month", name="Basic месяц", duration_days=30,
                               device_limit=3, price_amount=199, currency="RUB", access_tier="basic"),
-                         Plan(id=2, code="mobile_month", name="Mobile месяц", duration_days=30,
+                         Plan(id=2, code="mobile_month", name="Pro месяц", duration_days=30,
                               device_limit=3, price_amount=399, currency="RUB", access_tier="mobile")])
         session.commit()
         yield session

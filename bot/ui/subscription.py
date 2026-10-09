@@ -4,7 +4,7 @@ from ui.common import build_keyboard
 
 
 def tier_name(tier):
-    return "Mobile" if tier == "mobile" else "Basic"
+    return "Pro" if tier == "mobile" else "Basic"
 
 
 def key_copy_url(tier):
@@ -13,7 +13,7 @@ def key_copy_url(tier):
 
 def build_tier_keyboard(tiers, action, *, back="subscription"):
     return build_keyboard(inline_keyboard=[
-        [InlineKeyboardButton(text="📲 Mobile" if t == "mobile" else "Basic",
+        [InlineKeyboardButton(text="📲 Pro" if t == "mobile" else "Basic",
             callback_data=f"{action}:{t}", style="primary" if t == "mobile" else None)]
         for t in ("mobile", "basic") if t in tiers
     ] + [[InlineKeyboardButton(text="← Назад", callback_data=back)]])
@@ -38,7 +38,7 @@ def build_subscription_keyboard(*, active, connect_url=None, mobile_connect_url=
 
 def build_subscription_secret_keyboard(copy_value=None, mobile_copy_value=None, *, tier=None):
     rows=[]
-    for label, value in ((tier_name(tier or "basic"), copy_value), ("Mobile", mobile_copy_value)):
+    for label, value in ((tier_name(tier or "basic"), copy_value), ("Pro", mobile_copy_value)):
         if value and len(value) <= 256 and not any(row[0].copy_text and row[0].copy_text.text == value for row in rows):
             rows.append([InlineKeyboardButton(text=f"📋 Скопировать {label}", copy_text=CopyTextButton(text=value))])
         elif value:

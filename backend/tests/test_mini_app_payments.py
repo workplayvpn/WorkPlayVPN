@@ -95,7 +95,7 @@ def test_mobile_payment_is_closed_outside_pilot(monkeypatch) -> None:
     monkeypatch.setattr(settings, "mobile_pilot_user_ids", "")
     with SessionLocal() as database:
         database.add(Plan(
-            code=code, name="Mobile pilot", duration_days=30,
+            code=code, name="Pro pilot", duration_days=30,
             price_amount=Decimal("249.00"), currency="RUB",
             access_tier="mobile", device_limit=3, is_active=True,
         ))
@@ -125,7 +125,7 @@ def test_trial_user_can_start_pilot_mobile_payment(monkeypatch) -> None:
     code = "mobile_trial_upgrade_test"
     with SessionLocal() as database:
         database.add(Plan(
-            code=code, name="Mobile trial upgrade test", duration_days=30,
+            code=code, name="Pro trial upgrade test", duration_days=30,
             price_amount=Decimal("249.00"), currency="RUB",
             access_tier="mobile", device_limit=3, is_active=True,
         ))

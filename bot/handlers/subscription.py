@@ -39,7 +39,7 @@ def _build_subscription_text(subscription, devices, tier=None):
         if tier and name != tier: continue
         expiry=datetime.fromisoformat(item["expires_at"].replace("Z", "+00:00"))
         lines.append(f"{tier_name(name)} — до {expiry:%d.%m.%Y}")
-    lines += ["", f"Устройства: {len(devices)} из {subscription['total_device_limit']}", "Устройства и их лимит общие. Сроки Basic и Mobile независимы."]
+    lines += ["", f"Устройства: {len(devices)} из {subscription['total_device_limit']}", "Устройства и их лимит общие. Сроки Basic и Pro независимы."]
     for device in devices[:5]:
         lines.append(f"• {device['device_name']}" + (f"\n  ID: {device['public_id']}" if device.get('public_id') else ""))
     if len(devices)>5: lines.append("Полный список устройств — в Mini App.")

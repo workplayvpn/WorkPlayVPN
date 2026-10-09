@@ -104,7 +104,7 @@ def test_paid_basic_and_mobile_have_independent_clocks(account):
     subscription_service.expire_subscription(db, db.get(Subscription, basic_id))
     assert db.get(Subscription, mobile_id).status == "active"
     assert db.get(VpnDevice, device_id).mobile_xray_email
-    assert len(events) == 1  # Direct still belongs to Mobile Wi-Fi
+    assert len(events) == 1  # Direct still belongs to Pro Wi-Fi
 
     subscription_service.expire_subscription(db, db.get(Subscription, mobile_id))
     assert events[-1] == ("remove_device", device_id)
@@ -199,7 +199,7 @@ def test_basic_can_be_bought_while_mobile_is_active(account):
     assert result.id == basic_id
     assert db.get(Subscription, mobile_id).expires_at == mobile_before
     assert set(active_entitlements(db, user_id)) == {"basic", "mobile"}
-    assert events == []  # Mobile already registered the shared Direct credential
+    assert events == []  # Pro already registered the shared Direct credential
 
 
 def test_failed_mobile_provision_keeps_paid_basic(account, monkeypatch):
@@ -246,7 +246,7 @@ def test_scoped_happ_feeds_never_mix_basic_and_mobile(account, monkeypatch):
     mobile_feed = get_subscription_feed(mobile_token, request, db)
     assert seen == [False, True]
     assert basic_feed.headers["profile-title"] == "Work&PlayVPN Basic"
-    assert mobile_feed.headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert mobile_feed.headers["profile-title"] == "Work&PlayVPN Pro"
     assert basic_feed.headers["subscription-userinfo"] == (
         f"expire={int(db.get(Subscription, basic_id).expires_at.timestamp())}"
     )
@@ -301,7 +301,7 @@ def test_pilot_mobile_feed_refreshes_to_one_routed_happ_configuration(account, m
     mobile = get_subscription_feed(mobile_token, request, db)
     assert mobile.status_code == 200
     assert mobile.headers["content-type"].startswith("application/json")
-    assert mobile.headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert mobile.headers["profile-title"] == "Work&PlayVPN Pro"
     assert mobile.headers["subscription-userinfo"] == (
         f"expire={int(db.get(Subscription, mobile_id).expires_at.timestamp())}"
     )

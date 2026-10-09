@@ -96,7 +96,7 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     response = route.get_auto_route("private-token", Database())
     assert response.status_code == 200
     assert response.media_type == "application/json"
-    assert response.headers["profile-title"] == "Work&PlayVPN Mobile Auto (pilot)"
+    assert response.headers["profile-title"] == "Work&PlayVPN Pro Auto (pilot)"
     assert response.headers["subscription-userinfo"] == f"expire={int(expiry.timestamp())}"
     assert response.headers["routing"].startswith("happ://routing/onadd/")
     config = json.loads(response.body)
@@ -117,11 +117,11 @@ def test_auto_feed_uses_separate_mobile_credential(monkeypatch):
     assert routed["routing"]["rules"][-1] == config[0]["routing"]["rules"][0]
 
     branded = route.get_routed_mobile_subscription("private-token", Database())
-    assert branded.headers["profile-title"] == "Work&PlayVPN Mobile"
+    assert branded.headers["profile-title"] == "Work&PlayVPN Pro"
     assert branded.headers["announce"].startswith("base64:")
     assert branded.headers["providerid"] == "provider-1"
     assert branded.headers["hide-settings"] == "1"
-    assert json.loads(branded.body)[0]["meta"]["serverDescription"] == "Work&PlayVPN Mobile"
+    assert json.loads(branded.body)[0]["meta"]["serverDescription"] == "Work&PlayVPN Pro"
 
 
 def test_auto_feed_rejects_expired_mobile_access(monkeypatch):

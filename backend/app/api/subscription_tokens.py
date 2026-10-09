@@ -55,7 +55,7 @@ def build_token_response(
         subscription_token_service.scoped_token(token, "mobile")
         if "mobile" in entitlements else None
     )
-    # Keep the historical fields usable for a Mobile-only customer.
+    # Keep the historical fields usable for a Pro-only customer.
     if "basic" not in entitlements and mobile_token:
         raw_token = mobile_token
     subscription_url = (

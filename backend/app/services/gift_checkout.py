@@ -14,7 +14,7 @@ def gift_checkout_is_current(payment) -> bool:
     params = parse_qs(parsed.query, keep_blank_values=True)
     if parsed.scheme != "https" or parsed.hostname != "auth.robokassa.ru":
         return False
-    required = ("MerchantLogin", "OutSum", "InvId", "SignatureValue")
+    required = ("MerchantLogin", "OutSum", "InvId", "Receipt", "SignatureValue")
     if any(len(params.get(key, [])) != 1 for key in required):
         return False
     value = {key: values[0] for key, values in params.items()}
@@ -24,9 +24,9 @@ def gift_checkout_is_current(payment) -> bool:
             or (value.get("IsTest") == "1") != settings.robokassa_is_test
             or not settings.robokassa_password_1):
         return False
-    # The provider currently signs only these four fields (no Receipt/Shp_*).
+    # Receipt is already URL-encoded in the parsed parameter value.
     expected = calculate_robokassa_signature(
-        parts=[value["MerchantLogin"], value["OutSum"], value["InvId"], settings.robokassa_password_1],
+        parts=[value["MerchantLogin"], value["OutSum"], value["InvId"], value["Receipt"], settings.robokassa_password_1],
         algorithm=settings.robokassa_hash_algorithm,
     )
     return hmac.compare_digest(expected.lower(), value["SignatureValue"].lower())

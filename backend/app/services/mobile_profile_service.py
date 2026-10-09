@@ -18,5 +18,5 @@ def require_mobile_profile(database: Session, node_id: int) -> None:
 
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
-        detail="Mobile access is not available in this location",
+        detail="Pro access is not available in this location",
     )

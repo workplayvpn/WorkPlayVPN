@@ -1,6 +1,6 @@
 """Build one Xray JSON entry with Direct preferred over CDN.
 
-The existing Mobile URL uses this entry only for explicitly enabled pilot IDs.
+The existing Pro URL uses this entry only for explicitly enabled pilot IDs.
 """
 
 import json
@@ -14,7 +14,7 @@ def routed_display_name(direct_link: str) -> str:
     """Use the selected node's Happ label, without the old Wi-Fi suffix."""
     label = unquote(urlsplit(direct_link).fragment).strip()
     label = label.removesuffix(" — Wi-Fi").strip()
-    return label or "Work&PlayVPN Mobile"
+    return label or "Work&PlayVPN Pro"
 
 
 def _parse(link: str, *, transport: str, security: str) -> tuple:
@@ -89,7 +89,7 @@ def build_auto_route_config(direct_link: str, cdn_link: str) -> list[dict]:
     cdn["streamSettings"]["xhttpSettings"] = xhttp
 
     return [{
-        "remarks": "Work&PlayVPN Mobile Auto — pilot",
+        "remarks": "Work&PlayVPN Pro Auto — pilot",
         "log": {"loglevel": "warning"},
         "inbounds": [
             {"tag": "local-socks", "listen": "127.0.0.1", "port": 10808,

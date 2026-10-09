@@ -61,7 +61,7 @@ async def show_plans(
     if tier is None:
         tiers={plan.get("access_tier", "basic") for plan in plans}
         await edit_screen(callback,
-            "💎 Каталог Work&PlayVPN\n\nBasic — для работы, игр, видео и повседневных задач.\nMobile — подключение с резервным маршрутом для Wi-Fi и мобильной сети.\n\nУстройства общие; сроки подписок независимы. Выберите подписку:",
+            "💎 Каталог Work&PlayVPN\n\nBasic — для работы, игр, видео и повседневных задач.\nPro — подключение с резервным маршрутом для Wi-Fi и мобильной сети.\n\nУстройства общие; сроки подписок независимы. Выберите подписку:",
             build_tier_keyboard(tiers, "plans_tier", back="subscription" if callback.data == "subscription_plans" else "main_menu"))
         return
     plans=[plan for plan in plans if plan.get("access_tier", "basic") == tier]
@@ -69,11 +69,11 @@ async def show_plans(
         await edit_screen(callback, "Эта подписка сейчас недоступна.", main_menu)
         return
     description = (
-        "📲 Mobile — для Wi-Fi и мобильной сети.\nАвтоматический выбор подключения и резервный маршрут, если основной недоступен.\nДля работы, игр, видео и общения через Happ."
+        "📲 Pro — для Wi-Fi и мобильной сети.\nАвтоматический выбор подключения и резервный маршрут, если основной недоступен.\nДля работы, игр, видео и общения через Happ."
         if tier == "mobile" else
         "💻 Basic — для работы и отдыха.\nПодключение через Happ для рабочих сервисов, игр, видео и общения в обычной сети."
     )
-    await edit_screen(callback, f"⏳ {tier_name(tier)} · Выберите длительность подписки\n\n{description}\n\nДо 3 устройств, дополнительные слоты можно купить отдельно. Лимит общий для Basic и Mobile.\nПродление добавляет время только к выбранной подписке, без автосписаний.",
+    await edit_screen(callback, f"⏳ {tier_name(tier)} · Выберите длительность подписки\n\n{description}\n\nДо 3 устройств, дополнительные слоты можно купить отдельно. Лимит общий для Basic и Pro.\nПродление добавляет время только к выбранной подписке, без автосписаний.",
                       build_plans_keyboard(plans, source=f"renew_{tier}" if renewal else "main"))
 
 

@@ -27,7 +27,7 @@ async def show_region_devices(callback):
                 callback_data=scoped_action(f"account_region:{code}", tier) if available else 'region_unavailable',
                 style='primary' if available else None)])
         rows.append([InlineKeyboardButton(text='← К подписке' if tier else '← К подпискам',callback_data=subscription_back(tier))])
-        await edit_screen(callback,'🌍 Регион подписки\n\nНовый регион применяется ко всем устройствам Basic и Mobile. После смены обновите подписку в Happ.',build_keyboard(inline_keyboard=rows))
+        await edit_screen(callback,'🌍 Регион подписки\n\nНовый регион применяется ко всем устройствам Basic и Pro. После смены обновите подписку в Happ.',build_keyboard(inline_keyboard=rows))
     except (httpx.HTTPError,ValueError,KeyError):
         await edit_screen(callback,'⚠️ Не удалось загрузить регионы.',region_error_keyboard(tier))
 

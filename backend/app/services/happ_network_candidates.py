@@ -1,4 +1,4 @@
-"""Build opt-in Happ network-labelled Mobile candidates.
+"""Build opt-in Happ network-labelled Pro candidates.
 
 Happ Premium may filter entries with ``only WiFi`` / ``only Mobile`` in
 their names. These labels do not claim an active tunnel will reconnect.

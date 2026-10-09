@@ -1,7 +1,8 @@
 import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from fastapi import HTTPException, status
 
@@ -130,11 +131,19 @@ class RobokassaProvider(PaymentProvider):
             "f",
         )
 
+        receipt = quote(json.dumps({"items": [{
+            "name": metadata.get("receipt_name", description)[:128],
+            "quantity": 1,
+            "sum": float(amount_value),
+            "tax": "none",
+        }]}, ensure_ascii=False, separators=(",", ":")), safe="")
+
         signature = calculate_robokassa_signature(
             parts=[
                 merchant_login,
                 amount_value,
                 payment_id,
+                receipt,
                 password_1,
             ],
             algorithm=settings.robokassa_hash_algorithm,
@@ -146,6 +155,7 @@ class RobokassaProvider(PaymentProvider):
             "InvId": payment_id,
             "Description": description[:100],
             "SignatureValue": signature,
+            "Receipt": receipt,
             "Culture": "ru",
             "Encoding": "utf-8",
         }

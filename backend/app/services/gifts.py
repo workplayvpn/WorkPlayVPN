@@ -106,7 +106,7 @@ def validate_gift(db, gift, recipient_id):
     if gift.state != "ready":
         raise HTTPException(400, "Подарочный код недействителен или уже использован.")
     if gift.access_tier == "mobile" and not mobile_pilot_allowed(recipient_id):
-        raise HTTPException(409, "Mobile пока недоступен этому аккаунту. Подарок не использован.")
+        raise HTTPException(409, "Pro пока недоступен этому аккаунту. Подарок не использован.")
     if payment.provider == "test" and settings.payment_mode != "test":
         raise HTTPException(409, "Тестовый подарок нельзя активировать в рабочем режиме.")
     # Test mode is snapshotted on the payment, not inferred from a later switch.

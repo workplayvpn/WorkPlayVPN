@@ -29,7 +29,7 @@ def links() -> tuple[str, str]:
 
 def test_local_probe_prefers_direct_and_only_falls_back_to_cdn() -> None:
     config = build_auto_route_config(*links())[0]
-    assert config["remarks"] == "Work&PlayVPN Mobile Auto — pilot"
+    assert config["remarks"] == "Work&PlayVPN Pro Auto — pilot"
     routes = config["outbounds"]
     assert [item["tag"] for item in routes] == ["vpn-direct", "vpn-cdn"]
     assert config["observatory"]["subjectSelector"] == ["vpn-direct"]
@@ -85,4 +85,4 @@ def test_routed_label_follows_selected_node() -> None:
     german = direct.split("#", 1)[0] + "#" + quote("🇩🇪 Германия — Wi-Fi", safe="")
     assert routed_display_name(german) == "🇩🇪 Германия"
     assert build_routed_auto_config(german, cdn)[0]["remarks"] == "🇩🇪 Германия"
-    assert routed_display_name(direct.split("#", 1)[0]) == "Work&PlayVPN Mobile"
+    assert routed_display_name(direct.split("#", 1)[0]) == "Work&PlayVPN Pro"
