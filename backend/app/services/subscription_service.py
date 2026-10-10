@@ -404,6 +404,8 @@ class SubscriptionService:
         database.add(subscription)
 
         try:
+            from app.services.informer import enqueue_trial
+            enqueue_trial(database, user=user, subscription=subscription, plan=plan)
             database.commit()
             database.refresh(subscription)
         except Exception:
