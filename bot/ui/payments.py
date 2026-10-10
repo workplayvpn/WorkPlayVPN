@@ -5,6 +5,21 @@ from aiogram.types import (
 
 from ui.common import build_keyboard
 
+PURCHASE_TERMS_TEXT = (
+    "Перед оплатой ознакомьтесь с документами по кнопкам ниже. "
+    "Нажимая кнопку перехода к оплате, вы принимаете публичную оферту "
+    "и правила использования и ознакомлены с условиями возврата."
+)
+
+
+def purchase_document_rows():
+    return [
+        [InlineKeyboardButton(text="Публичная оферта ↗", url="https://workplayvpn.ru/offer.html")],
+        [InlineKeyboardButton(text="Правила использования ↗", url="https://workplayvpn.ru/rules.html"),
+         InlineKeyboardButton(text="Условия возврата ↗", url="https://workplayvpn.ru/refund.html")],
+    ]
+
+
 
 def build_payment_confirmation_keyboard(
     plan_code: str,
@@ -21,6 +36,7 @@ def build_payment_confirmation_keyboard(
                     ),
                 )
             ],
+            *purchase_document_rows(),
             [
                 InlineKeyboardButton(
                     text="← Изменить тариф",
@@ -50,6 +66,7 @@ def build_payment_keyboard(
                     url=confirmation_url,
                 )
             ],
+            *purchase_document_rows(),
             [
                 InlineKeyboardButton(
                     text="← К лимиту" if source in ("slots", "slots_basic", "slots_mobile") else "← К тарифам",

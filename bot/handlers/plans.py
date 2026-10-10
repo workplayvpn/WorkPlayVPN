@@ -11,6 +11,7 @@ from ui.main import main_menu
 from ui.payments import (
     build_payment_confirmation_keyboard,
     build_payment_keyboard,
+    PURCHASE_TERMS_TEXT,
 )
 from ui.plans import (
     build_plans_keyboard,
@@ -214,7 +215,7 @@ async def select_plan(
         f"В тариф включено устройств: {plan['device_limit']}\n"
         "Купленные дополнительные слоты сохраняются.\n\n"
         "После оплаты подписка активируется "
-        "автоматически.",
+        "автоматически.\n\n" + PURCHASE_TERMS_TEXT,
         build_payment_confirmation_keyboard(
             plan_code,
             source=source,
@@ -307,7 +308,7 @@ async def pay_plan(
             "Оплата откроется на защищённой "
             "странице платёжного сервиса.\n\n"
             "После успешной оплаты подписка "
-            "активируется автоматически.",
+            "активируется автоматически.\n\n" + PURCHASE_TERMS_TEXT,
             build_payment_keyboard(
                 confirmation_url,
                 payment["id"],

@@ -46,11 +46,18 @@ function renderGiftList() {
   if(!giftUI.data[giftUI.tab].length)root.append(giftNode("p","Подарков пока нет.","gift-loading"));
   if(giftUI.data.next_offset!==null && giftUI.data.next_offset!==undefined)root.append(giftButton("Загрузить более ранние подарки",async()=>{const more=await api(`/mini-app/gifts?offset=${giftUI.data.next_offset}`);for(const tab of ["purchased","activated"]){const known=new Set(giftUI.data[tab].map(row=>row.id));giftUI.data[tab].push(...more[tab].filter(row=>!known.has(row.id)));}giftUI.data.next_offset=more.next_offset;renderGiftList();}));
 }
+function giftPurchaseTerms() {
+  const notice=giftNode("p","","purchase-terms");
+  notice.append("Нажимая «Перейти к оплате», вы принимаете ");
+  const link=(label,path)=>{const node=giftNode("a",label);node.href=`https://workplayvpn.ru/${path}`;node.target="_blank";node.rel="noopener noreferrer";return node;};
+  notice.append(link("публичную оферту","offer.html")," и ",link("правила использования","rules.html")," и ознакомлены с ",link("условиями возврата","refund.html"),".");
+  return notice;
+}
 function renderGiftInvoice() {
   if(!giftUI.order)return;const root=giftElement("gift-invoice");root.replaceChildren();const id=giftUI.order.payment_id||giftUI.order.id;const row=giftUI.data.purchased.find(item=>item.payment_id===id)||giftUI.order;
   if(row.state && row.state!=="pending") {root.append(giftNode("h2",row.state==="ready"?"Подарок готов 🎁":row.state==="obsolete"?"Нужен новый заказ":"Счёт завершён"),giftButton("К моим подаркам",()=>{giftUI.tab="purchased";giftPane("mine");}));giftUI.keys.clear();return;}
   root.append(giftNode("h2","Ожидаем оплату"),giftNode("p",`Заказ #${row.order_number || giftUI.order.order_number || id} · ${giftMoney(row)}`),giftNode("p","После подтверждения оплаты код появится в «Моих подарках». Страница проверяет оплату автоматически."));
-  if(row.confirmation_url)root.append(giftButton("Перейти к оплате",()=>openGiftPayment(row.confirmation_url)));root.append(giftButton("Проверить оплату",()=>checkGiftPayment()));
+  if(row.confirmation_url)root.append(giftPurchaseTerms(),giftButton("Перейти к оплате",()=>openGiftPayment(row.confirmation_url)));root.append(giftButton("Проверить оплату",()=>checkGiftPayment()));
 }
 async function loadGifts() {
   if(giftUI.loadPromise)return giftUI.loadPromise;giftUI.loadPromise=fetchGifts();try{return await giftUI.loadPromise;}finally{giftUI.loadPromise=null;}

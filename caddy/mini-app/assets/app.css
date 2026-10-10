@@ -1768,3 +1768,8 @@ button.referral-teaser { cursor: pointer; }
 @keyframes key-sheet-in { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 370px) { .device-card { grid-template-columns: 48px minmax(0,1fr); } .device-card .device-illustration { width: 48px; height: 48px; } .device-card .delete-button { grid-column: 2; justify-self: start; } }
 @media (prefers-reduced-motion: reduce) { .sheet-backdrop:not(.hidden), .sheet-backdrop:not(.hidden) > .sheet { animation: none; } .key-action, .subscription-tile { transition: none; } .subscription-tile:hover { transform: none; } }
+
+/* Purchase documents remain readable in both themes and on narrow screens. */
+.purchase-terms { margin: 16px 0; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.purchase-terms a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.purchase-terms a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 2px; }

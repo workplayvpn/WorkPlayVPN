@@ -4,7 +4,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton
 from api.backend import backend_get, backend_post
 from ui.common import build_keyboard
 from ui.helpers import edit_screen
-from ui.payments import build_payment_keyboard
+from ui.payments import build_payment_keyboard, PURCHASE_TERMS_TEXT
 from ui.navigation import subscription_tier, scoped_action, subscription_back
 
 router = Router(name="device_slots")
@@ -46,7 +46,7 @@ async def buy_slots(callback: CallbackQuery):
             await show_slot_error(callback)
             return
         payment = response.json()
-        await edit_screen(callback, f"💳 Добавление лимита устройств\n\nСумма: {payment['amount']} ₽.\nПосле подтверждения оплаты слоты появятся автоматически. Сроки подписок сохранятся.",
+        await edit_screen(callback, f"💳 Добавление лимита устройств\n\nСумма: {payment['amount']} ₽.\nПосле подтверждения оплаты слоты появятся автоматически. Сроки подписок сохранятся.\n\n" + PURCHASE_TERMS_TEXT,
             build_payment_keyboard(confirmation_url=payment.get("confirmation_url"), payment_id=payment["id"], source=f"slots_{tier}" if tier else "slots"))
     except httpx.RequestError:
         await show_slot_error(callback)
