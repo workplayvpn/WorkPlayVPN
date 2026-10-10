@@ -17,6 +17,7 @@ from app.services.happ_smart_routing import (
     build_happ_smart_routing_link,
 )
 from app.services.happ_network_candidates import network_candidates
+from app.services.happ_network_split import network_split_allowed, network_split_links, clearway_diagnostic_links, NOTICE
 from app.services.happ_subscription_info import subscription_expiry_info
 from app.services.happ_subscription_info import subscription_presentation
 from app.services.happ_subscription_info import hidden_settings_metadata, happ_server_description
@@ -222,12 +223,17 @@ def _build_subscription_feed(
     user, access_tier = subscription_token_service.resolve_token_scope(
         database=database, raw_token=token,
     )
-    if device_id is not None and access_tier != "basic":
+    if device_id is not None and access_tier != "basic" and not network_split_allowed(
+        client=client, access_tier=access_tier, user_id=user.id,
+    ):
         raise HTTPException(status_code=404)
     entitlement = active_entitlements(database, user.id).get(access_tier)
     if entitlement is None:
         return Response(content="", status_code=403, media_type="text/plain")
-    if client == "happ" and access_tier == "mobile" and auto_route_allowed(user.id):
+    split_requested = network_split_allowed(
+        client=client, access_tier=access_tier, user_id=user.id,
+    )
+    if client == "happ" and access_tier == "mobile" and auto_route_allowed(user.id) and not split_requested:
         # The canary's existing Pro URL updates to the single routed JSON entry.
         # Legacy Pro URLs for other users retain their current format.
         return get_routed_mobile_subscription(token, database, request)
@@ -331,6 +337,19 @@ def _build_subscription_feed(
         include_happ_mobile=mobile_entitled,
     )
 
+    split_enabled = False
+    if split_requested:
+        split = network_split_links(
+            links, direct_uuid=source_device.xray_uuid,
+            mobile_uuid=source_device.mobile_xray_uuid,
+        )
+        if split is not None:
+            links = clearway_diagnostic_links(
+                split, user_id=user.id, device_id=source_device.id,
+                device_public_id=getattr(source_device, "public_id", None),
+            )
+            split_enabled = True
+
     provider_metadata = hidden_settings_metadata(
         provider_id=settings.happ_provider_id,
         user_id=user.id,
@@ -340,7 +359,13 @@ def _build_subscription_feed(
         caption = "Work&PlayVPN Pro" if mobile_entitled else "Work&PlayVPN Basic"
         links = [happ_server_description(link, caption) for link in links]
 
-    if mobile_entitled and should_enable_happ_feature(
+    if split_enabled:
+        provider_metadata.update({
+            "dont-use-filter": "0",
+            "announce": "base64:" + base64.b64encode(NOTICE.encode("utf-8")).decode("ascii"),
+        })
+
+    if mobile_entitled and not split_requested and should_enable_happ_feature(
         client=client,
         user_id=user.id,
         configured_user_ids=settings.happ_mobile_network_hint_user_ids,

@@ -28,22 +28,24 @@ def happ_server_description(link: str, description: str) -> str:
                        f"{name}?serverDescription={encoded}"))
 
 
+BASIC_DESCRIPTION = "Надёжное подключение через Wi-Fi. Выбор региона через Telegram бота. Бот: @workplayvpn_bot"
+PRO_DESCRIPTION = "Подключение для Wi-Fi и мобильной сети. Маршрут выбирается автоматически. Выбор региона через Telegram бота. Бот: @workplayvpn_bot"
+
+
 def subscription_presentation(*, access_tier: str, routed_mobile: bool = False) -> dict[str, str]:
     if access_tier == "basic":
         title = "Work&PlayVPN Basic"
-        description = "Надёжное подключение для работы и отдыха."
+        description = BASIC_DESCRIPTION
     elif access_tier == "mobile":
         title = "Work&PlayVPN Pro"
-        description = (
-            "Подключение для Wi-Fi и мобильной сети. "
-            "Маршрут выбирается автоматически."
-            if routed_mobile else
-            "Для подключения выберите профиль Wi-Fi или Pro в Happ."
-        )
+        description = PRO_DESCRIPTION
     else:
         raise ValueError("Unknown subscription tier")
     encoded = base64.b64encode(description.encode("utf-8")).decode("ascii")
-    return {"profile-title": title, "announce": f"base64:{encoded}"}
+    return {
+        "profile-title": title, "announce": f"base64:{encoded}",
+        "profile-web-page-url": f"https://t.me/workplayvpn_bot?startapp=subscription_{access_tier}",
+    }
 
 
 def subscription_expiry_info(expires_at: datetime | None) -> str | None:

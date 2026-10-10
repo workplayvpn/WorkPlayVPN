@@ -1497,6 +1497,15 @@ async function loadData() {
       const allowedViews = new Set(["home", "plans", "devices", "profile", "subscriptions", "referrals", "help", "support", "gifts"]);
       if (["basic", "mobile"].includes(params.get("detail_tier"))) state.detailTier = params.get("detail_tier");
       setView(allowedViews.has(requestedView) ? requestedView : "home");
+      const subscriptionStart = telegram?.initDataUnsafe?.start_param || params.get("tgWebAppStartParam");
+      const linkedTier = { subscription_basic: "basic", subscription_mobile: "mobile" }[subscriptionStart];
+      if (linkedTier) {
+        if (activeSubscriptions().some((entry) => subscriptionTier(entry) === linkedTier)) {
+          openSubscription(linkedTier);
+        } else {
+          setView("subscriptions");
+        }
+      }
       state.initialViewApplied = true;
       const keyTier = params.get("key_tier");
       if (params.get("key_action") === "copy" && ["basic", "mobile"].includes(keyTier)

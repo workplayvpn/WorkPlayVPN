@@ -28,6 +28,7 @@ from app.services.happ_auto_route import (
     build_auto_route_config,
     build_routed_auto_config,
 )
+from app.services.happ_network_split import network_split_allowed
 from app.services.subscription_builder import subscription_builder
 from app.services.subscription_token_service import subscription_token_service
 from app.services.vpn_node_profile_service import vpn_node_profile_service
@@ -84,6 +85,14 @@ def _build_response(
     user, tier = subscription_token_service.resolve_token_scope(database, token)
     if tier != "mobile" or not auto_route_allowed(user.id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if request is not None and network_split_allowed(
+        client=("happ" if request.headers.get("user-agent", "").lower().startswith("happ/") else "generic"),
+        access_tier=tier, user_id=user.id,
+    ):
+        # Existing device URLs must receive the same pilot feed as ordinary URLs.
+        from app.api.subscription_feed import _build_subscription_feed
+        return _build_subscription_feed(token, request, database, device_id=device_id)
+
     mobile_entitlement = active_entitlements(database, user.id).get("mobile")
     if mobile_entitlement is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
@@ -153,10 +162,11 @@ def _build_response(
         "profile-title": profile_title,
         "profile-update-interval": "3",
     }
-    if branded or device_id is not None:
-        headers.update(subscription_presentation(
-            access_tier="mobile", routed_mobile=True,
-        ))
+    headers.update(subscription_presentation(
+        access_tier="mobile", routed_mobile=True,
+    ))
+    if not branded and device_id is None:
+        headers["profile-title"] = profile_title
     provider_metadata = hidden_settings_metadata(
         provider_id=settings.happ_provider_id,
         user_id=user.id,

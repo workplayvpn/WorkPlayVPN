@@ -54,7 +54,7 @@ def test_basic_and_mobile_have_distinct_happ_descriptions() -> None:
     assert all(len(item["profile-title"]) <= 25 for item in (basic, mobile))
     def description(item):
         return base64.b64decode(item["announce"].removeprefix("base64:")).decode("utf-8")
-    assert description(basic) == "Надёжное подключение для работы и отдыха."
+    assert description(basic) == "Надёжное подключение через Wi-Fi. Выбор региона через Telegram бота. Бот: @workplayvpn_bot"
     assert "автоматически" in description(mobile)
     assert description(basic) != description(mobile)
 
@@ -238,3 +238,16 @@ def test_happ_smart_routing_rollout_supports_global_flag() -> None:
         user_id=103,
         configured_user_ids="*",
     )
+
+
+def test_profile_page_links_and_exact_pro_description():
+    from app.services.happ_subscription_info import PRO_DESCRIPTION
+    for tier in ("basic", "mobile"):
+        for routed in (False, True):
+            metadata = subscription_presentation(access_tier=tier, routed_mobile=routed)
+            assert metadata["profile-web-page-url"] == f"https://t.me/workplayvpn_bot?startapp=subscription_{tier}"
+            description = base64.b64decode(metadata["announce"].removeprefix("base64:")).decode()
+            assert description.endswith("Бот: @workplayvpn_bot")
+            assert len(description) <= 200
+            if tier == "mobile":
+                assert description == PRO_DESCRIPTION
